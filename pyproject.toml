@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools-scm>=8.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "climatrix"
+version = "0.1.0"
+authors = [{name = "Jakub Walczak", email = "jakub.walczak@p.lodz.pl"}]
+
+description = "Tool for climate data research"
+readme = "./README.md"
+license = {file = "./LICENSE"}
+
+keywords = [
+    "climate data",
+
+]
+
+requires-python = ">=3.12"
+dependencies = [
+    "numpy",
+    "xarray",
+    "matplotlib",
+    "seaborn",
+    "netCDF4",
+    "typer",
+    "rich"
+]
+
+[project.optional-dependencies]
+dev = [
+    "cdsapi>=0.7.4",
+]
+all = ["climatrix[dev]"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = {attr = "climatrix._version.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+
+[tool.isort]
+profile = "black"
+include_trailing_comma = true
+line_length = 79
+overwrite_in_place = true
+use_parentheses = true
+
+[tool.black]
+line_length = 79
+preview = true
+
+[project.scripts]
+cm = "climatrix.cli.main:cm"
