@@ -1,6 +1,10 @@
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
-from pydantic import BaseModel
 
-class Request(BaseModel):
+
+@dataclass
+class Request:
     dataset: str
     request: dict[str, Any]
+    filename: Path

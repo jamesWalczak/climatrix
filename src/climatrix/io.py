@@ -1,25 +1,40 @@
-from uuid import uuid1
-import sys
 import os
-import toml
-from pathlib import Path
+import tomllib as toml
 from importlib import resources
-import importlib.util
+from pathlib import Path
 
 import climatrix
+from climatrix.dataset.consts import DatasetType
+from climatrix.dataset.models import DatasetDefinition
 from climatrix.models import Request
-from climatrix.consts import Dataset
+
 
 def get_resource_path(resource_path: str) -> Path:
-    if (path:=  resources.files(climatrix.__name__).joinpath(resource_path)).exists():
+    if (
+        path := resources.files(climatrix.__name__).joinpath(resource_path)
+    ).exists():
         return path
-    raise FileNotFoundError(f"The download script {resource_path} does not exists")
+    raise FileNotFoundError(
+        f"The download script {resource_path} does not exists"
+    )
 
-def get_download_request(dataset: Dataset):
-    rel_path = Path(".").parents[1] / "scripts" / "download" / dataset
+
+def get_download_request(dataset: DatasetType):
+    rel_path = (
+        Path(".") / ".." / ".." / "scripts" / "download" / f"{dataset}.toml"
+    )
     return get_resource_path(rel_path)
 
-def load_request(dataset: Dataset) -> Request:
-    path: Path = get_resource_path(dataset.value)
+
+def load_request(dataset: DatasetType) -> Request:
+    path: Path = get_download_request(dataset)
     with open(path, "r") as f:
         return Request(**toml.load(f))
+
+
+def _parse_def_file(path: str | os.PathLike | Path) -> DatasetDefinition:
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"The file {path} does not exist")
+    with open(path, "rb") as f:
+        return DatasetDefinition(**toml.load(f))
