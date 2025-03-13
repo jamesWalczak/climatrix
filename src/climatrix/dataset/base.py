@@ -19,7 +19,6 @@ from climatrix.io import _parse_def_file
 
 class BaseDataset(ABC):
     __slots__ = ("dset", "def")
-    __subclasses: list[type[Self]] = None
 
     cube: xr.Dataset
     _def: DatasetDefinition
@@ -44,11 +43,6 @@ class BaseDataset(ABC):
         self.dset = dset
         self._def = definition
         self.validate()
-
-    def __init_subclass__(cls):
-        if BaseDataset.__subclasses is None:
-            BaseDataset.__subclasses = []
-        BaseDataset.__subclasses.append(cls)
 
     @property
     def latitude(self) -> xr.DataArray:
@@ -76,9 +70,12 @@ class BaseDataset(ABC):
 
     @raise_if_not_installed("hvplot", "panel")
     def plot(self, ax: Axes | None = None, **kwargs) -> Axes:
-        from .plot import InteractivePlotter
+        from .plot import InteractiveDensePlotter
 
-        InteractivePlotter(self).show()
+        # TODO: to remove
+        res = self.sample(number=100).plot()
+
+        InteractiveDensePlotter(self, **kwargs).show()
 
     @classmethod
     def load(
@@ -93,9 +90,9 @@ class BaseDataset(ABC):
             definition_file: Path = path.with_suffix(path.suffix + ".def")
             if not definition_file.exists():
                 raise FileNotFoundError(
-                    f"The file {definition_file} does not "
+                    f"The default definition file {definition_file} does not "
                     " exist. Pass explicitly the "
-                    "definition file as argument"
+                    "definition file as argument `definition_file`."
                 )
         elif not definition_file.exists():
             raise FileNotFoundError(

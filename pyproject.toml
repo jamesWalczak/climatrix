@@ -23,15 +23,29 @@ dependencies = [
     "matplotlib",
     "seaborn",
     "netCDF4",
+    "cartopy",
     "typer",
-    "rich"
+    "rich",
+    "setuptools",
+    "pydantic",
+    "dask"
 ]
 
 [project.optional-dependencies]
 dev = [
     "cdsapi>=0.7.4",
+    "isort",
+    "black"
 ]
-all = ["climatrix[dev]"]
+plot = [
+    "hvplot",
+    "panel",
+    "geoviews"
+]
+all = [
+    "climatrix[dev]", 
+    "climatrix[plot]"
+]
 
 [tool.setuptools]
 include-package-data = true

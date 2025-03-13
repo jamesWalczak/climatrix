@@ -8,11 +8,27 @@ user: {
     width: 60
   }
 
-user -> download dataset -> from CDS -> specify dataset
-user -> download dataset -> from CDS -> specify date
+user -> download dataset
+download dataset -> from CDS
 
-user -> open dataset -> gridded dataset
-user -> sample point cloud
+from CDS -> specify dataset
+from CDS -> specify date
+user -> open dataset
+open dataset -> dense dataset
+open dataset -> sparse dataset
+
+dense dataset -> sample
+sample -> uniformly
+sample -> normally
+
+
 user -> reconstruct
+sparse dataset -> reconstruct
+reconstruct -> IDW
+reconstruct -> kiring
+reconstruct -> INR
+
+
+user -> sample point cloud
 user -> prepare train/test splits
 user -> evaluate

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 __all__ = ("StaticDenseDataset", "DynamicDenseDataset")
 from typing import TYPE_CHECKING, Self
 
@@ -9,6 +10,7 @@ from matplotlib.axes import Axes
 from climatrix.dataset.base import BaseDataset
 from climatrix.exceptions import DatasetCreationError
 
+from climatrix.sampling.type import SamplingType
 if TYPE_CHECKING:
     from climatrix.dataset.models import DatasetDefinition
     from climatrix.dataset.sparse import SparseDataset
@@ -30,7 +32,10 @@ class DenseDataset(BaseDataset):
         # TODO: verify it is dense xarray dataset (gridded one)
         pass
 
-    def sample(self) -> SparseDataset: ...
+    def sample(self, portion: float | None = None, number: int | None = None, *, kind: SamplingType | str = SamplingType.UNIFORM) -> SparseDataset:
+        if isinstance(kind, str):
+            kind = SamplingType[kind.upper()]
+        return SamplingType(kind).value(self, portion=portion, number=number).sample()
 
 
 class StaticDenseDataset(DenseDataset):

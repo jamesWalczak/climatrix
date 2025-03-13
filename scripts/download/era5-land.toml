@@ -1,3 +1,5 @@
+filename = "era5-land.nc"
+
 dataset = "reanalysis-era5-land"
 
 [request]
