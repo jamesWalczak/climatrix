@@ -11,6 +11,7 @@ from matplotlib.axes import Axes
 from climatrix.dataset.base import BaseDataset
 from climatrix.decorators import raise_if_not_installed
 from climatrix.exceptions import DatasetCreationError
+from climatrix.sampling.base import NaNPolicy
 from climatrix.sampling.type import SamplingType
 
 if TYPE_CHECKING:
@@ -127,14 +128,14 @@ class DenseDataset(BaseDataset):
         portion: float | None = None,
         number: int | None = None,
         *,
-        kind: SamplingType | str = SamplingType.UNIFORM,
+        kind: SamplingType | str = "uniform",
+        nan_policy: NaNPolicy | str = "ignore",
+        **sampler_kwargs,
     ) -> SparseDataset:
-        if isinstance(kind, str):
-            kind = SamplingType.get(kind)
         return (
-            SamplingType(kind)
-            .value(self, portion=portion, number=number)
-            .sample(nan_policy="resample")
+            SamplingType.get(kind)
+            .value(self, portion=portion, number=number, **sampler_kwargs)
+            .sample(nan_policy=nan_policy)
         )
 
     @raise_if_not_installed("hvplot", "panel")

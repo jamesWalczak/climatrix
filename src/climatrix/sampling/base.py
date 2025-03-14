@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Self
 
 if TYPE_CHECKING:
     from climatrix.dataset.dense import DenseDataset, SparseDataset
@@ -12,6 +12,18 @@ class NaNPolicy(Enum):
     IGNORE = "ignore"
     RESAMPLE = "resample"
     RAISE = "raise"
+
+    def __missing__(self, value):
+        raise ValueError(f"Unknown NaN policy: {value}")
+
+    @classmethod
+    def get(cls, value: str | Self):
+        if isinstance(value, cls):
+            return value
+        try:
+            return cls[value.upper()]
+        except KeyError:
+            raise ValueError(f"Unknown Nan policy: {value}")
 
 
 class BaseSampler(ABC):
@@ -87,7 +99,6 @@ class BaseSampler(ABC):
             )
 
     def sample(self, nan_policy: NaNPolicy | str = "ignore") -> SparseDataset:
-        nan_policy = self.get_policy(nan_policy)
         nan_policy = self.get_policy(nan_policy)
         n = self.get_sample_size()
         lats = self.get_all_lats()

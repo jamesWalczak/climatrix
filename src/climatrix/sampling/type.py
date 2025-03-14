@@ -1,13 +1,13 @@
 from enum import Enum
 from typing import Self
 
-from climatrix.sampling.uniform import UniformSampler
 from climatrix.sampling.normal import NormalSampler
+from climatrix.sampling.uniform import UniformSampler
 
 
 class SamplingType(Enum):
     UNIFORM = UniformSampler
-    NORMAL = Normal
+    NORMAL = NormalSampler
 
     def __missing__(self, value):
         raise ValueError(f"Unknown sampling type: {value}")
