@@ -126,6 +126,7 @@ class InteractiveScatterPlotter:
             title=f"Sparse dataset for {self.dataset._def.name}",
             height=600,
             width=900,
+            marker="x",
         )
         plot = (
             plot

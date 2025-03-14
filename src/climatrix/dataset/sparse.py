@@ -9,6 +9,7 @@ from matplotlib.axes import Axes
 from climatrix.dataset.base import BaseDataset
 from climatrix.dataset.models import DatasetDefinition
 from climatrix.decorators import raise_if_not_installed
+from climatrix.reconstruct.type import ReconstructionType
 
 if TYPE_CHECKING:
     from climatrix.dataset.dense import DenseDataset
@@ -36,41 +37,18 @@ class SparseDataset(BaseDataset):
 
         InteractiveScatterPlotter(self).show()
 
-        # import cartopy.crs as ccrs
-        # import cartopy.feature as cfeature
-
-        # projection = ccrs.PlateCarree()  # Or another projection like ccrs.Robinson()
-
-        # # Create the figure and axes
-        # if ax is None:
-        #     fig, ax = plt.subplots(figsize=(10, 5), subplot_kw={'projection': projection})
-
-        # # Add map features (coastlines, etc.)
-        # breakpoint()
-        # ax.coastlines()
-        # ax.add_feature(cfeature.BORDERS, linestyle=':')
-        # ax.gridlines(draw_labels=True, linestyle='--')
-
-        # # Plot the scatter points
-        # sc = ax.scatter(
-        #     self.longitude.values,
-        #     self.latitude.values,
-        #     c=self.da[field].isel(valid_time=0).values,  # Color the points by temperature
-        #     s=50,  # Adjust marker size
-        #     transform=ccrs.PlateCarree(),  # Important: Data is in lat/lon
-        #     cmap='viridis',  # Choose a colormap
-        # )
-
-        # # Add a colorbar
-        # plt.colorbar(sc, ax=ax, label='Temperature')
-
-        # # Set plot title
-        # plt.title('Sparse Temperature Points')
-
-        # # Show the plot
-        # plt.show()
-
-    def reconstruct(self) -> DenseDataset: ...
+    def reconstruct(
+        self,
+        lat: slice,
+        lon: slice,
+        method: ReconstructionType | str = "idw",
+        **recon_kwargs,
+    ) -> DenseDataset:
+        return (
+            ReconstructionType.get(method)
+            .value(self, lat=lat, lon=lon, **recon_kwargs)
+            .reconstruct()
+        )
 
 
 class StaticSparseDataset(SparseDataset): ...
