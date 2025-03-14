@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-
 __all__ = ("StaticSparseDataset", "DynamicSparseDataset")
-import datetime
 from typing import TYPE_CHECKING, ClassVar, Self
 
 import xarray as xr
 from matplotlib.axes import Axes
-import matplotlib.pyplot as plt
 
 from climatrix.dataset.base import BaseDataset
 from climatrix.dataset.models import DatasetDefinition
-from climatrix.exceptions import DatasetCreationError
+from climatrix.decorators import raise_if_not_installed
 
 if TYPE_CHECKING:
     from climatrix.dataset.dense import DenseDataset
@@ -21,21 +18,22 @@ class SparseDataset(BaseDataset):
     SPARSE_DIM: ClassVar[str] = "point"
 
     def __new__(
-        cls, dset: xr.Dataset | xr.DataArray, definition: DatasetDefinition
+        cls, da: xr.Dataset | xr.DataArray, definition: DatasetDefinition
     ) -> Self:
         if cls is SparseDataset:
             if definition.time_name is not None:
-                return DynamicSparseDataset(dset, definition)
-            return StaticSparseDataset(dset, definition)
+                return DynamicSparseDataset(da, definition)
+            return StaticSparseDataset(da, definition)
         return super().__new__(cls)
 
     def validate(self) -> None:
         # TODO: verify it is dense xarray dataset (gridded one)
         pass
 
+    @raise_if_not_installed("hvplot", "panel")
     def plot(self, ax: Axes | None = None, **kwargs):
         from climatrix.dataset.plot import InteractiveScatterPlotter
-        
+
         InteractiveScatterPlotter(self).show()
 
         # import cartopy.crs as ccrs
@@ -57,7 +55,7 @@ class SparseDataset(BaseDataset):
         # sc = ax.scatter(
         #     self.longitude.values,
         #     self.latitude.values,
-        #     c=self.dset[field].isel(valid_time=0).values,  # Color the points by temperature
+        #     c=self.da[field].isel(valid_time=0).values,  # Color the points by temperature
         #     s=50,  # Adjust marker size
         #     transform=ccrs.PlateCarree(),  # Important: Data is in lat/lon
         #     cmap='viridis',  # Choose a colormap
@@ -70,14 +68,12 @@ class SparseDataset(BaseDataset):
         # plt.title('Sparse Temperature Points')
 
         # # Show the plot
-        # plt.show()        
+        # plt.show()
 
     def reconstruct(self) -> DenseDataset: ...
 
 
-class StaticSparseDataset(SparseDataset):
-    ...
+class StaticSparseDataset(SparseDataset): ...
 
 
-class DynamicSparseDataset(SparseDataset):
-    ...
+class DynamicSparseDataset(SparseDataset): ...

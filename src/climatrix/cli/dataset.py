@@ -1,5 +1,3 @@
-import time
-from datetime import datetime, timezone
 from pathlib import Path
 
 import cdsapi
@@ -21,8 +19,9 @@ console = Console()
 def download(
     dataset: DatasetType,
     target: Path = Path("."),
-    year: int = 2024,
-    month: Annotated[int, typer.Option(min=1, max=12)] = 12,
+    year: Annotated[int, typer.Option("--year", "-y")] = 2024,
+    month: Annotated[int, typer.Option("--month", "-m", min=1, max=12)] = 12,
+    day: Annotated[int, typer.Option("--day", "-d", min=1, max=31)] = 1,
 ):
     request: Request = load_request(dataset)
     if target.is_dir():
@@ -36,6 +35,7 @@ def download(
         return
     request.request["year"] = year
     request.request["month"] = month
+    request.request["day"] = day
     with console.status("[magenta]Preparing request") as status:
         status.update("[magenta]Downloading dataset", spinner="bouncingBall")
         client = cdsapi.Client()

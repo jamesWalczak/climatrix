@@ -1,6 +1,6 @@
 import functools
 import importlib
-from typing import Any, Callable
+from typing import Callable
 
 
 def raise_if_not_installed(*packages) -> Callable:

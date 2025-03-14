@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import os
-import threading
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Self
+from typing import Self
 
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
@@ -13,18 +12,17 @@ import xarray as xr
 from matplotlib.axes import Axes
 
 from climatrix.dataset.models import DatasetDefinition
-from climatrix.decorators import raise_if_not_installed
 from climatrix.io import _parse_def_file
 
 
 class BaseDataset(ABC):
-    __slots__ = ("dset", "def")
+    __slots__ = ("da", "def")
 
-    cube: xr.Dataset
+    da: xr.DataArray
     _def: DatasetDefinition
 
     def __init__(
-        self, dset: xr.Dataset | xr.DataArray, definition: DatasetDefinition
+        self, da: xr.Dataset | xr.DataArray, definition: DatasetDefinition
     ) -> None:
         if not isinstance(definition, DatasetDefinition):
             raise TypeError(
@@ -32,25 +30,32 @@ class BaseDataset(ABC):
                 "DatasetDefinition object, "
                 f"but provided {type(definition).__name__}"
             )
-        if isinstance(dset, xr.DataArray):
-            dset = dset.to_dataset()
-        if not isinstance(dset, (xr.Dataset)):
+        if isinstance(da, xr.Dataset):
+            if len(da.data_vars) > 1:
+                raise ValueError(
+                    "Dataset can be created only based on "
+                    "xarray.DataArray or xarray.Dataset with single variable "
+                    "objects, but provided xarray.Dataset with multiple "
+                    "data_vars."
+                )
+            da = da[list(da.data_vars.keys())[0]]
+        if not isinstance(da, xr.DataArray):
             raise TypeError(
                 "Dataset can be created only based on "
-                "xarray.DataArray or xarray.Dataset objects, "
-                f"but provided {type(dset).__name__}"
+                "xarray.DataArray or single-variable xarray.Dataset objects, "
+                f"but provided {type(da).__name__}"
             )
-        self.dset = dset
+        self.da = da
         self._def = definition
         self.validate()
 
     @property
     def latitude(self) -> xr.DataArray:
-        return self.dset[self._def.latitude_name]
+        return self.da[self._def.latitude_name]
 
     @property
     def longitude(self) -> xr.DataArray:
-        return self.dset[self._def.longitude_name]
+        return self.da[self._def.longitude_name]
 
     @property
     def time(self) -> xr.DataArray:
@@ -58,24 +63,15 @@ class BaseDataset(ABC):
             raise AttributeError(
                 f"The dataset {self._def.name} has no time dimension"
             )
-        return self.dset[self._def.time_name]
-
-    @property
-    def fields_names(self) -> tuple[str]:
-        return tuple(self.dset.data_vars)
+        return self.da[self._def.time_name]
 
     @abstractmethod
     def validate(self) -> None:
         raise NotImplementedError
 
-    @raise_if_not_installed("hvplot", "panel")
+    @abstractmethod
     def plot(self, ax: Axes | None = None, **kwargs) -> Axes:
-        from .plot import InteractiveDensePlotter
-
-        # TODO: to remove
-        res = self.sample(number=100).plot()
-
-        InteractiveDensePlotter(self, **kwargs).show()
+        raise NotImplementedError
 
     @classmethod
     def load(
@@ -99,5 +95,5 @@ class BaseDataset(ABC):
                 f"The file {definition_file} does not " "exist"
             )
         definition = _parse_def_file(definition_file)
-        dset = xr.open_dataset(path, chunks="auto")
-        return definition.dataset_class(dset, definition)
+        da = xr.open_dataset(path, chunks="auto")
+        return definition.dataset_class(da, definition)

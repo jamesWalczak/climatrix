@@ -1,5 +1,4 @@
 import typer
-from rich.console import Console
 
 from climatrix._version import __version__
 from climatrix.cli.dataset import dataset_app

@@ -1,12 +1,7 @@
-import threading
-import time
-import webbrowser
-
-import hvplot.xarray  # Ensure hvplot and panel are installed: pip install hvplot panel
-import pandas as pd
+import cartopy.crs as ccrs
+import geoviews.feature as gf
+import hvplot.xarray
 import panel as pn
-import xarray as xr
-import cartopy.feature as cfeature
 
 from climatrix.dataset.base import BaseDataset
 
@@ -23,9 +18,6 @@ class InteractiveDensePlotter:
             )
         self.dataset = dataset
 
-        self.var_selector = pn.widgets.Select(
-            name="Variable", options=list(self.dataset.fields_names)
-        )
         time_labels = [str(t) for t in self.dataset.time.values]
         self.time_slider = pn.widgets.DiscreteSlider(
             name="Time",
@@ -36,15 +28,13 @@ class InteractiveDensePlotter:
 
         self.layout = pn.Column(
             pn.Row(
-                self.var_selector,
                 self.time_slider,
                 sizing_mode="stretch_width",
             ),
             pn.Row(self.spinner, self.plot_pane),
-            sizing_mode="stretch_both",
+            # sizing_mode="stretch_both",
         )
 
-        self.var_selector.param.watch(self._update_plot, "value")
         self.time_slider.param.watch(self._update_plot, "value")
 
         self._update_plot()
@@ -54,11 +44,18 @@ class InteractiveDensePlotter:
         self._delayed_plot_update()
 
     def _delayed_plot_update(self):
-        var = self.var_selector.value
         t = self.time_slider.value
-        da = self.dataset.dset[var].sel(**{self.dataset._def.time_name: t})
+        da = self.dataset.da.sel(**{self.dataset._def.time_name: t})
+        proj = ccrs.PlateCarree()
         plot = da.hvplot().opts(
-            title=f"Field: {var} at {str(t)}", height=600, width=900
+            title=f"Field: {self.dataset._def.name} at {str(t)}",
+            height=700,
+            width=700,
+        )
+        plot = (
+            plot
+            * gf.borders().opts(projection=proj)
+            * gf.coastline().opts(projection=proj)
         )
         self.plot_pane.object = plot
         self.spinner.value = False
@@ -66,8 +63,9 @@ class InteractiveDensePlotter:
     def show(self):
         return self.layout.show()
 
+
 class InteractiveScatterPlotter:
-  
+
     def __init__(self, dataset: BaseDataset):
         if not isinstance(dataset, BaseDataset):
             raise TypeError(
@@ -77,9 +75,9 @@ class InteractiveScatterPlotter:
             )
         self.dataset = dataset
 
-        self.var_selector = pn.widgets.Select(
-            name="Variable", options=list(self.dataset.fields_names)
-        )
+        # self.var_selector = pn.widgets.Select(
+        #     name="Variable", options=list(self.dataset.fields_names)
+        # )
         time_labels = [str(t) for t in self.dataset.time.values]
         self.time_slider = pn.widgets.DiscreteSlider(
             name="Time",
@@ -90,7 +88,7 @@ class InteractiveScatterPlotter:
 
         self.layout = pn.Column(
             pn.Row(
-                self.var_selector,
+                # self.var_selector,
                 self.time_slider,
                 sizing_mode="stretch_width",
             ),
@@ -98,7 +96,7 @@ class InteractiveScatterPlotter:
             sizing_mode="stretch_both",
         )
 
-        self.var_selector.param.watch(self._update_plot, "value")
+        # self.var_selector.param.watch(self._update_plot, "value")
         self.time_slider.param.watch(self._update_plot, "value")
 
         self._update_plot()
@@ -108,22 +106,32 @@ class InteractiveScatterPlotter:
         self._delayed_plot_update()
 
     def _delayed_plot_update(self):
-        var = self.var_selector.value
+        # var = self.var_selector.value
         t = self.time_slider.value
-        da = self.dataset.dset[var].sel(**{self.dataset._def.time_name: t})
-        plot = da.hvplot.scatter(
-                    x=self.dataset._def.longitude_name,
-                    y=self.dataset._def.latitude_name,
-                    c=var,
-                    geo=True, #if you want to use geographical plot
-                    projection = 'PlateCarree', #if you use geo=True, select the projection
-                    title=f"Scatter Plot: {var}",
-                    height=600,
-                    width=900,
-                )        
-        # plot = da.hvplot().opts(
-        #     title=f"Field: {var} at {str(t)}", height=600, width=900
-        # )
+        da = self.dataset.da.sel(**{self.dataset._def.time_name: t})
+        da = da.assign_coords(
+            {
+                self.dataset._def.longitude_name: (
+                    ((da[self.dataset._def.longitude_name] + 180) % 360) - 180
+                )
+            }
+        )
+        proj = ccrs.PlateCarree()
+        plot = da.to_dataset(name="values").hvplot.scatter(
+            x=self.dataset._def.longitude_name,
+            y=self.dataset._def.latitude_name,
+            c="values",
+            geo=True,
+            projection=proj,
+            title=f"Sparse dataset for {self.dataset._def.name}",
+            height=600,
+            width=900,
+        )
+        plot = (
+            plot
+            * gf.borders().opts(projection=proj)
+            * gf.coastline().opts(projection=proj)
+        )
         self.plot_pane.object = plot
         self.spinner.value = False
 

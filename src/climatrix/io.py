@@ -28,7 +28,7 @@ def get_download_request(dataset: DatasetType):
 
 def load_request(dataset: DatasetType) -> Request:
     path: Path = get_download_request(dataset)
-    with open(path, "r") as f:
+    with open(path, "rb") as f:
         return Request(**toml.load(f))
 
 

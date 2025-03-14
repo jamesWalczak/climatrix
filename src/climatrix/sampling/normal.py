@@ -5,7 +5,7 @@ from climatrix.dataset.sparse import SparseDataset
 from climatrix.sampling.base import BaseSampler
 
 
-class UniformSampler(BaseSampler):
+class NormalSampler(BaseSampler):
 
     def _sample_data(self, lats, lons, n) -> SparseDataset:
         selected_lats = np.random.choice(lats, n)
