@@ -27,7 +27,7 @@ dependencies = [
     "typer",
     "rich",
     "setuptools",
-    "pydantic",
+    "scipy",
     "dask"
 ]
 

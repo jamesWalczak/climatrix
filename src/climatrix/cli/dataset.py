@@ -6,7 +6,6 @@ from rich.console import Console
 from rich.table import Table
 from typing_extensions import Annotated
 
-from climatrix.dataset.base import BaseDataset
 from climatrix.dataset.consts import DatasetType
 from climatrix.io import load_request
 from climatrix.models import Request
@@ -22,6 +21,7 @@ def download(
     year: Annotated[int, typer.Option("--year", "-y")] = 2024,
     month: Annotated[int, typer.Option("--month", "-m", min=1, max=12)] = 12,
     day: Annotated[int, typer.Option("--day", "-d", min=1, max=31)] = 1,
+    hour: Annotated[int, typer.Option("--hour", "-h", min=0, max=23)] = 0,
 ):
     request: Request = load_request(dataset)
     if target.is_dir():
@@ -36,6 +36,7 @@ def download(
     request.request["year"] = year
     request.request["month"] = month
     request.request["day"] = day
+    request.request["time"] = hour
     with console.status("[magenta]Preparing request") as status:
         status.update("[magenta]Downloading dataset", spinner="bouncingBall")
         client = cdsapi.Client()
@@ -53,15 +54,15 @@ def list():
     console.print(table)
 
 
-@dataset_app.command("show", help="Show the given dataset")
-def show(file: Path):
-    assert isinstance(file, Path)
-    file = file.expanduser().resolve()
-    if not file.exists():
-        raise FileNotFoundError(
-            f"The file [bold green]{file}[/bold green] does not exist"
-        )
-    with console.status("[magenta]Preparing dataset...") as status:
-        status.update("[magenta]Opening dataset...", spinner="bouncingBall")
-        dataset = BaseDataset.load(file)
-    dataset.plot()
+# @dataset_app.command("show", help="Show the given dataset")
+# def show(file: Path):
+#     assert isinstance(file, Path)
+#     file = file.expanduser().resolve()
+#     if not file.exists():
+#         raise FileNotFoundError(
+#             f"The file [bold green]{file}[/bold green] does not exist"
+#         )
+#     with console.status("[magenta]Preparing dataset...") as status:
+#         status.update("[magenta]Opening dataset...", spinner="bouncingBall")
+#         dataset = BaseDataset.load(file)
+#     dataset.plot()

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, ClassVar, Self
 import xarray as xr
 from matplotlib.axes import Axes
 
-from climatrix.dataset.base import BaseDataset
+from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.dataset.models import DatasetDefinition
 from climatrix.decorators import raise_if_not_installed
 from climatrix.reconstruct.type import ReconstructionType
@@ -14,8 +14,41 @@ from climatrix.reconstruct.type import ReconstructionType
 if TYPE_CHECKING:
     from climatrix.dataset.dense import DenseDataset
 
+class SparseDataset(BaseClimatrixDataset):
+    SPARSE_DIM: ClassVar[str] = "point"
+    
+    def reconstruct(
+        self,
+        lat: slice,
+        lon: slice,
+        method: ReconstructionType | str = "idw",
+        **recon_kwargs,
+    ) -> DenseDataset:
+        return (
+            ReconstructionType.get(method)
+            .value(self, lat=lat, lon=lon, **recon_kwargs)
+            .reconstruct()
+        )
 
-class SparseDataset(BaseDataset):
+class DynamicSparseDataset(SparseDataset):
+
+    def __init__(self, xarray_obj: xr.DataArray):
+        super().__init__(xarray_obj)
+        raise NotImplementedError("DynamicSparseDataset is not implemented yet")
+    
+
+class StaticSparseDataset(SparseDataset):
+
+    def __init__(self, xarray_obj: xr.DataArray):
+        super().__init__(xarray_obj)
+
+
+
+
+
+
+
+class A:
     SPARSE_DIM: ClassVar[str] = "point"
 
     def __new__(
@@ -37,21 +70,5 @@ class SparseDataset(BaseDataset):
 
         InteractiveScatterPlotter(self).show()
 
-    def reconstruct(
-        self,
-        lat: slice,
-        lon: slice,
-        method: ReconstructionType | str = "idw",
-        **recon_kwargs,
-    ) -> DenseDataset:
-        return (
-            ReconstructionType.get(method)
-            .value(self, lat=lat, lon=lon, **recon_kwargs)
-            .reconstruct()
-        )
 
 
-class StaticSparseDataset(SparseDataset): ...
-
-
-class DynamicSparseDataset(SparseDataset): ...

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from turtle import distance
 from typing import TYPE_CHECKING
 
 import numpy as np

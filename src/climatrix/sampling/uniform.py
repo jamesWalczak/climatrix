@@ -1,13 +1,12 @@
 import numpy as np
 import xarray as xr
 
-from climatrix.dataset.sparse import SparseDataset
 from climatrix.sampling.base import BaseSampler
 
 
 class UniformSampler(BaseSampler):
 
-    def _sample_data(self, lats, lons, n) -> SparseDataset:
+    def _sample_data(self, lats, lons, n):
         selected_lats = np.random.choice(lats, n)
         selected_lons = np.random.choice(lons, n)
         data = self.dataset.da.sel(
@@ -23,7 +22,7 @@ class UniformSampler(BaseSampler):
         )
         return SparseDataset(data, self.dataset._def)
 
-    def _sample_no_nans(self, lats, lons, n) -> SparseDataset:
+    def _sample_no_nans(self, lats, lons, n):
         stacked = self.dataset.da.stack(
             **{
                 SparseDataset.SPARSE_DIM: [

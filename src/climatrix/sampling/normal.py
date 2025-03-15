@@ -5,11 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import xarray as xr
 
-from climatrix.dataset.sparse import SparseDataset
 from climatrix.sampling.base import BaseSampler
-
-if TYPE_CHECKING:
-    from climatrix.dataset.dense import DenseDataset
 
 Longitude = float
 Latitude = float
