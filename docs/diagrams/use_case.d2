@@ -13,22 +13,26 @@ download dataset -> from CDS
 
 from CDS -> specify dataset
 from CDS -> specify date
-user -> open dataset
-open dataset -> dense dataset
-open dataset -> sparse dataset
+from CDS -> specify target
 
-dense dataset -> sample
+user -> manage sparse dataset
+user -> manage dynamic dataset
+
+manage sparse dataset -> select by time
+manage dynamic dataset -> select by time
+
+manage dynamic dataset -> sample
+
 sample -> uniformly
 sample -> normally
 
+manage sparse dataset -> reconstruct
 
-user -> reconstruct
-sparse dataset -> reconstruct
-reconstruct -> IDW
-reconstruct -> kiring
-reconstruct -> INR
+reconstruct -> with IDW
+reconstruct -> with kiring
+reconstruct -> with INR
 
+with INR -> with SIREN
 
-user -> sample point cloud
 user -> prepare train/test splits
 user -> evaluate
