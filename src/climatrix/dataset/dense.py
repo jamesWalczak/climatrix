@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 from climatrix.dataset.axis import Axis
-from climatrix.dataset.sparse import SparseDataset
 
 __all__ = ("StaticDenseDataset", "DynamicDenseDataset")
-import warnings
-from typing import Self
-from pathlib import Path
 import os
+import warnings
+from pathlib import Path
+from typing import TYPE_CHECKING, Self
 
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 from matplotlib.axes import Axes
@@ -16,6 +18,9 @@ from matplotlib.axes import Axes
 from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.sampling.base import BaseSampler, NaNPolicy
 from climatrix.sampling.type import SamplingType
+
+if TYPE_CHECKING:
+    from climatrix.dataset.sparse import SparseDataset
 
 
 class DenseDataset(BaseClimatrixDataset):
@@ -38,9 +43,7 @@ class DenseDataset(BaseClimatrixDataset):
 
         res = self.da
         if dset_pos_conv and sel_neg_conv:
-            roll_value = (
-                (self.da[self.longitude_name] >= 180).sum().item()
-            )
+            roll_value = (self.da[self.longitude_name] >= 180).sum().item()
             res = self.da.assign_coords(
                 {
                     self.longitude_name: (
@@ -55,22 +58,16 @@ class DenseDataset(BaseClimatrixDataset):
             roll_value = (self.da[self.longitude_name] <= 0).sum().item()
             res = (
                 self.da.assign_coords(
-                    {
-                        self.longitude_name: (
-                            self.da[self.longitude_name] % 360
-                        )
-                    }
+                    {self.longitude_name: self.da[self.longitude_name] % 360}
                 )
-                .roll(
-                    **{self.longitude_name: -roll_value}, roll_coords=True
-                )
+                .roll(**{self.longitude_name: -roll_value}, roll_coords=True)
                 .assign_attrs(**self.da[self.longitude_name].attrs)
             )
             res[self.longitude_name].attrs.update(
                 self.da[self.longitude_name].attrs
             )
         return type(self)(res)
-    
+
     def subset(
         self,
         north: float | None = None,
@@ -104,8 +101,8 @@ class DenseDataset(BaseClimatrixDataset):
         }
         da = self.maybe_roll(idx)
         da.da = da.da.sel(**idx)
-        return da    
-    
+        return da
+
     def sample(
         self,
         portion: float | None = None,
@@ -116,38 +113,179 @@ class DenseDataset(BaseClimatrixDataset):
         **sampler_kwargs,
     ) -> SparseDataset:
         class_: type[BaseSampler] = SamplingType.get(kind).value
-        return (class_(self, portion=portion, number=number, **sampler_kwargs)
-            .sample(nan_policy=nan_policy)
-        )    
+        return class_(
+            self, portion=portion, number=number, **sampler_kwargs
+        ).sample(nan_policy=nan_policy)
+
 
 class DynamicDenseDataset(DenseDataset):
+    def plot(
+        self,
+        title: str | None = None,
+        target: str | os.PathLike | Path | None = None,
+        show: bool = True,
+        **kwargs,
+    ) -> Axes:
+        figsize = kwargs.pop("figsize", (12, 6))
+        vmin = kwargs.pop("vmin", None)
+        vmax = kwargs.pop("vmax", None)
+        cmap = kwargs.pop("cmap", "seismic")
+        ax = kwargs.pop("ax", None)
+        cbar_name = kwargs.pop("cbar_name", None)
+        title = title or self.da.name or "Climatrix Dataset"
+        if (
+            self.time_name in self.da.dims
+            and self.da.sizes[self.time_name] > 1
+        ):
+            data_2d = self.da.isel({self.time_name: 0})
+        else:
+            data_2d = self.da
 
-    def plot(self, target: str | os.PathLike | Path | None = None, show: bool = False, **kwargs) -> None:
-        raise NotImplementedError("Plotting of dynamic dense datasets is not implemented yet")
+        lat = data_2d[self.latitude_name]
+        lon = data_2d[self.longitude_name]
 
-    
+        proj = ccrs.PlateCarree()
 
-class StaticDenseDataset(DenseDataset):
+        if ax is None:
+            fig, ax = plt.subplots(
+                figsize=figsize, subplot_kw={"projection": proj}
+            )
+            ax.coastlines()
+            ax.add_feature(cfeature.BORDERS, linewidth=0.5)
+            ax.add_feature(cfeature.LAND, facecolor="lightgray")
+            ax.add_feature(cfeature.OCEAN, facecolor="lightblue")
+            ax.gridlines(draw_labels=True, linewidth=0.2, linestyle="--")
 
-    def plot(self, target: str | os.PathLike | Path | None = None, show: bool = False, **kwargs) -> None:
+            ax.text(
+                -0.07,
+                0.55,
+                "latitude",
+                va="bottom",
+                ha="center",
+                rotation="vertical",
+                rotation_mode="anchor",
+                transform=ax.transAxes,
+            )
+            ax.text(
+                0.5,
+                -0.1,
+                "longitude",
+                va="bottom",
+                ha="center",
+                rotation="horizontal",
+                rotation_mode="anchor",
+                transform=ax.transAxes,
+            )
+
+            ax.set_aspect("equal")
+
+        mesh = ax.pcolormesh(
+            lon,
+            lat,
+            data_2d,
+            transform=proj,
+            cmap=cmap,
+            shading="auto",
+            vmin=vmin,
+            vmax=vmax,
+        )
+
+        cbar = plt.colorbar(
+            mesh, ax=ax, orientation="vertical", shrink=0.7, pad=0.05
+        )
+        cbar.set_label(cbar_name or data_2d.name or "Value")
+
+        if title:
+            ax.set_title(title, fontsize=14)
+
+        plt.tight_layout()
         if target is not None:
             target = Path(target)
             target.parent.mkdir(parents=True, exist_ok=True)
-        # TODO: finish
-        
-
-class A:
-
-    @classmethod
-    def validate(self) -> None:
-        # TODO: verify it is dense xarray dataset (gridded one)
-        pass
+            plt.savefig(target, dpi=300)
+        if show:
+            plt.show()
+        return ax
 
 
+class StaticDenseDataset(DenseDataset):
+    def plot(
+        self,
+        title: str | None = None,
+        target: str | os.PathLike | Path | None = None,
+        show: bool = True,
+        **kwargs,
+    ) -> Axes:
+        figsize = kwargs.pop("figsize", (12, 6))
+        vmin = kwargs.pop("vmin", None)
+        vmax = kwargs.pop("vmax", None)
+        cmap = kwargs.pop("cmap", "seismic")
+        ax = kwargs.pop("ax", None)
+        cbar_name = kwargs.pop("cbar_name", None)
+        title = title or self.da.name or "Climatrix Dataset"
 
-    def plot(self, ax: Axes | None = None, **kwargs):
-        from .plot import InteractiveDensePlotter
+        lat = data_2d = self.da[self.latitude_name]
+        lon = data_2d = self.da[self.longitude_name]
 
-        InteractiveDensePlotter(self, **kwargs).show()
+        proj = ccrs.PlateCarree()
 
+        if ax is None:
+            fig, ax = plt.subplots(
+                figsize=figsize, subplot_kw={"projection": proj}
+            )
+            ax.coastlines()
+            ax.add_feature(cfeature.BORDERS, linewidth=0.5)
+            ax.add_feature(cfeature.LAND, facecolor="lightgray")
+            ax.add_feature(cfeature.OCEAN, facecolor="lightblue")
+            ax.gridlines(draw_labels=True, linewidth=0.2, linestyle="--")
 
+            ax.text(
+                -0.07,
+                0.55,
+                "latitude",
+                va="bottom",
+                ha="center",
+                rotation="vertical",
+                rotation_mode="anchor",
+                transform=ax.transAxes,
+            )
+            ax.text(
+                0.5,
+                -0.1,
+                "longitude",
+                va="bottom",
+                ha="center",
+                rotation="horizontal",
+                rotation_mode="anchor",
+                transform=ax.transAxes,
+            )
+
+            ax.set_aspect("equal")
+
+        mesh = ax.pcolormesh(
+            lon,
+            lat,
+            self.da,
+            transform=proj,
+            cmap=cmap,
+            shading="auto",
+            vmin=vmin,
+            vmax=vmax,
+        )
+
+        cbar = plt.colorbar(
+            mesh, ax=ax, orientation="vertical", shrink=0.7, pad=0.05
+        )
+        cbar.set_label(cbar_name or data_2d.name or "Value")
+
+        if title:
+            ax.set_title(title, fontsize=14)
+
+        plt.tight_layout()
+        if target is not None:
+            target = Path(target)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            plt.savefig(target, dpi=300)
+        if show:
+            plt.show()
+        return ax

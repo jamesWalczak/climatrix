@@ -1,26 +1,31 @@
 from __future__ import annotations
 
-from functools import lru_cache
-import re
-from pathlib import Path
 import os
-from abc import ABC,  abstractmethod
+import re
+from abc import ABC, abstractmethod
+from datetime import datetime
+from functools import lru_cache
+from pathlib import Path
 from typing import Self
 
+import numpy as np
 import xarray as xr
+from matplotlib.axes import Axes
+
 from .axis import Axis
-from climatrix.dataset import axis
 
 # Based on MetPy (https://github.com/Unidata/MetPy/blob/main/src/metpy/xarray.py)
-_coords_name_regex: dict[Axis, str] ={
-        Axis.TIME: re.compile(r'^(x?)(valid_?)time(s?)([0-9]*)$'),
-        Axis.VERTICAL: re.compile(
-            r'^(z|lv_|bottom_top|sigma|h(ei)?ght|altitude|depth|isobaric|pres|isotherm)'
-            r'[a-z_]*[0-9]*$'
-        ),
-        Axis.LATITUDE: re.compile(r'^(x?)lat[a-z0-9_]*$'),
-        Axis.LONGITUDE: re.compile(r'^(x?)lon[a-z0-9_]*$'),
-        Axis.POINT: re.compile(r"^scatter_(data|points|values)_([a-zA-Z0-9_]+)(_v[0-9]+)?\.csv$") 
+_coords_name_regex: dict[Axis, str] = {
+    Axis.TIME: re.compile(r"^(x?)(valid_?)time(s?)([0-9]*)$"),
+    Axis.VERTICAL: re.compile(
+        r"^(z|lv_|bottom_top|sigma|h(ei)?ght|altitude|depth|isobaric|pres|isotherm)"
+        r"[a-z_]*[0-9]*$"
+    ),
+    Axis.LATITUDE: re.compile(r"^(x?)lat[a-z0-9_]*$"),
+    Axis.LONGITUDE: re.compile(r"^(x?)lon[a-z0-9_]*$"),
+    Axis.POINT: re.compile(
+        r"^scatter_(data|points|values)_([a-zA-Z0-9_]+)(_v[0-9]+)?\.csv$"
+    ),
 }
 
 
@@ -38,22 +43,29 @@ class BaseClimatrixDataset(ABC):
         cls._validate_spatial_axes(axis_mapping)
 
         if cls is BaseClimatrixDataset:
-            if Axis.TIME in axis_mapping and da[axis_mapping[Axis.TIME]].size > 1:
+            if (
+                Axis.TIME in axis_mapping
+                and da[axis_mapping[Axis.TIME]].size > 1
+            ):
                 if cls._check_is_dense(da, axis_mapping):
                     from .dense import DynamicDenseDataset
+
                     return DynamicDenseDataset(da)
                 else:
                     from .sparse import DynamicSparseDataset
+
                     return DynamicSparseDataset(da)
             else:
                 if cls._check_is_dense(da, axis_mapping):
                     from .dense import StaticDenseDataset
+
                     return StaticDenseDataset(da)
                 else:
                     from .sparse import StaticSparseDataset
-                    return StaticSparseDataset(da)                
-        return super().__new__(cls)    
-    
+
+                    return StaticSparseDataset(da)
+        return super().__new__(cls)
+
     @staticmethod
     def _validate_input(da: xr.Dataset | xr.DataArray):
         if not isinstance(da, (xr.Dataset, xr.DataArray)):
@@ -62,7 +74,7 @@ class BaseClimatrixDataset(ABC):
                 "xarray.DataArray or single-variable xarray.Dataset "
                 f"objects, but provided {type(da).__name__}"
             )
-    
+
     @staticmethod
     def _ensure_single_var(da: xr.Dataset | xr.DataArray) -> xr.DataArray:
         if isinstance(da, xr.Dataset):
@@ -75,7 +87,7 @@ class BaseClimatrixDataset(ABC):
                 )
             return da[list(da.data_vars.keys())[0]]
         return da
-    
+
     @staticmethod
     def _match_axis_names(da: xr.DataArray) -> dict[Axis, str]:
         axis_names = {}
@@ -85,32 +97,33 @@ class BaseClimatrixDataset(ABC):
                     axis_names[axis] = coord
                     break
         return axis_names
-    
+
     @staticmethod
     def _validate_spatial_axes(axis_mapping: dict[Axis, str]):
         for axis in [Axis.LATITUDE, Axis.LONGITUDE]:
             if axis not in axis_mapping:
-                raise ValueError(
-                    f"Dataset has no {axis.name} axis"
-                )
-    
+                raise ValueError(f"Dataset has no {axis.name} axis")
+
     @staticmethod
-    def _check_is_dense(da: xr.DataArray, axis_mapping: dict[Axis, str]) -> bool:
-        return (axis_mapping[Axis.LATITUDE] in da.dims) and (axis_mapping[Axis.LONGITUDE] in da.dims)
-    
+    def _check_is_dense(
+        da: xr.DataArray, axis_mapping: dict[Axis, str]
+    ) -> bool:
+        return (axis_mapping[Axis.LATITUDE] in da.dims) and (
+            axis_mapping[Axis.LONGITUDE] in da.dims
+        )
 
     def __init__(self, xarray_obj: xr.DataArray):
-        self.da = xarray_obj
+        self.da = self._ensure_single_var(xarray_obj)
         self.axis_mapping = self._match_axis_names(self.da)
 
     @property
     def latitude_name(self) -> str:
         return self.axis_mapping[Axis.LATITUDE]
-    
+
     @property
     def longitude_name(self) -> str:
         return self.axis_mapping[Axis.LONGITUDE]
-    
+
     @property
     def time_name(self) -> str | None:
         if Axis.TIME not in self.axis_mapping:
@@ -121,43 +134,38 @@ class BaseClimatrixDataset(ABC):
     @lru_cache(maxsize=1)
     def latitude(self) -> xr.DataArray:
         return self.da[self.latitude_name]
-    
+
     @property
     @lru_cache(maxsize=1)
     def longitude(self) -> xr.DataArray:
         return self.da[self.longitude_name]
-    
+
     @property
     @lru_cache(maxsize=1)
     def time(self) -> xr.DataArray:
         if self.time_name is None:
-            raise AttributeError(
-                f"The dataset has no time dimension"
-            )
+            raise AttributeError(f"The dataset has no time dimension")
         return self.da[self.time_name]
-    
+
     @abstractmethod
-    def plot(self, target: str | os.PathLike | Path | None = None, show: bool = False, **kwargs) -> None:
+    def plot(
+        self,
+        title: str | None = None,
+        target: str | os.PathLike | Path | None = None,
+        show: bool = True,
+        **kwargs,
+    ) -> Axes:
         raise NotImplementedError
 
+    def sel_time(
+        self, time: datetime | np.datetime64 | slice | list | np.ndarray
+    ) -> Self:
+        return type(self)(
+            self.da.sel({self.time_name: time}, method="nearest")
+        )
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def isel_time(self, time: int | list[int] | np.ndarray | slice) -> Self:
+        return type(self)(self.da.isel({self.time_name: time}))
 
     # da: xr.DataArray
     # _def: DatasetDefinition

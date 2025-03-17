@@ -1,22 +1,25 @@
 from __future__ import annotations
 
 __all__ = ("StaticSparseDataset", "DynamicSparseDataset")
+import os
+from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Self
 
 import xarray as xr
 from matplotlib.axes import Axes
 
 from climatrix.dataset.base import BaseClimatrixDataset
-from climatrix.dataset.models import DatasetDefinition
 from climatrix.decorators import raise_if_not_installed
 from climatrix.reconstruct.type import ReconstructionType
 
 if TYPE_CHECKING:
     from climatrix.dataset.dense import DenseDataset
 
+SPARSE_DIM: str = "point"
+
+
 class SparseDataset(BaseClimatrixDataset):
-    SPARSE_DIM: ClassVar[str] = "point"
-    
+
     def reconstruct(
         self,
         lat: slice,
@@ -30,22 +33,38 @@ class SparseDataset(BaseClimatrixDataset):
             .reconstruct()
         )
 
+
 class DynamicSparseDataset(SparseDataset):
 
     def __init__(self, xarray_obj: xr.DataArray):
         super().__init__(xarray_obj)
-        raise NotImplementedError("DynamicSparseDataset is not implemented yet")
-    
+        # raise NotImplementedError("DynamicSparseDataset is not implemented yet")
+
+    def plot(
+        self,
+        target: str | os.PathLike | Path | None = None,
+        show: bool = False,
+        **kwargs,
+    ) -> None:
+        raise NotImplementedError(
+            "Plotting of sparse datasets is not implemented yet"
+        )
+
 
 class StaticSparseDataset(SparseDataset):
 
     def __init__(self, xarray_obj: xr.DataArray):
         super().__init__(xarray_obj)
 
-
-
-
-
+    def plot(
+        self,
+        target: str | os.PathLike | Path | None = None,
+        show: bool = False,
+        **kwargs,
+    ) -> None:
+        raise NotImplementedError(
+            "Plotting of sparse datasets is not implemented yet"
+        )
 
 
 class A:
@@ -69,6 +88,3 @@ class A:
         from climatrix.dataset.plot import InteractiveScatterPlotter
 
         InteractiveScatterPlotter(self).show()
-
-
-

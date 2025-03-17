@@ -1,6 +1,11 @@
 import numpy as np
 import xarray as xr
 
+from climatrix.dataset.sparse import (
+    SPARSE_DIM,
+    DynamicSparseDataset,
+    StaticSparseDataset,
+)
 from climatrix.sampling.base import BaseSampler
 
 
@@ -11,21 +16,25 @@ class UniformSampler(BaseSampler):
         selected_lons = np.random.choice(lons, n)
         data = self.dataset.da.sel(
             {
-                self.dataset._def.latitude_name: xr.DataArray(
-                    selected_lats, dims=[SparseDataset.SPARSE_DIM]
+                self.dataset.latitude_name: xr.DataArray(
+                    selected_lats, dims=[SPARSE_DIM]
                 ),
-                self.dataset._def.longitude_name: xr.DataArray(
-                    selected_lons, dims=[SparseDataset.SPARSE_DIM]
+                self.dataset.longitude_name: xr.DataArray(
+                    selected_lons, dims=[SPARSE_DIM]
                 ),
             },
             method="nearest",
         )
-        return SparseDataset(data, self.dataset._def)
+        return (
+            DynamicSparseDataset(data)
+            if self.dataset.time_name
+            else StaticSparseDataset(data)
+        )
 
     def _sample_no_nans(self, lats, lons, n):
         stacked = self.dataset.da.stack(
             **{
-                SparseDataset.SPARSE_DIM: [
+                SPARSE_DIM: [
                     self.dataset._def.time_name,
                     self.dataset._def.latitude_name,
                     self.dataset._def.longitude_name,
