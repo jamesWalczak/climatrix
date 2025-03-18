@@ -5,7 +5,15 @@ from typing import TYPE_CHECKING
 import numpy as np
 import xarray as xr
 
+from climatrix.dataset.sparse import (
+    SPARSE_DIM,
+    DynamicSparseDataset,
+    StaticSparseDataset,
+)
 from climatrix.sampling.base import BaseSampler
+
+if TYPE_CHECKING:
+    from climatrix.dataset.dense import DenseDataset
 
 Longitude = float
 Latitude = float
@@ -16,8 +24,8 @@ class NormalSampler(BaseSampler):
     def __init__(
         self,
         dataset: DenseDataset,
-        portion: float = None,
-        number: int = None,
+        portion: float | None = None,
+        number: int | None = None,
         center_point: tuple[Longitude, Latitude] = None,
         sigma: float = 10.0,
     ):
@@ -46,16 +54,18 @@ class NormalSampler(BaseSampler):
         selected_lons = flat_x[indices]
         data = self.dataset.da.sel(
             {
-                self.dataset._def.latitude_name: xr.DataArray(
-                    selected_lats, dims=[SparseDataset.SPARSE_DIM]
+                self.dataset.latitude_name: xr.DataArray(
+                    selected_lats, dims=[SPARSE_DIM]
                 ),
-                self.dataset._def.longitude_name: xr.DataArray(
-                    selected_lons, dims=[SparseDataset.SPARSE_DIM]
+                self.dataset.longitude_name: xr.DataArray(
+                    selected_lons, dims=[SPARSE_DIM]
                 ),
             },
             method="nearest",
         )
-        return SparseDataset(data, self.dataset._def)
+        if self.dataset.is_dynamic:
+            return DynamicSparseDataset(data)
+        return StaticSparseDataset(data)
 
     def _sample_no_nans(self, lats, lons, n) -> SparseDataset:
         raise NotImplementedError

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "climatrix"
-version = "0.1.0"
+dynamic = ["version"]
 authors = [{name = "Jakub Walczak", email = "jakub.walczak@p.lodz.pl"}]
 
 description = "Tool for climate data research"
@@ -28,7 +28,7 @@ dependencies = [
     "rich",
     "setuptools",
     "scipy",
-    "dask"
+    "dask",
 ]
 
 [project.optional-dependencies]

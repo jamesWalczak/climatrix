@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Self
 
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
@@ -23,6 +24,7 @@ if TYPE_CHECKING:
     from climatrix.dataset.sparse import SparseDataset
 
 
+# matplotlib.use('Agg')
 class DenseDataset(BaseClimatrixDataset):
 
     def maybe_roll(self, indexers: dict[str, slice]) -> Self:
@@ -224,8 +226,8 @@ class StaticDenseDataset(DenseDataset):
         cbar_name = kwargs.pop("cbar_name", None)
         title = title or self.da.name or "Climatrix Dataset"
 
-        lat = data_2d = self.da[self.latitude_name]
-        lon = data_2d = self.da[self.longitude_name]
+        lat = self.da[self.latitude_name]
+        lon = self.da[self.longitude_name]
 
         proj = ccrs.PlateCarree()
 
@@ -276,7 +278,7 @@ class StaticDenseDataset(DenseDataset):
         cbar = plt.colorbar(
             mesh, ax=ax, orientation="vertical", shrink=0.7, pad=0.05
         )
-        cbar.set_label(cbar_name or data_2d.name or "Value")
+        cbar.set_label(cbar_name or self.da.name or "Value")
 
         if title:
             ax.set_title(title, fontsize=14)
