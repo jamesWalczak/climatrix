@@ -119,6 +119,24 @@ class DenseDataset(BaseClimatrixDataset):
             self, portion=portion, number=number, **sampler_kwargs
         ).sample(nan_policy=nan_policy)
 
+    def mask_nan(self, source: DenseDataset) -> Self:
+        """Apply NaN values from another dataset to the current one.
+
+        Parameters
+        ----------
+        source : DenseDataset
+            Dataset whose NaN values will be applied to the current one.
+
+        Returns
+        -------
+        DenseDataset
+            A new dataset with NaN values applied.
+        """
+        if not isinstance(source, DenseDataset):
+            raise TypeError("Argument `source` must be a DenseDataset")
+        da = xr.where(source.da.isnull(), np.nan, self.da)
+        return type(self)(da)
+
 
 class DynamicDenseDataset(DenseDataset):
     def plot(

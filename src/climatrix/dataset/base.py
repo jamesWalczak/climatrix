@@ -12,7 +12,8 @@ import numpy as np
 import xarray as xr
 from matplotlib.axes import Axes
 
-from climatrix.decorators import _arth_binary_operator
+from climatrix.dataset.domain import Domain
+from climatrix.decorators import cm_arithmetic_binary_operator
 
 from .axis import Axis
 
@@ -33,7 +34,7 @@ _coords_name_regex: dict[Axis, str] = {
 
 @xr.register_dataset_accessor("cm")
 class BaseClimatrixDataset(ABC):
-    __slots__ = ("da", "_axis_mapping")
+    __slots__ = ("da", "_axis_mapping", "domain")
 
     da: xr.DataArray
     _axis_mapping: dict[Axis, str]
@@ -117,6 +118,12 @@ class BaseClimatrixDataset(ABC):
     def __init__(self, xarray_obj: xr.DataArray):
         self.da = self._ensure_single_var(xarray_obj)
         self.axis_mapping = self._match_axis_names(self.da)
+        self.domain = Domain(
+            {
+                axis: self.da[axis_name].values
+                for axis, axis_name in self.axis_mapping.items()
+            }
+        )
 
     # ###############################
     #  Properties
@@ -161,16 +168,16 @@ class BaseClimatrixDataset(ABC):
     # ###############################
     #  Operators
     # ###############################
-    @_arth_binary_operator
+    @cm_arithmetic_binary_operator
     def __add__(self, other: Any) -> Self: ...
 
-    @_arth_binary_operator
+    @cm_arithmetic_binary_operator
     def __sub__(self, other: Any) -> Self: ...
 
-    @_arth_binary_operator
+    @cm_arithmetic_binary_operator
     def __mul__(self, other: Any) -> Self: ...
 
-    @_arth_binary_operator
+    @cm_arithmetic_binary_operator
     def __truediv__(self, other: Any) -> Self: ...
 
     # ###############################

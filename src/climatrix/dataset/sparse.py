@@ -17,6 +17,7 @@ from climatrix.reconstruct.type import ReconstructionType
 
 if TYPE_CHECKING:
     from climatrix.dataset.dense import DenseDataset
+    from climatrix.dataset.domain import Domain
 
 SPARSE_DIM: str = "point"
 
@@ -25,14 +26,15 @@ class SparseDataset(BaseClimatrixDataset):
 
     def reconstruct(
         self,
-        lat: slice,
-        lon: slice,
+        target: Domain,
         method: ReconstructionType | str = "idw",
         **recon_kwargs,
     ) -> DenseDataset:
         return (
             ReconstructionType.get(method)
-            .value(self, lat=lat, lon=lon, **recon_kwargs)
+            .value(
+                self, lat=target.latitude, lon=target.longitude, **recon_kwargs
+            )
             .reconstruct()
         )
 
