@@ -12,6 +12,14 @@ class Domain:
 
     def __init__(self, coords: dict[Axis, np.ndarray]):
         self.coords = coords
+        self._ensure_all_numpy_arrays()
+        self._filter_single_value_coord()
+
+    def _ensure_all_numpy_arrays(self) -> None:
+        self.coords = {k: np.array(v, ndmin=1) for k, v in self.coords.items()}
+
+    def _filter_single_value_coord(self):
+        self.coords = {k: v for k, v in self.coords.items() if len(v) > 1}
 
     @property
     def latitude(self) -> np.ndarray:

@@ -38,7 +38,6 @@ def _get_arguments(func, *args, **kwargs) -> tuple:
 def _validate_args_types(ds1, ds2):
     from climatrix import BaseClimatrixDataset
 
-    breakpoint()
     if not isinstance(ds1, BaseClimatrixDataset):
         if not isinstance(ds2, BaseClimatrixDataset):
             raise ValueError(
