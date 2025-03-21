@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 import numpy as np
 import numpy.ma as ma
 import xarray as xr
-from scipy.spatial import cKDTree
 
 from climatrix.decorators import raise_if_not_installed
 from climatrix.reconstruct.base import BaseReconstructor
@@ -30,34 +29,6 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
             raise ValueError("Kriging is not supported for dynamic datasets.")
         self.pykrige_kwargs = pykrige_kwargs
         self.backend = backend
-
-    def _build_grid(self) -> np.ndarray:
-        if isinstance(self.query_lat, slice):
-            lat_grid = np.arange(
-                self.query_lat.start,
-                self.query_lat.stop + self.query_lat.step,
-                self.query_lat.step,
-            )
-        else:
-            lat_grid = self.query_lat
-        if isinstance(self.query_lon, slice):
-            lon_grid = np.arange(
-                self.query_lon.start,
-                self.query_lon.stop + self.query_lon.step,
-                self.query_lon.step,
-            )
-        else:
-            lon_grid = self.query_lon
-        points = np.column_stack(
-            (self.dataset.longitude.values, self.dataset.latitude.values)
-        )
-        lon_mesh, lat_mesh = np.meshgrid(lon_grid, lat_grid)
-        return (
-            lat_grid,
-            lon_grid,
-            points,
-            np.column_stack((lon_mesh.flatten(), lat_mesh.flatten())),
-        )
 
     @raise_if_not_installed("pykrige")
     def reconstruct(self):
