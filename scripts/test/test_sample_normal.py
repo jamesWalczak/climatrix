@@ -1,4 +1,5 @@
 import xarray as xr
+
 import climatrix as cm
 
 dset = xr.open_dataset("/storage/tul/projects/climatrix/data/era5-land.nc")

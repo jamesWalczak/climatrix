@@ -165,6 +165,12 @@ class BaseClimatrixDataset(ABC):
     def is_dynamic(self) -> bool:
         return self.time_name and self.time.size > 1
 
+    @property
+    @lru_cache(maxsize=1)
+    def size(self) -> int:
+        time_size = self.time.size if self.time_name else 1
+        return self.latitude.size * self.longitude.size * time_size
+
     # ###############################
     #  Operators
     # ###############################

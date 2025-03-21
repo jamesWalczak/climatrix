@@ -17,8 +17,8 @@ class IDWReconstructor(BaseReconstructor):
     def __init__(
         self,
         dataset: SparseDataset,
-        lat: slice = slice(-90, 90, 0.1) | Sequence[float],
-        lon: slice = slice(-180, 180, 0.1) | Sequence[float],
+        lat: slice | np.ndarray = slice(-90, 90, 0.1),
+        lon: slice | np.ndarray = slice(-180, 180, 0.1),
         power: int = 2,
         k: int = 5,
         k_min: int = 2,

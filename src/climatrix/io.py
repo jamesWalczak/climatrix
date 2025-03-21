@@ -5,7 +5,6 @@ from pathlib import Path
 
 import climatrix
 from climatrix.dataset.consts import DatasetType
-from climatrix.dataset.models import DatasetDefinition
 from climatrix.models import Request
 
 
@@ -30,11 +29,3 @@ def load_request(dataset: DatasetType) -> Request:
     path: Path = get_download_request(dataset)
     with open(path, "rb") as f:
         return Request(**toml.load(f))
-
-
-def _parse_def_file(path: str | os.PathLike | Path) -> DatasetDefinition:
-    path = Path(path)
-    if not path.exists():
-        raise FileNotFoundError(f"The file {path} does not exist")
-    with open(path, "rb") as f:
-        return DatasetDefinition(**toml.load(f))

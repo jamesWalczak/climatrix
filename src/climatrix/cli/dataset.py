@@ -14,14 +14,48 @@ dataset_app = typer.Typer(name="Dataset commands")
 console = Console()
 
 
+def _get_default_years():
+    return [2024]
+
+
+def _get_default_months():
+    return list(range(1, 13))
+
+
+def _get_default_days():
+    return list(range(1, 32))
+
+
+def _get_default_hours():
+    return list(range(0, 24))
+
+
 @dataset_app.command("download", help="Download dataset")
-def download(
+def download_dataset(
     dataset: DatasetType,
-    target: Path = Path("."),
-    year: Annotated[int, typer.Option("--year", "-y")] = 2024,
-    month: Annotated[int, typer.Option("--month", "-m", min=1, max=12)] = 12,
-    day: Annotated[int, typer.Option("--day", "-d", min=1, max=31)] = 1,
-    hour: Annotated[int, typer.Option("--hour", "-h", min=0, max=23)] = 0,
+    year: Annotated[
+        list[int],
+        typer.Option("--year", "-y", default_factory=_get_default_years),
+    ],
+    month: Annotated[
+        list[int],
+        typer.Option(
+            "--month", "-m", min=1, max=12, default_factory=_get_default_months
+        ),
+    ],
+    day: Annotated[
+        list[int],
+        typer.Option(
+            "--day", "-d", min=1, max=31, default_factory=_get_default_days
+        ),
+    ],
+    hour: Annotated[
+        list[int],
+        typer.Option(
+            "--hour", "-h", min=0, max=23, default_factory=_get_default_hours
+        ),
+    ],
+    target: Annotated[Path, typer.Option("--target", "-t")] = Path("."),
 ):
     request: Request = load_request(dataset)
     if target.is_dir():
@@ -44,7 +78,7 @@ def download(
 
 
 @dataset_app.command("list", help="List available datasets")
-def list():
+def list_dataset():
     table = Table(title="List of datastets available in Climatrix")
     table.add_column("Dataset")
 

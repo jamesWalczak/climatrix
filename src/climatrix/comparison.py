@@ -42,8 +42,8 @@ class Comparison:
         raise NotImplementedError
 
     def compute_rmse(self) -> float:
-        nansum = np.nansum(np.power(self.diff.da.values, 2.0))
-        return np.power(nansum, 0.5).item()
+        nanmean = np.nanmean(np.power(self.diff.da.values, 2.0))
+        return np.power(nanmean, 0.5).item()
 
     def compute_mae(self) -> float:
         return np.nanmean(np.abs(self.diff.da.values)).item()
