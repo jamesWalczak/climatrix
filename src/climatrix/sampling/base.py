@@ -54,11 +54,6 @@ class BaseSampler(ABC):
         self.portion = portion
         self.number = number
 
-    def get_policy(self, policy: NaNPolicy | str) -> NaNPolicy:
-        if isinstance(policy, str):
-            policy = NaNPolicy[policy.upper()]
-        return policy
-
     def get_all_lats(self):
         return self.dataset.latitude.values
 
@@ -99,7 +94,7 @@ class BaseSampler(ABC):
             )
 
     def sample(self, nan_policy: NaNPolicy | str = "ignore") -> SparseDataset:
-        nan_policy = self.get_policy(nan_policy)
+        nan_policy = NaNPolicy.get(nan_policy)
         n = self.get_sample_size()
         lats = self.get_all_lats()
         lons = self.get_all_lons()

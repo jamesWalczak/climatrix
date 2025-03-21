@@ -1,6 +1,10 @@
 import functools
 import importlib
+import inspect
+from numbers import Number
 from typing import Callable
+
+import numpy as np
 
 
 def raise_if_not_installed(*packages) -> Callable:
