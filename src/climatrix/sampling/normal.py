@@ -14,6 +14,7 @@ from climatrix.sampling.base import BaseSampler
 
 if TYPE_CHECKING:
     from climatrix.dataset.dense import DenseDataset
+    from climatrix.dataset.sparse import SparseDataset
 
 Longitude = float
 Latitude = float

@@ -4,3 +4,7 @@ class DatasetCreationError(ValueError):
 
 class TimeRelatedDatasetNotSupportedError(DatasetCreationError):
     pass
+
+
+class TooLargeSamplePortionWarning(UserWarning):
+    pass

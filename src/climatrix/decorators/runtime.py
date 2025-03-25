@@ -7,7 +7,9 @@ from typing import Callable
 import numpy as np
 
 
-def raise_if_not_installed(*packages) -> Callable:
+def raise_if_not_installed(
+    *packages, custom_error: Exception | None = None
+) -> Callable:
     """
     Decorator to raise an ImportError if a package is not installed.
     """
@@ -20,6 +22,8 @@ def raise_if_not_installed(*packages) -> Callable:
                 if importlib.util.find_spec(pkg) is None:
                     missing.append(pkg)
             if missing:
+                if custom_error:
+                    raise custom_error
                 raise ImportError(
                     "The following packages are required but not "
                     f"installed: {', '.join(missing)}. "
