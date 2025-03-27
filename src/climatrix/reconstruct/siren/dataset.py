@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections import namedtuple
 from typing import TYPE_CHECKING
 
@@ -8,14 +9,19 @@ import torch
 import xarray as xr
 from torch.utils.data import Dataset
 
+from climatrix.decorators.runtime import log_input
+
 if TYPE_CHECKING:
     from climatrix.dataset.sparse import SparseDataset
 
 SdfEntry = namedtuple("SdfEntry", ["coords", "normals", "sdf"])
 
+log = logging.getLogger(__name__)
 
-class SDFDataseet(Dataset):
 
+class SDFDataset(Dataset):
+
+    @log_input(log, level=logging.DEBUG)
     def __init__(
         self,
         dataset: SparseDataset,
@@ -82,7 +88,7 @@ class SDFDataseet(Dataset):
         normals = self._compute_normals(idx)
         return self.coords[idx, :], normals
 
-    def _sample_off_surface(self) -> tuple[np.ndarray, np.np.ndarray]:
+    def _sample_off_surface(self) -> tuple[np.ndarray, np.ndarray]:
         coords = np.random.uniform(-1, 1, size=(self.off_surface_points, 3))
         normals = np.ones((self.off_surface_points, 3)) * -1
         return (coords, normals)

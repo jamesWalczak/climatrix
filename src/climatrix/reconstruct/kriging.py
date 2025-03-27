@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, ClassVar, Literal
 
 import numpy as np
@@ -7,15 +8,19 @@ import numpy.ma as ma
 import xarray as xr
 
 from climatrix.decorators import raise_if_not_installed
+from climatrix.decorators.runtime import log_input
 from climatrix.reconstruct.base import BaseReconstructor
 
 if TYPE_CHECKING:
     from climatrix.dataset.sparse import SparseDataset
 
+log = logging.getLogger(__name__)
+
 
 class OrdinaryKrigingReconstructor(BaseReconstructor):
     _MAX_VECTORIZED_SIZE: ClassVar[int] = 5_000_000
 
+    @log_input(log, level=logging.DEBUG)
     def __init__(
         self,
         dataset: SparseDataset,

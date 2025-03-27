@@ -1,6 +1,7 @@
 import functools
 import importlib
 import inspect
+import logging
 from numbers import Number
 from typing import Callable
 
@@ -30,6 +31,21 @@ def raise_if_not_installed(
                     "Please install them using pip or conda before "
                     f"calling '{func.__name__}()'."
                 )
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+def log_input(log: logging.Logger, level: int = logging.INFO):
+    """Decorator to facilitte logging the input of a function."""
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            breakpoint()
+            log.log(level, f"Input: {args}, {kwargs}")
             return func(*args, **kwargs)
 
         return wrapper
