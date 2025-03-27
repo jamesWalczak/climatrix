@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import TYPE_CHECKING, ClassVar, Self
+
+from climatrix.exceptions import TooLargeSamplePortionWarning
 
 if TYPE_CHECKING:
     from climatrix.dataset.dense import DenseDataset, SparseDataset
@@ -51,6 +54,13 @@ class BaseSampler(ABC):
             raise ValueError(
                 "Either portion or number must be provided, but not both"
             )
+        if (portion and portion > 1.0) or (
+            number and number > self.dataset.size
+        ):
+            warnings.warn(
+                "Requesting more than 100% of the data will result in duplicates and excessive memory usage",
+                TooLargeSamplePortionWarning,
+            )
         self.portion = portion
         self.number = number
 
@@ -98,6 +108,9 @@ class BaseSampler(ABC):
         n = self.get_sample_size()
         lats = self.get_all_lats()
         lons = self.get_all_lons()
+
+        if n == self.dataset.size:
+            return SparseDataset(self.dataset.da)
 
         match nan_policy:
             case NaNPolicy.IGNORE:

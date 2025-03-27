@@ -143,26 +143,3 @@ class StaticSparseDataset(SparseDataset):
         if show:
             plt.show()
         return ax
-
-
-class A:
-    SPARSE_DIM: ClassVar[str] = "point"
-
-    def __new__(
-        cls, da: xr.Dataset | xr.DataArray, definition: DatasetDefinition
-    ) -> Self:
-        if cls is SparseDataset:
-            if definition.time_name is not None:
-                return DynamicSparseDataset(da, definition)
-            return StaticSparseDataset(da, definition)
-        return super().__new__(cls)
-
-    def validate(self) -> None:
-        # TODO: verify it is dense xarray dataset (gridded one)
-        pass
-
-    @raise_if_not_installed("hvplot", "panel")
-    def plot(self, ax: Axes | None = None, **kwargs):
-        from climatrix.dataset.plot import InteractiveScatterPlotter
-
-        InteractiveScatterPlotter(self).show()
