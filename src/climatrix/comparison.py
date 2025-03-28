@@ -3,11 +3,11 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-import saeborn as sns
+import seaborn as sns
 from matplotlib.axes import Axes
 
 from climatrix.dataset.dense import DenseDataset
-from src.climatrix.decorators import raise_if_not_installed
+from climatrix.decorators import raise_if_not_installed
 
 sns.set_style("darkgrid")
 
@@ -82,7 +82,6 @@ class Comparison:
         return self.diff.da.plot(ax=ax)
 
     def plot_signed_diff(self, ax: Axes | None = None) -> Axes:
-        # TODO:
         """
         Plot the histogram of signed difference between datasets.
 

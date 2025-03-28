@@ -1,3 +1,4 @@
+# Adapted from https://github.com/vsitzmann/siren?tab=MIT-1-ov-file#readme
 import math
 from collections import OrderedDict
 

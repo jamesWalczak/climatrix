@@ -61,6 +61,7 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
     ):
         super().__init__(dataset, lat, lon)
         if self.dataset.is_dynamic:
+            log.error("Kriging is not yet supported for dynamic datasets.")
             raise ValueError("Kriging is not supported for dynamic datasets.")
         self.pykrige_kwargs = pykrige_kwargs
         self.backend = backend
@@ -86,17 +87,20 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         from climatrix.dataset.dense import StaticDenseDataset
 
         if self.backend is None:
+            log.info("Choosing backend based on dataset size...")
             self.backend = (
                 "vectorized"
                 if self.dataset.size < self._MAX_VECTORIZED_SIZE
                 else "loop"
             )
+            log.info("Using backend: %s", self.backend)
         kriging = OrdinaryKriging(
             x=self.dataset.longitude.values,
             y=self.dataset.latitude.values,
             z=self.dataset.da.values,
             **self.pykrige_kwargs,
         )
+        log.info("Performing Ordinary Kriging reconstruction...")
         masked_values, variance = kriging.execute(
             "grid", self.query_lon, self.query_lat, backend=self.backend
         )

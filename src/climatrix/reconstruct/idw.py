@@ -88,6 +88,10 @@ class IDWReconstructor(BaseReconstructor):
             nearest neighbors.
         """
         if isinstance(self.query_lat, slice):
+            log.debug(
+                "Creating target latitude values from slice %s...",
+                self.query_lat,
+            )
             lat_grid = np.arange(
                 self.query_lat.start,
                 self.query_lat.stop + self.query_lat.step,
@@ -96,6 +100,10 @@ class IDWReconstructor(BaseReconstructor):
         else:
             lat_grid = self.query_lat
         if isinstance(self.query_lon, slice):
+            log.debug(
+                "Creating target longitude values from slice %s...",
+                self.query_lon,
+            )
             lon_grid = np.arange(
                 self.query_lon.start,
                 self.query_lon.stop + self.query_lon.step,
@@ -116,33 +124,36 @@ class IDWReconstructor(BaseReconstructor):
 
     def reconstruct(self) -> DenseDataset:
         """
-        Perform Inverse Distance Weighting (IDW) reconstruction of the dataset.
+        Perform Inverse Distance Weighting (IDW) reconstruction.
 
-        This method reconstructs the sparse dataset using IDW, taking into
-        account the specified number of nearest neighbors and the power to
-        which distances are raised. The reconstructed data is returned as
-        a dense dataset, either static or dynamic based on the input dataset.
+        This method reconstructs the sparse dataset using IDW,
+        taking into account the specified number of nearest neighbors
+        and the power to which distances are raised.
+        The reconstructed data is returned as a dense dataset,
+        either static or dynamic based on the input dataset.
 
         Returns
         -------
         DenseDataset
-            The reconstructed dense dataset, either StaticDenseDataset or
-            DynamicDenseDataset, depending on whether the input dataset
-            is dynamic.
+            The reconstructed dense dataset, either StaticDenseDataset
+            or DynamicDenseDataset, depending on whether the input
+            dataset is dynamic.
 
         Notes
         -----
         - For dynamic datasets, the reconstruction is performed for each
         time step.
-        - If fewer than `self.k_min` neighbors are available, NaN values are
-        assigned to the corresponding points in the output.
+        - If fewer than `self.k_min` neighbors are available,
+        NaN values are assigned to the corresponding points in the output.
         """
         from climatrix.dataset.sparse import DynamicSparseDataset
 
         values = self.dataset.da.values
 
         lat_grid, lon_grid, points, query_points = self._build_grid()
+        log.debug("Building KDtree for efficient nearest neighbor queries...")
         kdtree = cKDTree(points)
+        log.debug("Querying %d nearest neighbors...", self.k)
         dists, idxs = kdtree.query(query_points, k=self.k, workers=-1)
         if self.k == 1:
             idxs = idxs[..., np.newaxis]
@@ -151,9 +162,13 @@ class IDWReconstructor(BaseReconstructor):
         weights = 1 / np.power(dists, self.power)
         weights /= np.nansum(weights, axis=1, keepdims=True)
 
-        if isinstance(self.dataset, DynamicSparseDataset):
+        if self.dataset.is_dynamic:
+            from climatrix.dataset.dense import DynamicDenseDataset
+
+            log.info("Reconstructing dynamic dataset...")
             time_values = []
             for t in range(len(self.dataset.time)):
+                log.debug("Reconstructing time step: %s...", t)
                 v = values[t, :]
                 interp_vals = np.nansum(v[idxs] * weights, axis=1)
                 interp_vals[np.isfinite(weights).sum(axis=1) < self.k_min] = (
@@ -173,20 +188,6 @@ class IDWReconstructor(BaseReconstructor):
                 self.dataset.latitude_name,
                 self.dataset.longitude_name,
             )
-        else:
-            interp_data = np.nansum(values[idxs] * weights, axis=1)
-            interp_data = interp_data.reshape(len(lat_grid), len(lon_grid))
-            coords = {
-                self.dataset.latitude_name: lat_grid,
-                self.dataset.longitude_name: lon_grid,
-            }
-            dims = (
-                self.dataset.latitude_name,
-                self.dataset.longitude_name,
-            )
-        if self.dataset.is_dynamic:
-            from climatrix.dataset.dense import DynamicDenseDataset
-
             return DynamicDenseDataset(
                 xr.DataArray(
                     interp_data,
@@ -197,6 +198,18 @@ class IDWReconstructor(BaseReconstructor):
             )
         else:
             from climatrix.dataset.dense import StaticDenseDataset
+
+            log.into("Reconstructing static dataset...")
+            interp_data = np.nansum(values[idxs] * weights, axis=1)
+            interp_data = interp_data.reshape(len(lat_grid), len(lon_grid))
+            coords = {
+                self.dataset.latitude_name: lat_grid,
+                self.dataset.longitude_name: lon_grid,
+            }
+            dims = (
+                self.dataset.latitude_name,
+                self.dataset.longitude_name,
+            )
 
             return StaticDenseDataset(
                 xr.DataArray(

@@ -79,8 +79,10 @@ class SIRENReconstructor(BaseReconstructor):
     ) -> None:
         super().__init__(dataset, lat, lon)
         if dataset.is_dynamic:
+            log.error("SIREN is not supported for dynamic datasets.")
             raise ValueError("SIREN is not supported for dynamic datasets.")
         if device == "cuda" and not torch.cuda.is_available():
+            log.error("CUDA is not available on this machine")
             raise ValueError("CUDA is not available on this machine")
         self.device = torch.device(device)
         self.train_dataset = SDFTrainDataset(
@@ -104,19 +106,20 @@ class SIRENReconstructor(BaseReconstructor):
         self.is_model_loaded: bool = False
         if checkpoint:
             self.checkpoint = Path(checkpoint).expanduser().absolute()
+            log.info("Using checkpoint path: %s", self.checkpoint)
 
     def _configure_optimizer(
         self, siren_model: torch.nn.Module
     ) -> torch.optim.Optimizer:
-        log.debug("Configuring optimizer...")
+        log.info("Configuring optimizer...")
         return torch.optim.Adam(lr=self.lr, params=siren_model.parameters())
 
     def _init_model(self) -> torch.nn.Module:
-        log.debug("Initializing SIREN model...")
+        log.info("Initializing SIREN model...")
         return SingleBVPNet(type="relu", mode="nerf", in_features=3)
 
     def _maybe_clip_grads(self, siren_model: torch.nn.Module) -> None:
-        if self.clip_grad:
+        if self.gradient_clipping_value:
             log.info(
                 "Clipping gradients to %0.4f...", self.gradient_clipping_value
             )
@@ -171,15 +174,14 @@ class SIRENReconstructor(BaseReconstructor):
             batch_size=5_000,
             shuffle=False,
         )
-        log.debug("Creating mini-batches for surface reconstruction...")
+        log.info("Creating mini-batches for surface reconstruction...")
         for i, batch in enumerate(data_loader):
-            log.debug(
-                "Processing mini-batch %d/%d...", i + 1, len(data_loader)
-            )
+            log.info("Processing mini-batch %d/%d...", i + 1, len(data_loader))
             z_values = self._find_cross_point(siren_model, batch)[:, -1]
             all_z.append(z_values)
         return np.concatenate(all_z)
 
+    @log_input(log, level=logging.DEBUG)
     def _find_cross_point(
         self,
         siren_model,
@@ -208,6 +210,7 @@ class SIRENReconstructor(BaseReconstructor):
         return coordinates.detach()
 
     def _form_target_coordinates(self):
+        """Form target domain coordinates for reconstruction."""
         lat_grid, lon_grid = np.meshgrid(self.query_lat, self.query_lon)
         lat_grid = lat_grid.reshape(-1)
         lon_grid = lon_grid.reshape(-1)
@@ -227,6 +230,7 @@ class SIRENReconstructor(BaseReconstructor):
         siren_model = self._init_model()
         siren_model = self._maybe_load_checkpoint(siren_model, self.checkpoint)
         if not self.is_model_loaded:
+            log.info("Training SIREN model...")
             optimizer = self._configure_optimizer(siren_model)
             data_loader = DataLoader(
                 self.train_dataset,
@@ -252,12 +256,13 @@ class SIRENReconstructor(BaseReconstructor):
                     train_loss.backward()
                     self._maybe_clip_grads(siren_model)
                     optimizer.step()
-                log.debug(
+                log.info(
                     "Epoch %d/%d: loss = %0.4f", epoch, self.epoch, epoch_loss
                 )
             self._maybe_save_checkpoint(
                 siren_model=siren_model, checkpoint=self.checkpoint
             )
+        breakpoint()
         target_dataset = SDFPredictDataset(
             self.train_dataset.coordinates, device=self.device
         )
@@ -266,6 +271,7 @@ class SIRENReconstructor(BaseReconstructor):
         # )
         # TODO: to verify finding z coordinates
         values = self._find_surface(siren_model, target_dataset)
+        breakpoint()
         values = values.reshape(len(self.query_lat), len(self.query_lon))
 
         coordinates = {
