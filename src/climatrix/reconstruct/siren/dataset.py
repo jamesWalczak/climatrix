@@ -19,32 +19,23 @@ SdfEntry = namedtuple("SdfEntry", ["coords", "normals", "sdf"])
 log = logging.getLogger(__name__)
 
 
-class SDFDataset(Dataset):
-
+class SDFPredictDataset(Dataset):
     @log_input(log, level=logging.DEBUG)
     def __init__(
         self,
-        dataset: SparseDataset,
-        on_surface_points: int = 1000,
-        off_surface_points: int = 1000,
+        coords: np.ndarray,
         keep_aspect_ratio: bool = True,
         device: torch.device | None = None,
     ) -> None:
         super().__init__()
-        self.dataset = dataset
-        self.on_surface_points = on_surface_points
-        self.off_surface_points = off_surface_points
-        coords = self.get_coords()
         coords = self.center(coords)
         self.coords = self.normalize(
             coords, keep_aspect_ratio=keep_aspect_ratio
         )
         self.device = device or torch.device("cpu")
 
-    def get_coords(self) -> np.ndarray:
-        lats = self.dataset.latitude.values
-        lons = self.dataset.longitude.values
-        return np.stack((lats, lons, self.dataset.da.values), axis=1)
+    def __len__(self) -> int:
+        return len(self.coords)
 
     def center(self, coords: np.ndarray) -> np.ndarray:
         return coords - np.mean(coords, axis=0, keepdims=True)
@@ -65,6 +56,25 @@ class SDFDataset(Dataset):
         coords -= 0.5  # Normalize to [-0.5, 0.5]
         coords *= 2.0  # Normalize to [-1, 1]
         return coords
+
+    def __getitem__(self, index) -> torch.Tensor:
+        return torch.from_numpy(self.coords[index]).float()
+
+
+class SDFTrainDataset(SDFPredictDataset):
+
+    @log_input(log, level=logging.DEBUG)
+    def __init__(
+        self,
+        coords: np.ndarray,
+        on_surface_points: int = 1_000,
+        off_surface_points: int = 1_000,
+        keep_aspect_ratio: bool = True,
+        device: torch.device | None = None,
+    ) -> None:
+        super().__init__(coords, keep_aspect_ratio, device)
+        self.on_surface_points = on_surface_points
+        self.off_surface_points = off_surface_points
 
     def __len__(self) -> int:
         return len(self.coords) // self.on_surface_points

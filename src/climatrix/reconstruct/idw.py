@@ -1,19 +1,24 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 import numpy as np
 import xarray as xr
 from scipy.spatial import cKDTree
 
+from climatrix.decorators.runtime import log_input
 from climatrix.reconstruct.base import BaseReconstructor
 
 if TYPE_CHECKING:
     from climatrix.dataset.sparse import SparseDataset
 
+log = logging.getLogger(__name__)
+
 
 class IDWReconstructor(BaseReconstructor):
 
+    @log_input(log, level=logging.DEBUG)
     def __init__(
         self,
         dataset: SparseDataset,
