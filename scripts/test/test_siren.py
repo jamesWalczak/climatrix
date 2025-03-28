@@ -8,8 +8,8 @@ sparse = europe.sample(number=10_000, nan_policy="resample")
 dense = sparse.reconstruct(
     europe.domain,
     method="siren",
-    on_surface_points=5000,
-    off_surface_points=5000,
+    num_surface_points=5000,
+    num_off_surface_points=5000,
     checkpoint="artifacts/siren.ckpt",
 )
 dense.plot()

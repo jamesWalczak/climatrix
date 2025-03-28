@@ -11,12 +11,42 @@ from climatrix.decorators.runtime import log_input
 from climatrix.reconstruct.base import BaseReconstructor
 
 if TYPE_CHECKING:
+    from climatrix.dataset.dense import DenseDataset
     from climatrix.dataset.sparse import SparseDataset
 
 log = logging.getLogger(__name__)
 
 
 class IDWReconstructor(BaseReconstructor):
+    """
+    Inverse Distance Weighting Reconstructor
+
+    Attributes
+    ----------
+    k : int
+        The number of nearest neighbors to consider.
+    k_min : int
+        The minimum number of nearest neighbors to consider (if k < k_min)
+        NaN values will be put.
+    power : int
+        The power to raise the distance to
+
+    Parameters
+    ----------
+    dataset : SparseDataset
+        The input dataset.
+    lat : slice or np.ndarray, optional
+        The latitude range (default is slice(-90, 90, 0.1)).
+    lon : slice or np.ndarray, optional
+        The longitude range (default is slice(-180, 180, 0.1)).
+    power : int, optional
+        The power to raise the distance to (default is 2).
+    k : int, optional
+        The number of nearest neighbors to consider (default is 5).
+    k_min : int, optional
+        The minimum number of nearest neighbors to consider (if k < k_min)
+        NaN values will be put (default is 2).
+    """
 
     @log_input(log, level=logging.DEBUG)
     def __init__(
@@ -33,7 +63,30 @@ class IDWReconstructor(BaseReconstructor):
         self.k_min = k_min
         self.power = power
 
-    def _build_grid(self) -> np.ndarray:
+    def _build_grid(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Build a grid of latitudes and longitudes.
+
+        Parameters
+        ----------
+        self : IDWReconstructor
+
+        Returns
+        -------
+        lat_grid : np.ndarray
+            The latitude grid points.
+        lon_grid : np.ndarray
+            The longitude grid points.
+        points : np.ndarray
+            The input points in the form of a 2D array where each row is a point
+            in the form (longitude, latitude).
+        query_points : np.ndarray
+            The query points in the form of a 2D array where each row is a point
+            in the form (longitude, latitude) that will be used to query the
+            nearest neighbors.
+        """
         if isinstance(self.query_lat, slice):
             lat_grid = np.arange(
                 self.query_lat.start,
@@ -61,8 +114,29 @@ class IDWReconstructor(BaseReconstructor):
             np.column_stack((lon_mesh.flatten(), lat_mesh.flatten())),
         )
 
-    def reconstruct(self):
-        from climatrix.dataset.dense import DenseDataset
+    def reconstruct(self) -> DenseDataset:
+        """
+        Perform Inverse Distance Weighting (IDW) reconstruction of the dataset.
+
+        This method reconstructs the sparse dataset using IDW, taking into
+        account the specified number of nearest neighbors and the power to
+        which distances are raised. The reconstructed data is returned as
+        a dense dataset, either static or dynamic based on the input dataset.
+
+        Returns
+        -------
+        DenseDataset
+            The reconstructed dense dataset, either StaticDenseDataset or
+            DynamicDenseDataset, depending on whether the input dataset
+            is dynamic.
+
+        Notes
+        -----
+        - For dynamic datasets, the reconstruction is performed for each
+        time step.
+        - If fewer than `self.k_min` neighbors are available, NaN values are
+        assigned to the corresponding points in the output.
+        """
         from climatrix.dataset.sparse import DynamicSparseDataset
 
         values = self.dataset.da.values

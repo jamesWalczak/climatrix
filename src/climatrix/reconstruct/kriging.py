@@ -18,6 +18,36 @@ log = logging.getLogger(__name__)
 
 
 class OrdinaryKrigingReconstructor(BaseReconstructor):
+    """
+    Reconstruct a sparse dataset using Ordinary Kriging.
+
+    Attributes
+    ----------
+    dataset : SparseDataset
+        The sparse dataset to reconstruct.
+    query_lat : np.ndarray
+        The latitude grid points.
+    query_lon : np.ndarray
+        The longitude grid points.
+    pykrige_kwargs : dict
+        Additional keyword arguments to pass to pykrige.
+    backend : Literal["vectorized", "loop"] | None
+        The backend to use for kriging.
+
+    Parameters
+    ----------
+    dataset : SparseDataset
+        The sparse dataset to reconstruct.
+    lat : slice or np.ndarray, optional
+        The latitude range (default is slice(-90, 90, 0.1)).
+    lon : slice or np.ndarray, optional
+        The longitude range (default is slice(-180, 180, 0.1)).
+    backend : Literal["vectorized", "loop"] | None, optional
+        The backend to use for kriging (default is None).
+    pykrige_kwargs : dict, optional
+        Additional keyword arguments to pass to pykrige.
+    """
+
     _MAX_VECTORIZED_SIZE: ClassVar[int] = 5_000_000
 
     @log_input(log, level=logging.DEBUG)
@@ -37,6 +67,20 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
 
     @raise_if_not_installed("pykrige")
     def reconstruct(self):
+        """
+        Perform Ordinary Kriging reconstruction of the dataset.
+
+        Returns
+        -------
+        StaticDenseDataset
+            The reconstructed dense dataset.
+
+        Notes
+        -----
+        - The backend is chosen based on the size of the dataset.
+        If the dataset is larger than the maximum size, the loop
+        backend is used.
+        """
         from pykrige.ok import OrdinaryKriging
 
         from climatrix.dataset.dense import StaticDenseDataset

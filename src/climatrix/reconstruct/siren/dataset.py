@@ -67,17 +67,17 @@ class SDFTrainDataset(SDFPredictDataset):
     def __init__(
         self,
         coords: np.ndarray,
-        on_surface_points: int = 1_000,
-        off_surface_points: int = 1_000,
+        num_surface_points: int = 1_000,
+        num_off_surface_points: int = 1_000,
         keep_aspect_ratio: bool = True,
         device: torch.device | None = None,
     ) -> None:
         super().__init__(coords, keep_aspect_ratio, device)
-        self.on_surface_points = on_surface_points
-        self.off_surface_points = off_surface_points
+        self.num_surface_points = num_surface_points
+        self.num_off_surface_points = num_off_surface_points
 
     def __len__(self) -> int:
-        return len(self.coords) // self.on_surface_points
+        return len(self.coords) // self.num_surface_points
 
     def _compute_normals(self, idx) -> np.ndarray:
         from sklearn.neighbors import KDTree
@@ -94,20 +94,22 @@ class SDFTrainDataset(SDFPredictDataset):
         return normal_vectors
 
     def _sample_on_surface(self) -> tuple[np.ndarray, np.ndarray]:
-        idx = np.random.choice(len(self.coords), size=self.on_surface_points)
+        idx = np.random.choice(len(self.coords), size=self.num_surface_points)
         normals = self._compute_normals(idx)
         return self.coords[idx, :], normals
 
     def _sample_off_surface(self) -> tuple[np.ndarray, np.ndarray]:
-        coords = np.random.uniform(-1, 1, size=(self.off_surface_points, 3))
-        normals = np.ones((self.off_surface_points, 3)) * -1
+        coords = np.random.uniform(
+            -1, 1, size=(self.num_off_surface_points, 3)
+        )
+        normals = np.ones((self.num_off_surface_points, 3)) * -1
         return (coords, normals)
 
     def _sample_sdf(self) -> np.ndarray:
-        total_points = self.on_surface_points + self.off_surface_points
+        total_points = self.num_surface_points + self.num_off_surface_points
         sdf = np.zeros((total_points, 1))
         # NOTE: off-surface are only external points. to consider internal
-        sdf[self.on_surface_points :] = -1
+        sdf[self.num_surface_points :] = -1
         return sdf
 
     def __getitem__(self, index) -> SdfEntry:
