@@ -41,7 +41,7 @@ class SIRENReconstructor(BaseReconstructor):
         on_surface_points: int = 1_000,
         off_surface_points: int = 1_000,
         lr: float = 1e-4,
-        epochs: int = 1_000,
+        epochs: int = 500,
         num_workers: int = 0,
         device: str = "cuda",
         clip_grad: float | None = None,

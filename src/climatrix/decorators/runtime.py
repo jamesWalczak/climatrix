@@ -44,7 +44,6 @@ def log_input(log: logging.Logger, level: int = logging.INFO):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            breakpoint()
             log.log(level, f"Input: {args}, {kwargs}")
             return func(*args, **kwargs)
 
