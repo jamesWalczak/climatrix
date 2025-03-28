@@ -3,9 +3,13 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import saeborn as sns
 from matplotlib.axes import Axes
 
 from climatrix.dataset.dense import DenseDataset
+from src.climatrix.decorators import raise_if_not_installed
+
+sns.set_style("darkgrid")
 
 
 class Comparison:
@@ -95,7 +99,8 @@ class Comparison:
         """
         if ax is None:
             fig, ax = plt.subplots()
-        # TODO
+
+        ax.hist(self.diff.da.values.flatten())
         raise NotImplementedError
 
     def compute_rmse(self) -> float:
@@ -121,6 +126,7 @@ class Comparison:
         """
         return np.nanmean(np.abs(self.diff.da.values)).item()
 
+    @raise_if_not_installed("sklearn")
     def compute_r2(self):
         # TODO:
         """
@@ -131,7 +137,11 @@ class Comparison:
         float
             The R^2 between the source and target datasets.
         """
-        raise NotImplementedError
+        from sklearn.metrics import r2_score
+
+        return r2_score(
+            self.sd.da.values.flatten(), self.td.da.values.flatten()
+        )
 
     def compute_max_abs_error(self) -> float:
         """
