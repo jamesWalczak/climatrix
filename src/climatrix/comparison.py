@@ -99,8 +99,8 @@ class Comparison:
         if ax is None:
             fig, ax = plt.subplots()
 
-        ax.hist(self.diff.da.values.flatten())
-        raise NotImplementedError
+        ax.hist(self.diff.da.values.flatten(), bins=100)
+        return ax
 
     def compute_rmse(self) -> float:
         """
