@@ -48,7 +48,7 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         Additional keyword arguments to pass to pykrige.
     """
 
-    _MAX_VECTORIZED_SIZE: ClassVar[int] = 5_000_000
+    _MAX_VECTORIZED_SIZE: ClassVar[int] = 200_000
 
     @log_input(log, level=logging.DEBUG)
     def __init__(

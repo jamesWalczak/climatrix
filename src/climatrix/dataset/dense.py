@@ -27,7 +27,9 @@ if TYPE_CHECKING:
 # matplotlib.use('Agg')
 class DenseDataset(BaseClimatrixDataset):
 
-    def maybe_roll(self, indexers: dict[str, slice]) -> Self:
+    def _maybe_roll(
+        self, indexers: dict[str, slice]
+    ) -> xr.DataArray | xr.Dataset:
         # Code derived from https://github.com/CMCC-Foundation/geokube
         first_el, last_el = (
             self.longitude.values.min(),
@@ -68,7 +70,7 @@ class DenseDataset(BaseClimatrixDataset):
             res[self.longitude_name].attrs.update(
                 self.da[self.longitude_name].attrs
             )
-        return type(self)(res)
+        return res
 
     def subset(
         self,
@@ -101,9 +103,10 @@ class DenseDataset(BaseClimatrixDataset):
                 else np.s_[east:west]
             ),
         }
-        da = self.maybe_roll(idx)
-        da.da = da.da.sel(**idx)
-        return da
+        da = self._maybe_roll(idx)
+        da = da.sel(**idx)
+
+        return type(self)(da)
 
     def sample(
         self,

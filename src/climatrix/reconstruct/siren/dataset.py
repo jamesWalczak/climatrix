@@ -29,10 +29,10 @@ class SDFPredictDataset(Dataset):
     ) -> None:
         super().__init__()
         self.coordinates = coordinates
-        # coordinates = self.center(coordinates)
-        # self.coordinates = self.normalize(
-        #     coordinates, keep_aspect_ratio=keep_aspect_ratio
-        # )
+        coordinates = self.center(coordinates)
+        self.coordinates = self.normalize(
+            coordinates, keep_aspect_ratio=keep_aspect_ratio
+        )
         self.device = device or torch.device("cpu")
 
     def __len__(self) -> int:

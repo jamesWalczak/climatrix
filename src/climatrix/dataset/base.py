@@ -118,6 +118,9 @@ class BaseClimatrixDataset(ABC):
     def __init__(self, xarray_obj: xr.DataArray):
         self.da = self._ensure_single_var(xarray_obj)
         self.axis_mapping = self._match_axis_names(self.da)
+        self._update_domain()
+
+    def _update_domain(self) -> None:
         self.domain = Domain(
             {
                 axis: self.da[axis_name].values

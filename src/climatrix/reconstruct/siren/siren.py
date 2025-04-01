@@ -70,7 +70,7 @@ class SIRENReconstructor(BaseReconstructor):
         *,
         num_surface_points: int = 1_000,
         num_off_surface_points: int = 1_000,
-        lr: float = 1e-4,
+        lr: float = 3e-4,
         num_epochs: int = 5_000,
         num_workers: int = 0,
         device: str = "cuda",
@@ -163,7 +163,7 @@ class SIRENReconstructor(BaseReconstructor):
         self, siren_model: nn.Module, checkpoint: Path
     ) -> None:
         if checkpoint and not checkpoint.exists():
-            checkpoint.parent.mkdir(parents=True)
+            checkpoint.parent.mkdir(parents=True, exist_ok=True)
             log.info("Saving checkpoint to %s...", checkpoint)
             torch.save(siren_model.state_dict(), checkpoint)
 

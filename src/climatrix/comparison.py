@@ -1,8 +1,10 @@
 import os
+import warnings
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 from matplotlib.axes import Axes
 
@@ -27,7 +29,7 @@ class Comparison:
 
     Parameters
     ----------
-    source_dataset : DenseDataset
+    predicted_dataset : DenseDataset
         The source dataset.
     target_dataset : DenseDataset
         The target dataset.
@@ -38,17 +40,17 @@ class Comparison:
 
     def __init__(
         self,
-        source_dataset: DenseDataset,
+        predicted_dataset: DenseDataset,
         target_dataset: DenseDataset,
         map_nan_from_source: bool = True,
     ):
-        if not isinstance(source_dataset, DenseDataset) or not isinstance(
+        if not isinstance(predicted_dataset, DenseDataset) or not isinstance(
             target_dataset, DenseDataset
         ):
             raise NotImplementedError(
                 "Comparison is currently enabled only for dense datasets."
             )
-        self.sd = source_dataset
+        self.sd = predicted_dataset
         self.td = target_dataset
         self._assert_static()
         if map_nan_from_source:
@@ -81,7 +83,14 @@ class Comparison:
 
         return self.diff.da.plot(ax=ax)
 
-    def plot_signed_diff(self, ax: Axes | None = None) -> Axes:
+    def plot_signed_diff_hist(
+        self,
+        ax: Axes | None = None,
+        n_bins: int = 50,
+        limits: tuple[float] | None = None,
+        label: str | None = None,
+        alpha: float = 1.0,
+    ) -> Axes:
         """
         Plot the histogram of signed difference between datasets.
 
@@ -91,6 +100,17 @@ class Comparison:
         where the source dataset is smaller than
         the target dataset.
 
+        Parameters
+        ----------
+        ax : Axes, optional
+            The matplotlib axes on which to plot the histogram. If None,
+            a new set of axes will be created.
+        n_bins : int, optional
+            The number of bins to use in the histogram (default is 50).
+        limits : tuple[float], optional
+            The limits of values to include in the
+            histogram (default is None).
+
         Returns
         -------
         Axes
@@ -99,7 +119,13 @@ class Comparison:
         if ax is None:
             fig, ax = plt.subplots()
 
-        ax.hist(self.diff.da.values.flatten(), bins=100)
+        ax.hist(
+            self.diff.da.values.flatten(),
+            bins=n_bins,
+            range=limits,
+            label=label,
+            alpha=alpha,
+        )
         return ax
 
     def compute_rmse(self) -> float:
@@ -127,7 +153,6 @@ class Comparison:
 
     @raise_if_not_installed("sklearn")
     def compute_r2(self):
-        # TODO:
         """
         Compute the R^2 between the source and target datasets.
 
@@ -138,9 +163,11 @@ class Comparison:
         """
         from sklearn.metrics import r2_score
 
-        return r2_score(
-            self.sd.da.values.flatten(), self.td.da.values.flatten()
-        )
+        sd = self.sd.da.values.flatten()
+        sd = sd[~np.isnan(sd)]
+        td = self.td.da.values.flatten()
+        td = td[~np.isnan(td)]
+        return r2_score(sd, td)
 
     def compute_max_abs_error(self) -> float:
         """
@@ -172,7 +199,20 @@ class Comparison:
         """
         target_dir = Path(target_dir)
         if target_dir.exists():
-            raise FileExistsError(f"Directory {target_dir} already exists")
-        target_dir.mkdir(parents=True)
-        # TODO: save plot
-        # TODO: save csv with metrics
+            warnings.warn(
+                "The target directory already exists and will be overwritten."
+            )
+        target_dir.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(
+            {
+                "RMSE": [self.compute_rmse()],
+                "MAE": [self.compute_mae()],
+                "Max Abs Error": [self.compute_max_abs_error()],
+                "R^2": [self.compute_r2()],
+            }
+        ).to_csv(target_dir / "metrics.csv", index=False)
+        self.plot_diff().get_figure().savefig(target_dir / "diff.svg")
+        self.plot_signed_diff_hist().get_figure().savefig(
+            target_dir / "signed_diff_hist.svg"
+        )
+        plt.close("all")

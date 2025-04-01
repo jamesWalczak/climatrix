@@ -199,7 +199,7 @@ class IDWReconstructor(BaseReconstructor):
         else:
             from climatrix.dataset.dense import StaticDenseDataset
 
-            log.into("Reconstructing static dataset...")
+            log.info("Reconstructing static dataset...")
             interp_data = np.nansum(values[idxs] * weights, axis=1)
             interp_data = interp_data.reshape(len(lat_grid), len(lon_grid))
             coords = {
