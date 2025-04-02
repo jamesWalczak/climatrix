@@ -6,6 +6,10 @@ __pycache__/
 # venvs
 vdev/
 
+# netcdf files
+*.nc
+*.nc.bkp
+
 # C extensions
 *.so
 

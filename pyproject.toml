@@ -47,6 +47,9 @@ ml = [
     "torch", 
     "scikit-learn"
 ]
+opt = [
+    "bayesian-optimization"
+]
 all = [
     "climatrix[dev]", 
     "climatrix[plot]",

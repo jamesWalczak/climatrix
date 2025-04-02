@@ -31,7 +31,7 @@ class Comparison:
     ----------
     predicted_dataset : DenseDataset
         The source dataset.
-    target_dataset : DenseDataset
+    true_dataset : DenseDataset
         The target dataset.
     map_nan_from_source : bool, optional
         Whether to map NaN values from the source dataset to the target dataset.
@@ -41,24 +41,26 @@ class Comparison:
     def __init__(
         self,
         predicted_dataset: DenseDataset,
-        target_dataset: DenseDataset,
+        true_dataset: DenseDataset,
         map_nan_from_source: bool = True,
     ):
         if not isinstance(predicted_dataset, DenseDataset) or not isinstance(
-            target_dataset, DenseDataset
+            true_dataset, DenseDataset
         ):
             raise NotImplementedError(
                 "Comparison is currently enabled only for dense datasets."
             )
-        self.sd = predicted_dataset
-        self.td = target_dataset
+        self.predicted_dataset = predicted_dataset
+        self.true_dataset = true_dataset
         self._assert_static()
         if map_nan_from_source:
-            self.td.mask_nan(self.sd)
-        self.diff = self.sd - self.td
+            self.predicted_dataset = self.predicted_dataset.mask_nan(
+                self.true_dataset
+            )
+        self.diff = self.predicted_dataset - self.true_dataset
 
     def _assert_static(self):
-        if self.sd.is_dynamic or self.td.is_dynamic:
+        if self.predicted_dataset.is_dynamic or self.true_dataset.is_dynamic:
             raise NotImplementedError(
                 "Comaprison between dynamic datasets is not yet implemented"
             )
@@ -163,9 +165,9 @@ class Comparison:
         """
         from sklearn.metrics import r2_score
 
-        sd = self.sd.da.values.flatten()
+        sd = self.predicted_dataset.da.values.flatten()
         sd = sd[~np.isnan(sd)]
-        td = self.td.da.values.flatten()
+        td = self.true_dataset.da.values.flatten()
         td = td[~np.isnan(td)]
         return r2_score(sd, td)
 
@@ -180,6 +182,14 @@ class Comparison:
             target datasets.
         """
         return np.nanmax(np.abs(self.diff.da.values)).item()
+
+    def compute_report(self) -> dict[str, float]:
+        return {
+            "RMSE": self.compute_rmse(),
+            "MAE": self.compute_mae(),
+            "Max Abs Error": self.compute_max_abs_error(),
+            "R^2": self.compute_r2(),
+        }
 
     def save_report(self, target_dir: str | os.PathLike | Path) -> None:
         """
@@ -203,14 +213,10 @@ class Comparison:
                 "The target directory already exists and will be overwritten."
             )
         target_dir.mkdir(parents=True, exist_ok=True)
-        pd.DataFrame(
-            {
-                "RMSE": [self.compute_rmse()],
-                "MAE": [self.compute_mae()],
-                "Max Abs Error": [self.compute_max_abs_error()],
-                "R^2": [self.compute_r2()],
-            }
-        ).to_csv(target_dir / "metrics.csv", index=False)
+        metrics = self.compute_report()
+        pd.DataFrame(metrics, index=[0]).to_csv(
+            target_dir / "metrics.csv", index=False
+        )
         self.plot_diff().get_figure().savefig(target_dir / "diff.svg")
         self.plot_signed_diff_hist().get_figure().savefig(
             target_dir / "signed_diff_hist.svg"
