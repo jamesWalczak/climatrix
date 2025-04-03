@@ -1,0 +1,5 @@
+name = "era5-land"
+latitude_name = "latitude"
+longitude_name = "longitude"
+time_name = "valid_time"
+dataset = "climatrix.dataset.dense.DenseDataset"
