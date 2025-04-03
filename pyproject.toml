@@ -47,7 +47,7 @@ ml = [
     "torch", 
     "scikit-learn"
 ]
-opt = [
+optim = [
     "bayesian-optimization"
 ]
 all = [
