@@ -82,4 +82,5 @@ def run_experiment_normal_sampling(source_dataset: DenseDataset):
 if __name__ == "__main__":
     dset = load_dataset()
     run_experiment_uniform_sampling(dset)
-    run_experiment_normal_sampling(dset)
+    # NOTE: normal sampling with "resample" policy has not yet been implemented
+    # run_experiment_normal_sampling(dset)

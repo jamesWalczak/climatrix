@@ -69,7 +69,7 @@ def find_hyperparameters():
     sparse_dset = sample_data(dset)
     func = partial(recon, source_dset=dset, sparse_dset=sparse_dset)
     hyperparameters_bounds = {
-        "nlags": (1, 50),
+        "nlags": (2, 50),
         "anisotropy_scaling": (1e-5, 5.0),
         "coordinates_type_code": ("1", "2"),
         "variogram_model_code": ("1", "6"),

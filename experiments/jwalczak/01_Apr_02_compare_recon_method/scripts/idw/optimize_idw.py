@@ -31,6 +31,8 @@ def sample_data(dset):
 
 
 def recon(source_dset, sparse_dset, k: int, power: float, k_min: int) -> float:
+    if k_min > k:
+        return -100
     recon_dset = sparse_dset.reconstruct(
         source_dset.domain,
         method="idw",
