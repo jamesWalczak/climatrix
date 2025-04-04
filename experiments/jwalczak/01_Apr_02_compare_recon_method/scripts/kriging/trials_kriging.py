@@ -6,12 +6,12 @@ optimisation.
 
 Bayesian optimisation output (init_points=30, n_iter=200)
 {
-    'target': np.float64(-1.2478271112491257), 
-    'params': 
+    'target': np.float64(-1.2478271112491257),
+    'params':
     {
-        'anisotropy_scaling': np.float64(1.9013097147233078), 
+        'anisotropy_scaling': np.float64(1.9013097147233078),
         'coordinates_type_code': np.float64(1.011501553419444),  #euclidean
-        'nlags': np.float64(25.375015878472173), 
+        'nlags': np.float64(25.375015878472173),
         'variogram_model_code': np.float64(4.598912867143214)
     }
 }

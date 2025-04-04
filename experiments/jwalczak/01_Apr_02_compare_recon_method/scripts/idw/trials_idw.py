@@ -64,7 +64,7 @@ def reconstruct_and_save_report(
 
 
 def run_experiment_uniform_sampling(source_dataset: DenseDataset):
-    for i in track(range(TRIALS), description="Reconstructing..."):
+    for i in track(range(1, TRIALS + 1), description="Reconstructing..."):
         res_dir = RESULT_DIR / "uniform" / f"trial_{i}"
         reconstruct_and_save_report(
             source_dataset, res_dir, "uniform", "resample"

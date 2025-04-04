@@ -5,7 +5,7 @@ import pandas as pd
 from rich.console import Console
 from rich.table import Table
 
-ROOT_EXP_DIR = "results/kriging"
+ROOT_EXP_DIR = "results/ordinary_kriging"
 UNIFORM_EXP_DIR = f"{ROOT_EXP_DIR}/uniform"
 NORMAL_EXP_DIR = f"{ROOT_EXP_DIR}/normal"
 
