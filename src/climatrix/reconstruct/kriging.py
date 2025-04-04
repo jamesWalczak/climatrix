@@ -48,7 +48,7 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         Additional keyword arguments to pass to pykrige.
     """
 
-    _MAX_VECTORIZED_SIZE: ClassVar[int] = 200_000
+    _MAX_VECTORIZED_SIZE: ClassVar[int] = 500_000
 
     @log_input(log, level=logging.DEBUG)
     def __init__(
@@ -90,7 +90,8 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
             log.info("Choosing backend based on dataset size...")
             self.backend = (
                 "vectorized"
-                if self.dataset.size < self._MAX_VECTORIZED_SIZE
+                if (len(self.query_lat) * len(self.query_lon))
+                < self._MAX_VECTORIZED_SIZE
                 else "loop"
             )
             log.info("Using backend: %s", self.backend)
