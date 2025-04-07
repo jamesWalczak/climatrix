@@ -1,18 +1,17 @@
 """
-This module contains the code for the Ordinary Kriging trials.
+This module contains the code for the INR trials.
 
 All hyper-parameters were selected using constrained Bayesian
 optimisation.
 
-Bayesian optimisation output (init_points=30, n_iter=200)
+Bayesian optimisation output (init_points=30, n_iter=100)
 {
-    'target': np.float64(-1.2478271112491257),
+    'target (RMSE)': np.float64(-1.4241189958579608),
     'params':
     {
-        'anisotropy_scaling': np.float64(1.9013097147233078),
-        'coordinates_type_code': np.float64(1.011501553419444),  #euclidean
-        'nlags': np.float64(25.375015878472173),
-        'variogram_model_code': np.float64(4.598912867143214)
+        'k': np.float64(27.40201996616449),
+        'k_min': np.float64(17.348586061728497),
+        'power': np.float64(2.7965365027773164)
     }
 }
 """
@@ -20,24 +19,20 @@ Bayesian optimisation output (init_points=30, n_iter=200)
 from pathlib import Path
 
 import xarray as xr
-from rich.console import Console
 from rich.progress import track
 
 import climatrix as cm
-from climatrix.dataset.base import Domain
 from climatrix.dataset.dense import DenseDataset
-from climatrix.dataset.sparse import SparseDataset
 
 TRIALS: int = 30
 N_POINTS: int = 1_000
 
-ANISOTROPY_SCALING: float = 1.9
-COORDINATES_TYPE: str = "euclidean"
-NLAGS: int = 25
-VARIOGRAM_MODEL: str = "exponential"
+K: int = 27
+POWER: float = 2.79
+K_MIN: int = 17
 
 RECON_DATASET_PATH = Path("data/europe_recon.nc")
-RESULT_DIR = Path("results/ordinary_kriging")
+RESULT_DIR = Path("results/inr")
 
 
 def load_dataset() -> DenseDataset:
@@ -57,11 +52,10 @@ def reconstruct_and_save_report(
     )
     recon_dset = sparse_dset.reconstruct(
         source_dataset.domain,
-        method="ok",
-        nlags=NLAGS,
-        anisotropy_scaling=ANISOTROPY_SCALING,
-        coordinates_type=COORDINATES_TYPE,
-        variogram_model=VARIOGRAM_MODEL,
+        method="inr",
+        k=K,
+        power=POWER,
+        k_min=K_MIN,
     )
     cm.Comparison(recon_dset, source_dataset).save_report(target_dir)
 
