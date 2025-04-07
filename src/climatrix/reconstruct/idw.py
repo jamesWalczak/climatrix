@@ -200,8 +200,11 @@ class IDWReconstructor(BaseReconstructor):
             from climatrix.dataset.dense import StaticDenseDataset
 
             log.info("Reconstructing static dataset...")
-            interp_data = np.nansum(values[idxs] * weights, axis=1)
-            interp_data = interp_data.reshape(len(lat_grid), len(lon_grid))
+            interp_vals = np.nansum(values[idxs] * weights, axis=1)
+            interp_vals[np.isfinite(weights).sum(axis=1) < self.k_min] = (
+                np.nan
+            )            
+            interp_vals = interp_vals.reshape(len(lat_grid), len(lon_grid))
             coords = {
                 self.dataset.latitude_name: lat_grid,
                 self.dataset.longitude_name: lon_grid,
@@ -213,7 +216,7 @@ class IDWReconstructor(BaseReconstructor):
 
             return StaticDenseDataset(
                 xr.DataArray(
-                    interp_data,
+                    interp_vals,
                     coords=coords,
                     dims=dims,
                     name=self.dataset.da.name,
