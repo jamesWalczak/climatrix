@@ -27,7 +27,7 @@ _coords_name_regex: dict[Axis, str] = {
     Axis.LATITUDE: re.compile(r"^(x?)lat[a-z0-9_]*$"),
     Axis.LONGITUDE: re.compile(r"^(x?)lon[a-z0-9_]*$"),
     Axis.POINT: re.compile(
-        r"^scatter_(data|points|values)_([a-zA-Z0-9_]+)(_v[0-9]+)?\.csv$"
+        r"^(point|points|values)$"
     ),
 }
 
@@ -93,8 +93,10 @@ class BaseClimatrixDataset(ABC):
 
     @staticmethod
     def _match_axis_names(da: xr.DataArray) -> dict[Axis, str]:
+        # TODO: should be moved to Domain class
         axis_names = {}
-        for coord in da.coords:
+        coords_and_dims = set([*da.dims, *da.coords.keys()])
+        for coord in coords_and_dims:
             for axis, regex in _coords_name_regex.items():
                 if regex.match(coord):
                     axis_names[axis] = coord
@@ -103,6 +105,7 @@ class BaseClimatrixDataset(ABC):
 
     @staticmethod
     def _validate_spatial_axes(axis_mapping: dict[Axis, str]):
+        # TODO: should be moved to Domain class
         for axis in [Axis.LATITUDE, Axis.LONGITUDE]:
             if axis not in axis_mapping:
                 raise ValueError(f"Dataset has no {axis.name} axis")
