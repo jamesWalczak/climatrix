@@ -53,7 +53,8 @@ optim = [
 all = [
     "climatrix[dev]", 
     "climatrix[plot]",
-    "climatrix[ml]"
+    "climatrix[ml]",
+    "climatrix[optim]"
 ]
 
 [tool.setuptools]

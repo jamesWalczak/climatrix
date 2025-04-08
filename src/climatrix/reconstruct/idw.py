@@ -201,9 +201,7 @@ class IDWReconstructor(BaseReconstructor):
 
             log.info("Reconstructing static dataset...")
             interp_vals = np.nansum(values[idxs] * weights, axis=1)
-            interp_vals[np.isfinite(weights).sum(axis=1) < self.k_min] = (
-                np.nan
-            )            
+            interp_vals[np.isfinite(weights).sum(axis=1) < self.k_min] = np.nan
             interp_vals = interp_vals.reshape(len(lat_grid), len(lon_grid))
             coords = {
                 self.dataset.latitude_name: lat_grid,

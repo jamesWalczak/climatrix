@@ -26,9 +26,7 @@ _coords_name_regex: dict[Axis, str] = {
     ),
     Axis.LATITUDE: re.compile(r"^(x?)lat[a-z0-9_]*$"),
     Axis.LONGITUDE: re.compile(r"^(x?)lon[a-z0-9_]*$"),
-    Axis.POINT: re.compile(
-        r"^(point|points|values)$"
-    ),
+    Axis.POINT: re.compile(r"^(point|points|values)$"),
 }
 
 

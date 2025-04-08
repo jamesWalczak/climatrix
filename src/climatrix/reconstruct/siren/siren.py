@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import logging
 import os
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 import torch.nn as nn
+import tqdm
 import xarray as xr
 from torch.utils.data import DataLoader
 
@@ -76,6 +78,10 @@ class SIRENReconstructor(BaseReconstructor):
         device: str = "cuda",
         gradient_clipping_value: float | None = None,
         checkpoint: str | os.PathLike | Path | None = None,
+        sdf_loss_weight: float = 3e3,
+        inter_loss_weight: float = 1e2,
+        normal_loss_weight: float = 1e2,
+        eikonal_loss_weight: float = 5e1,
     ) -> None:
         super().__init__(dataset, lat, lon)
         if dataset.is_dynamic:
@@ -104,6 +110,10 @@ class SIRENReconstructor(BaseReconstructor):
         self.gradient_clipping_value = gradient_clipping_value
         self.checkpoint = None
         self.is_model_loaded: bool = False
+        self.sdf_loss_weight = sdf_loss_weight
+        self.inter_loss_weight = inter_loss_weight
+        self.normal_loss_weight = normal_loss_weight
+        self.eikonal_loss_weight = eikonal_loss_weight
         if checkpoint:
             self.checkpoint = Path(checkpoint).expanduser().absolute()
             log.info("Using checkpoint path: %s", self.checkpoint)
@@ -143,10 +153,10 @@ class SIRENReconstructor(BaseReconstructor):
             The aggregated loss.
         """
         return (
-            loss_component.sdf * 3e3
-            + loss_component.inter * 1e2
-            + loss_component.normal * 1e2
-            + loss_component.eikonal * 5e-1
+            loss_component.sdf * self.sdf_loss_weight
+            + loss_component.inter * self.inter_loss_weight
+            + loss_component.normal * self.normal_loss_weight
+            + loss_component.eikonal * self.eikonal_loss_weight
         )
 
     def _maybe_load_checkpoint(
@@ -168,12 +178,12 @@ class SIRENReconstructor(BaseReconstructor):
             torch.save(siren_model.state_dict(), checkpoint)
 
     def _find_surface(self, siren_model, dataset) -> np.ndarray:
-        all_z = []
         data_loader = DataLoader(
             dataset,
-            batch_size=5_000,
+            batch_size=50_000,
             shuffle=False,
         )
+        all_z = []
         log.info("Creating mini-batches for surface reconstruction...")
         for i, batch in enumerate(data_loader):
             log.info("Processing mini-batch %d/%d...", i + 1, len(data_loader))
@@ -191,10 +201,12 @@ class SIRENReconstructor(BaseReconstructor):
         alpha: float = 2.0,
     ) -> float:
         coordinates = batch.clone().detach()
+        breakpoint()
         for _ in range(max_iter):
             coordinates, sdf = siren_model(coordinates)
+            grad_outputs = torch.ones_like(sdf)
             grads = torch.autograd.grad(
-                sdf.sum(), [coordinates], create_graph=True
+                sdf, [coordinates], grad_outputs, create_graph=True
             )[0]
 
             coordinates = coordinates.detach()
@@ -215,11 +227,7 @@ class SIRENReconstructor(BaseReconstructor):
         lat_grid = lat_grid.reshape(-1)
         lon_grid = lon_grid.reshape(-1)
         return np.stack(
-            (
-                lat_grid,
-                lon_grid,
-                np.random.normal(size=(len(lat_grid),)),
-            ),
+            (lat_grid, lon_grid, np.random.uniform(-1, 1, size=len(lat_grid))),
             axis=1,
         )
 
@@ -259,19 +267,24 @@ class SIRENReconstructor(BaseReconstructor):
                 log.info(
                     "Epoch %d/%d: loss = %0.4f", epoch, self.epoch, epoch_loss
                 )
+            breakpoint()
             self._maybe_save_checkpoint(
                 siren_model=siren_model, checkpoint=self.checkpoint
             )
-        breakpoint()
         target_dataset = SDFPredictDataset(
-            self.train_dataset.coordinates, device=self.device
+            self._form_target_coordinates(), device=self.device
         )
+        breakpoint()
         # target_dataset = SDFPredictDataset(
         #     self._form_target_coordinates(), device=self.device
         # )
         # TODO: to verify finding z coordinates
-        values = self._find_surface(siren_model, target_dataset)
         breakpoint()
+        values = self._find_surface(siren_model, target_dataset)
+        # TODO: denormalisation needed
+        # values = (values / 2) + 0.5
+        # values = values * (self.train_dataset.coord_max - self.train_dataset.coord_min) + self.train_dataset.coord_min
+        # values = values + self.train_dataset.coord_mean
         values = values.reshape(len(self.query_lat), len(self.query_lon))
 
         coordinates = {

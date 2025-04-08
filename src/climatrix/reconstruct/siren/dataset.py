@@ -20,6 +20,11 @@ log = logging.getLogger(__name__)
 
 
 class SDFPredictDataset(Dataset):
+    coord_mean: np.ndarray
+    coord_max: np.ndarray
+    coord_min: np.ndarray
+    coordinates: np.ndarray
+
     @log_input(log, level=logging.DEBUG)
     def __init__(
         self,
@@ -28,7 +33,6 @@ class SDFPredictDataset(Dataset):
         device: torch.device | None = None,
     ) -> None:
         super().__init__()
-        self.coordinates = coordinates
         coordinates = self.center(coordinates)
         self.coordinates = self.normalize(
             coordinates, keep_aspect_ratio=keep_aspect_ratio
@@ -40,7 +44,8 @@ class SDFPredictDataset(Dataset):
 
     def center(self, coordinates: np.ndarray) -> np.ndarray:
         log.debug("Centering coordinates...")
-        return coordinates - np.mean(coordinates, axis=0, keepdims=True)
+        self.coord_mean = np.mean(coordinates, axis=0, keepdims=True)
+        return coordinates - self.coord_mean
 
     def normalize(
         self, coordinates: np.ndarray, keep_aspect_ratio: bool

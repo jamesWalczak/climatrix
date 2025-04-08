@@ -36,7 +36,7 @@ class Domain:
                 f"Longitude not found in coordinates {self.coords.keys()}"
             )
         return self.coords[Axis.LONGITUDE]
-    
+
     @property
     def size(self) -> int:
         if Axis.POINT in self.coords:
