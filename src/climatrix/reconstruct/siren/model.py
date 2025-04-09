@@ -6,11 +6,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import nn
 
 
 class BatchLinear(nn.Linear):
-    """A linear meta-layer that can deal with batched weight matrices and biases, as for instance output by a
+    """A linear meta-layer that can deal with batched weight
+    matrices and biases, as for instance output by a
     hypernetwork."""
 
     __doc__ = nn.Linear.__doc__
@@ -32,12 +32,14 @@ class BatchLinear(nn.Linear):
 class Sine(nn.Module):
 
     def forward(self, input):
-        # See paper sec. 3.2, final paragraph, and supplement Sec. 1.5 for discussion of factor 30
+        # See paper sec. 3.2, final paragraph, and supplement
+        # Sec. 1.5 for discussion of factor 30
         return torch.sin(30 * input)
 
 
 class FCBlock(nn.Module):
-    """A fully connected neural network that also allows swapping out the weights when used with a hypernetwork.
+    """A fully connected neural network that also allows swapping out
+      the weights when used with a hypernetwork.
     Can be used just as a normal neural network though, as well.
     """
 
@@ -55,7 +57,8 @@ class FCBlock(nn.Module):
 
         self.first_layer_init = None
 
-        # Dictionary that maps nonlinearity name to the respective function, initialization, and, if applicable,
+        # Dictionary that maps nonlinearity name to the respective
+        # function, initialization, and, if applicable,
         # special first-layer initialization scheme
         nls_and_inits = {
             "sine": (Sine(), sine_init, first_layer_sine_init),
@@ -99,9 +102,7 @@ class FCBlock(nn.Module):
         if self.weight_init is not None:
             self.net.apply(self.weight_init)
 
-        if (
-            first_layer_init is not None
-        ):  # Apply special initialization to first layer, if applicable.
+        if first_layer_init is not None:
             self.net[0].apply(first_layer_init)
 
     def forward(self, coords, params=None, **kwargs):
@@ -233,7 +234,8 @@ class PINNet(nn.Module):
 
 
 class ImageDownsampling(nn.Module):
-    """Generate samples in u,v plane according to downsampling blur kernel"""
+    """Generate samples in upper,v plane according to downsampling
+    blur kernel"""
 
     def __init__(self, sidelength, downsample=False):
         super().__init__()
@@ -267,7 +269,8 @@ class ImageDownsampling(nn.Module):
 
 
 class PosEncodingNeRF(nn.Module):
-    """Module to add positional encoding as in NeRF [Mildenhall et al. 2020]."""
+    """Module to add positional encoding as in NeRF
+    [Mildenhall et al. 2020]."""
 
     def __init__(
         self, in_features, sidelength=None, fn_samples=None, use_nyquist=True
@@ -352,6 +355,7 @@ class RBFLayer(nn.Module):
 ########################
 # Encoder modules
 class SetEncoder(nn.Module):
+
     def __init__(
         self,
         in_features,
@@ -397,6 +401,7 @@ class SetEncoder(nn.Module):
 
 
 class ConvImgEncoder(nn.Module):
+
     def __init__(self, channel, image_resolution):
         super().__init__()
 
@@ -419,8 +424,8 @@ class ConvImgEncoder(nn.Module):
 
         self.image_resolution = image_resolution
 
-    def forward(self, I):
-        o = self.relu(self.conv_theta(I))
+    def forward(self, data):
+        o = self.relu(self.conv_theta(data))
         o = self.cnn(o)
 
         o = self.fc(self.relu_2(o).view(o.shape[0], 256, -1)).squeeze(-1)
@@ -428,7 +433,8 @@ class ConvImgEncoder(nn.Module):
 
 
 class PartialConvImgEncoder(nn.Module):
-    """Adapted from https://github.com/NVIDIA/partialconv/blob/master/models/partialconv2d.py"""
+    """Adapted from https://github.com/NVIDIA/partialconv/blob/master/model
+    s/partialconv2d.py"""
 
     def __init__(self, channel, image_resolution):
         super().__init__()
@@ -460,14 +466,14 @@ class PartialConvImgEncoder(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-    def forward(self, I):
-        M_c = I.clone().detach()
+    def forward(self, data):
+        M_c = data.clone().detach()
         M_c = M_c > 0.0
         M_c = M_c[:, 0, ...]
         M_c = M_c.unsqueeze(1)
         M_c = M_c.float()
 
-        x = self.conv1(I, M_c)
+        x = self.conv1(data, M_c)
         x = self.bn1(x)
         x = self.relu(x)
 
@@ -482,7 +488,8 @@ class PartialConvImgEncoder(nn.Module):
 
 
 class Conv2dResBlock(nn.Module):
-    """Aadapted from https://github.com/makora9143/pytorch-convcnp/blob/master/convcnp/modules/resblock.py"""
+    """Aadapted from https://github.com/makora9143/pytorch-convcnp/blo
+    b/master/convcnp/modules/resblock.py"""
 
     def __init__(self, in_channel, out_channel=128):
         super().__init__()
@@ -507,6 +514,7 @@ def channel_last(x):
 
 
 class PartialConv2d(nn.Conv2d):
+
     def __init__(self, *args, **kwargs):
 
         # whether the mask is multi-channel or not
@@ -522,7 +530,7 @@ class PartialConv2d(nn.Conv2d):
         else:
             self.return_mask = False
 
-        super(PartialConv2d, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         if self.multi_channel:
             self.weight_maskUpdater = torch.ones(
@@ -585,11 +593,12 @@ class PartialConv2d(nn.Conv2d):
                 self.mask_ratio = self.slide_winsize / (
                     self.update_mask + 1e-8
                 )
-                # self.mask_ratio = torch.max(self.update_mask)/(self.update_mask + 1e-8)
+                # self.mask_ratio = torch.max(self.update_mask)/(self.
+                # update_mask + 1e-8)
                 self.update_mask = torch.clamp(self.update_mask, 0, 1)
                 self.mask_ratio = torch.mul(self.mask_ratio, self.update_mask)
 
-        raw_out = super(PartialConv2d, self).forward(
+        raw_out = super().forward(
             torch.mul(input, mask) if mask_in is not None else input
         )
 
@@ -624,7 +633,7 @@ class BasicBlock(nn.Module):
     expansion = 1
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
-        super(BasicBlock, self).__init__()
+        super().__init__()
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = nn.BatchNorm2d(planes)
         self.relu = nn.ReLU(inplace=True)
@@ -656,7 +665,8 @@ class BasicBlock(nn.Module):
 # Initialization methods
 def _no_grad_trunc_normal_(tensor, mean, std, a, b):
     # For PINNet, Raissi et al. 2019
-    # Method based on https://people.sc.fsu.edu/~jburkardt/presentations/truncated_normal.pdf
+    # Method based on https://people.sc.fsu.edu/~jburkardt/presentations/
+    # truncated_normal.pdf
     # grab from upstream pytorch branch and paste here for now
     def norm_cdf(x):
         # Computes standard normal cumulative distribution function
@@ -666,12 +676,13 @@ def _no_grad_trunc_normal_(tensor, mean, std, a, b):
         # Values are generated by using a truncated uniform distribution and
         # then using the inverse CDF for the normal distribution.
         # Get upper and lower cdf values
-        l = norm_cdf((a - mean) / std)
-        u = norm_cdf((b - mean) / std)
+        lower = norm_cdf((a - mean) / std)
+        upper = norm_cdf((b - mean) / std)
 
-        # Uniformly fill tensor with values from [l, u], then translate to
+        # Uniformly fill tensor with values from [lower, upper], then
+        #  translate to
         # [2l-1, 2u-1].
-        tensor.uniform_(2 * l - 1, 2 * u - 1)
+        tensor.uniform_(2 * lower - 1, 2 * upper - 1)
 
         # Use inverse cdf transform for normal distribution to get truncated
         # standard normal
@@ -688,22 +699,25 @@ def _no_grad_trunc_normal_(tensor, mean, std, a, b):
 
 def init_weights_trunc_normal(m):
     # For PINNet, Raissi et al. 2019
-    # Method based on https://people.sc.fsu.edu/~jburkardt/presentations/truncated_normal.pdf
-    if type(m) == BatchLinear or type(m) == nn.Linear:
+    # Method based on https://people.sc.fsu.edu/~jburkardt/presentati
+    # ons/truncated_normal.pdf
+    if isinstance(m, (BatchLinear, nn.Linear)):
         if hasattr(m, "weight"):
             fan_in = m.weight.size(1)
             fan_out = m.weight.size(0)
             std = math.sqrt(2.0 / float(fan_in + fan_out))
             mean = 0.0
             # initialize with the same behavior as tf.truncated_normal
-            # "The generated values follow a normal distribution with specified mean and
-            # standard deviation, except that values whose magnitude is more than 2
+            # "The generated values follow a normal distribution with
+            # specified mean and
+            # standard deviation, except that values whose magnitude is
+            # more than 2
             # standard deviations from the mean are dropped and re-picked."
             _no_grad_trunc_normal_(m.weight, mean, std, -2 * std, 2 * std)
 
 
 def init_weights_normal(m):
-    if type(m) == BatchLinear or type(m) == nn.Linear:
+    if isinstance(m, (BatchLinear, nn.Linear)):
         if hasattr(m, "weight"):
             nn.init.kaiming_normal_(
                 m.weight, a=0.0, nonlinearity="relu", mode="fan_in"
@@ -711,14 +725,14 @@ def init_weights_normal(m):
 
 
 def init_weights_selu(m):
-    if type(m) == BatchLinear or type(m) == nn.Linear:
+    if isinstance(m, (BatchLinear, nn.Linear)):
         if hasattr(m, "weight"):
             num_input = m.weight.size(-1)
             nn.init.normal_(m.weight, std=1 / math.sqrt(num_input))
 
 
 def init_weights_elu(m):
-    if type(m) == BatchLinear or type(m) == nn.Linear:
+    if isinstance(m, (BatchLinear, nn.Linear)):
         if hasattr(m, "weight"):
             num_input = m.weight.size(-1)
             nn.init.normal_(
@@ -728,7 +742,7 @@ def init_weights_elu(m):
 
 
 def init_weights_xavier(m):
-    if type(m) == BatchLinear or type(m) == nn.Linear:
+    if isinstance(m, (BatchLinear, nn.Linear)):
         if hasattr(m, "weight"):
             nn.init.xavier_normal_(m.weight)
 
@@ -747,7 +761,8 @@ def first_layer_sine_init(m):
     with torch.no_grad():
         if hasattr(m, "weight"):
             num_input = m.weight.size(-1)
-            # See paper sec. 3.2, final paragraph, and supplement Sec. 1.5 for discussion of factor 30
+            # See paper sec. 3.2, final paragraph, and supplement
+            # Sec. 1.5 for discussion of factor 30
             m.weight.uniform_(-1 / num_input, 1 / num_input)
 
 
@@ -789,45 +804,72 @@ def compl_mul(x, y):
     return out
 
 
-# class SineLayer(nn.Module):
-#     def __init__(self, in_features, out_features, bias=True, is_first=False, omega_0=30):
-#         super().__init__()
-#         self.omega_0 = omega_0
-#         self.is_first = is_first
-#         self.in_features = in_features
-#         self.linear = nn.Linear(in_features, out_features, bias=bias)
-#         self.init_weights()
+class SineLayer(nn.Module):
 
-#     def init_weights(self):
-#         with torch.no_grad():
-#             if self.is_first:
-#                 self.linear.weight.uniform_(-1 / self.in_features, 1 / self.in_features)
-#             else:
-#                 self.linear.weight.uniform_(-np.sqrt(6 / self.in_features) / self.omega_0,
-#                                             np.sqrt(6 / self.in_features) / self.omega_0)
+    def __init__(
+        self, in_features, out_features, bias=True, is_first=False, omega_0=30
+    ):
+        super().__init__()
+        self.omega_0 = omega_0
+        self.is_first = is_first
+        self.in_features = in_features
+        self.linear = nn.Linear(in_features, out_features, bias=bias)
+        self.init_weights()
 
-#     def forward(self, input):
-#         return torch.sin(self.omega_0 * self.linear(input))
+    def init_weights(self):
+        with torch.no_grad():
+            if self.is_first:
+                self.linear.weight.uniform_(
+                    -1 / self.in_features, 1 / self.in_features
+                )
+            else:
+                self.linear.weight.uniform_(
+                    -np.sqrt(6 / self.in_features) / self.omega_0,
+                    np.sqrt(6 / self.in_features) / self.omega_0,
+                )
 
-# class SIREN(nn.Module):
-#     def __init__(self, in_features, hidden_features, hidden_layers, out_features, outermost_linear=True, omega_0=30):
-#         super().__init__()
-#         self.net = []
-#         self.net.append(SineLayer(in_features, hidden_features, is_first=True, omega_0=omega_0))
+    def forward(self, input):
+        return torch.sin(self.omega_0 * self.linear(input))
 
-#         for _ in range(hidden_layers):
-#             self.net.append(SineLayer(hidden_features, hidden_features, omega_0=omega_0))
 
-#         if outermost_linear:
-#             final_linear = nn.Linear(hidden_features, out_features)
-#             with torch.no_grad():
-#                 final_linear.weight.uniform_(-np.sqrt(6 / hidden_features) / omega_0,
-#                                              np.sqrt(6 / hidden_features) / omega_0)
-#             self.net.append(final_linear)
-#         else:
-#             self.net.append(SineLayer(hidden_features, out_features, omega_0=omega_0))
+class SIREN(nn.Module):
 
-#         self.net = nn.Sequential(*self.net)
+    def __init__(
+        self,
+        in_features,
+        hidden_features,
+        hidden_layers,
+        out_features,
+        outermost_linear=True,
+        omega_0=30,
+    ):
+        super().__init__()
+        self.net = []
+        self.net.append(
+            SineLayer(
+                in_features, hidden_features, is_first=True, omega_0=omega_0
+            )
+        )
 
-#     def forward(self, coords):
-#         return self.net(coords)
+        for _ in range(hidden_layers):
+            self.net.append(
+                SineLayer(hidden_features, hidden_features, omega_0=omega_0)
+            )
+
+        if outermost_linear:
+            final_linear = nn.Linear(hidden_features, out_features)
+            with torch.no_grad():
+                final_linear.weight.uniform_(
+                    -np.sqrt(6 / hidden_features) / omega_0,
+                    np.sqrt(6 / hidden_features) / omega_0,
+                )
+            self.net.append(final_linear)
+        else:
+            self.net.append(
+                SineLayer(hidden_features, out_features, omega_0=omega_0)
+            )
+
+        self.net = nn.Sequential(*self.net)
+
+    def forward(self, coords):
+        return self.net(coords)

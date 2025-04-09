@@ -8,7 +8,6 @@ from functools import partial
 import xarray as xr
 from bayes_opt import BayesianOptimization
 
-import climatrix as cm
 from climatrix import Comparison
 
 TUNING_DSET_PATH = os.path.join(".", "data", "europe_tuning.nc")

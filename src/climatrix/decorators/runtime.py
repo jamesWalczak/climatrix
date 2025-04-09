@@ -1,11 +1,7 @@
 import functools
 import importlib
-import inspect
 import logging
-from numbers import Number
 from typing import Callable
-
-import numpy as np
 
 
 def raise_if_not_installed(
@@ -16,6 +12,7 @@ def raise_if_not_installed(
     """
 
     def decorator(func):
+
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             missing = []
@@ -42,6 +39,7 @@ def log_input(log: logging.Logger, level: int = logging.INFO):
     """Decorator to facilitte logging the input of a function."""
 
     def decorator(func):
+
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             log.log(level, f"Input: {args}, {kwargs}")

@@ -20,13 +20,10 @@ Bayesian optimisation output (init_points=30, n_iter=200)
 from pathlib import Path
 
 import xarray as xr
-from rich.console import Console
 from rich.progress import track
 
 import climatrix as cm
-from climatrix.dataset.base import Domain
 from climatrix.dataset.dense import DenseDataset
-from climatrix.dataset.sparse import SparseDataset
 
 TRIALS: int = 30
 N_POINTS: int = 1_000

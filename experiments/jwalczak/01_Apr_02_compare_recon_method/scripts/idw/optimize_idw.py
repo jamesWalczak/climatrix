@@ -7,10 +7,7 @@ from functools import partial
 
 import xarray as xr
 from bayes_opt import BayesianOptimization
-from sklearn.model_selection import GridSearchCV
-from sklearn.pipeline import Pipeline
 
-import climatrix as cm
 from climatrix import Comparison
 
 TUNING_DSET_PATH = os.path.join(".", "data", "europe_tuning.nc")

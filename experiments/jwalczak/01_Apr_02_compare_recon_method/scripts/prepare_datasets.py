@@ -2,8 +2,6 @@ import os
 
 import xarray as xr
 
-import climatrix as cm
-
 TUNING_DSET_PATH = os.path.join(".", "data", "europe_tuning.nc")
 RECON_DSET_PATH = os.path.join(".", "data", "europe_recon.nc")
 

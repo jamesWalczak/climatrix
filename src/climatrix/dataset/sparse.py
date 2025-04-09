@@ -3,7 +3,7 @@ from __future__ import annotations
 __all__ = ("StaticSparseDataset", "DynamicSparseDataset")
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, Self
+from typing import TYPE_CHECKING
 
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -12,7 +12,6 @@ import xarray as xr
 from matplotlib.axes import Axes
 
 from climatrix.dataset.base import BaseClimatrixDataset
-from climatrix.decorators import raise_if_not_installed
 from climatrix.reconstruct.type import ReconstructionType
 
 if TYPE_CHECKING:
@@ -43,7 +42,9 @@ class DynamicSparseDataset(SparseDataset):
 
     def __init__(self, xarray_obj: xr.DataArray):
         super().__init__(xarray_obj)
-        # raise NotImplementedError("DynamicSparseDataset is not implemented yet")
+        raise NotImplementedError(
+            "DynamicSparseDataset is not " "implemented yet"
+        )
 
     def plot(
         self,

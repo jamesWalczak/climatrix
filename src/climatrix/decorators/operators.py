@@ -2,8 +2,6 @@ import functools
 import inspect
 from numbers import Number
 
-import numpy as np
-
 
 def _assert_is_binary_func(func):
     if not callable(func):

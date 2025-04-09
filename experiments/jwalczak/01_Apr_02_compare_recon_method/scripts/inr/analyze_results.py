@@ -28,11 +28,12 @@ def analyse_uniform():
     table.add_column("Std error")
 
     for col in uniform_metrics.columns:
+        std_err = uniform_metrics[col].std() / np.sqrt(len(uniform_metrics))
         table.add_row(
             col,
             f"{uniform_metrics[col].mean():.4f}",
             f"{uniform_metrics[col].std():.4f}",
-            f"{(uniform_metrics[col].std() / np.sqrt(len(uniform_metrics))):.4f}",
+            f"{std_err:.4f}",
         )
     console = Console()
     console.print(table)

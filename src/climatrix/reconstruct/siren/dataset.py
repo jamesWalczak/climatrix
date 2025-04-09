@@ -6,13 +6,12 @@ from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 import torch
-import xarray as xr
 from torch.utils.data import Dataset
 
 from climatrix.decorators.runtime import log_input
 
 if TYPE_CHECKING:
-    from climatrix.dataset.sparse import SparseDataset
+    pass
 
 SdfEntry = namedtuple("SdfEntry", ["coordinates", "normals", "sdf"])
 

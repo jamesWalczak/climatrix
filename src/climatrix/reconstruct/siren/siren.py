@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import logging
 import os
-from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 import torch.nn as nn
-import tqdm
 import xarray as xr
 from torch.utils.data import DataLoader
 
@@ -201,7 +199,6 @@ class SIRENReconstructor(BaseReconstructor):
         alpha: float = 2.0,
     ) -> float:
         coordinates = batch.clone().detach()
-        breakpoint()
         for _ in range(max_iter):
             coordinates, sdf = siren_model(coordinates)
             grad_outputs = torch.ones_like(sdf)
@@ -267,23 +264,21 @@ class SIRENReconstructor(BaseReconstructor):
                 log.info(
                     "Epoch %d/%d: loss = %0.4f", epoch, self.epoch, epoch_loss
                 )
-            breakpoint()
             self._maybe_save_checkpoint(
                 siren_model=siren_model, checkpoint=self.checkpoint
             )
         target_dataset = SDFPredictDataset(
             self._form_target_coordinates(), device=self.device
         )
-        breakpoint()
         # target_dataset = SDFPredictDataset(
         #     self._form_target_coordinates(), device=self.device
         # )
         # TODO: to verify finding z coordinates
-        breakpoint()
         values = self._find_surface(siren_model, target_dataset)
         # TODO: denormalisation needed
         # values = (values / 2) + 0.5
-        # values = values * (self.train_dataset.coord_max - self.train_dataset.coord_min) + self.train_dataset.coord_min
+        # values = values * (self.train_dataset.coord_max \
+        # - self.train_dataset.coord_min) + self.train_dataset.coord_min
         # values = values + self.train_dataset.coord_mean
         values = values.reshape(len(self.query_lat), len(self.query_lon))
 

@@ -20,7 +20,8 @@ def analyse_uniform():
         [pd.read_csv(f) for f in uniform_metric_files], ignore_index=True
     )
     table = Table(
-        title="Metrics for reconstruction from uniformly sampled data (Ordinary Kriging)"
+        title="Metrics for reconstruction from uniformly sampled "
+        "data (Ordinary Kriging)"
     )
     table.add_column("Metric")
     table.add_column("Mean value")
@@ -28,11 +29,12 @@ def analyse_uniform():
     table.add_column("Std error")
 
     for col in uniform_metrics.columns:
+        std_err = uniform_metrics[col].std() / np.sqrt(len(uniform_metrics))
         table.add_row(
             col,
             f"{uniform_metrics[col].mean():.4f}",
             f"{uniform_metrics[col].std():.4f}",
-            f"{(uniform_metrics[col].std() / np.sqrt(len(uniform_metrics))):.4f}",
+            f"{std_err:.4f}",
         )
     console = Console()
     console.print(table)
@@ -46,7 +48,8 @@ def analyse_normal():
         [pd.read_csv(f) for f in normal_metric_files], ignore_index=True
     )
     table = Table(
-        title="Metrics for reconstruction from uniformly sampled data (Ordinary Kriging)"
+        title="Metrics for reconstruction from uniformly sampled "
+        "data (Ordinary Kriging)"
     )
     for col in normal_metrics.columns:
         table.add_column(f"mean {col}")

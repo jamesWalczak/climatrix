@@ -58,7 +58,8 @@ class BaseSampler(ABC):
             number and number > self.dataset.size
         ):
             warnings.warn(
-                "Requesting more than 100% of the data will result in duplicates and excessive memory usage",
+                "Requesting more than 100% of the data will result in "
+                "duplicates and excessive memory usage",
                 TooLargeSamplePortionWarning,
             )
         self.portion = portion

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from climatrix.dataset.axis import Axis
-
 __all__ = ("StaticDenseDataset", "DynamicDenseDataset")
 import os
 import warnings
@@ -10,7 +8,6 @@ from typing import TYPE_CHECKING, Self
 
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
@@ -31,7 +28,7 @@ class DenseDataset(BaseClimatrixDataset):
         self, indexers: dict[str, slice]
     ) -> xr.DataArray | xr.Dataset:
         # Code derived from https://github.com/CMCC-Foundation/geokube
-        first_el, last_el = (
+        first_el, _ = (
             self.longitude.values.min(),
             self.longitude.values.max(),
         )
@@ -142,6 +139,7 @@ class DenseDataset(BaseClimatrixDataset):
 
 
 class DynamicDenseDataset(DenseDataset):
+
     def plot(
         self,
         title: str | None = None,
@@ -232,6 +230,7 @@ class DynamicDenseDataset(DenseDataset):
 
 
 class StaticDenseDataset(DenseDataset):
+
     def plot(
         self,
         title: str | None = None,

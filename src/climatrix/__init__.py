@@ -12,15 +12,11 @@ def _configure_logger():
 
 _configure_logger()
 
-from .comparison import Comparison
-from .dataset.base import BaseClimatrixDataset
-from .dataset.dense import (
-    DenseDataset,
-    DynamicDenseDataset,
-    StaticDenseDataset,
-)
-from .dataset.sparse import (
-    DynamicSparseDataset,
-    SparseDataset,
-    StaticSparseDataset,
-)
+from .comparison import Comparison as Comparison
+from .dataset.base import BaseClimatrixDataset as BaseClimatrixDataset
+from .dataset.dense import DenseDataset as DenseDataset
+from .dataset.dense import DynamicDenseDataset as DynamicDenseDataset
+from .dataset.dense import StaticDenseDataset as StaticDenseDataset
+from .dataset.sparse import DynamicSparseDataset as DynamicSparseDataset
+from .dataset.sparse import SparseDataset as SparseDataset
+from .dataset.sparse import StaticSparseDataset as StaticSparseDataset

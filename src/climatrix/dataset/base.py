@@ -17,11 +17,13 @@ from climatrix.decorators import cm_arithmetic_binary_operator
 
 from .axis import Axis
 
-# Based on MetPy (https://github.com/Unidata/MetPy/blob/main/src/metpy/xarray.py)
+# Based on MetPy
+# (https://github.com/Unidata/MetPy/blob/main/src/metpy/xarray.py)
 _coords_name_regex: dict[Axis, str] = {
     Axis.TIME: re.compile(r"^(x?)(valid_?)time(s?)([0-9]*)$"),
     Axis.VERTICAL: re.compile(
-        r"^(z|lv_|bottom_top|sigma|h(ei)?ght|altitude|depth|isobaric|pres|isotherm)"
+        r"^(z|lv_|bottom_top|sigma|h(ei)?ght|altitude|depth|"
+        r"isobaric|pres|isotherm)"
         r"[a-z_]*[0-9]*$"
     ),
     Axis.LATITUDE: re.compile(r"^(x?)lat[a-z0-9_]*$"),
@@ -93,7 +95,7 @@ class BaseClimatrixDataset(ABC):
     def _match_axis_names(da: xr.DataArray) -> dict[Axis, str]:
         # TODO: should be moved to Domain class
         axis_names = {}
-        coords_and_dims = set([*da.dims, *da.coords.keys()])
+        coords_and_dims = {*da.dims, *da.coords.keys()}
         for coord in coords_and_dims:
             for axis, regex in _coords_name_regex.items():
                 if regex.match(coord):
@@ -161,7 +163,7 @@ class BaseClimatrixDataset(ABC):
     @lru_cache(maxsize=1)
     def time(self) -> xr.DataArray:
         if self.time_name is None:
-            raise AttributeError(f"The dataset has no time dimension")
+            raise AttributeError("The dataset has no time dimension")
         return self.da[self.time_name]
 
     @property
@@ -179,16 +181,16 @@ class BaseClimatrixDataset(ABC):
     #  Operators
     # ###############################
     @cm_arithmetic_binary_operator
-    def __add__(self, other: Any) -> Self: ...
+    def __add__(self, other: Any) -> Self: ...  # noqa: E704
 
     @cm_arithmetic_binary_operator
-    def __sub__(self, other: Any) -> Self: ...
+    def __sub__(self, other: Any) -> Self: ...  # noqa: E704
 
     @cm_arithmetic_binary_operator
-    def __mul__(self, other: Any) -> Self: ...
+    def __mul__(self, other: Any) -> Self: ...  # noqa: E704
 
     @cm_arithmetic_binary_operator
-    def __truediv__(self, other: Any) -> Self: ...
+    def __truediv__(self, other: Any) -> Self: ...  # noqa: E704
 
     # ###############################
     #  Abstract methods

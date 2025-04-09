@@ -37,7 +37,8 @@ dev = [
     "cdsapi>=0.7.4",
     "isort",
     "black",
-    "pre-commit"
+    "pre-commit",
+    "autoflake"
 ]
 plot = [
     "hvplot",

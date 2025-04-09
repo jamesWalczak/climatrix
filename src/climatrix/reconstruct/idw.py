@@ -80,12 +80,12 @@ class IDWReconstructor(BaseReconstructor):
         lon_grid : np.ndarray
             The longitude grid points.
         points : np.ndarray
-            The input points in the form of a 2D array where each row is a point
-            in the form (longitude, latitude).
+            The input points in the form of a 2D array where each row
+            is a point in the form (longitude, latitude).
         query_points : np.ndarray
-            The query points in the form of a 2D array where each row is a point
-            in the form (longitude, latitude) that will be used to query the
-            nearest neighbors.
+            The query points in the form of a 2D array where each row
+            is a point in the form (longitude, latitude) that will be
+            used to query the nearest neighbors.
         """
         if isinstance(self.query_lat, slice):
             log.debug(
@@ -146,7 +146,6 @@ class IDWReconstructor(BaseReconstructor):
         - If fewer than `self.k_min` neighbors are available,
         NaN values are assigned to the corresponding points in the output.
         """
-        from climatrix.dataset.sparse import DynamicSparseDataset
 
         values = self.dataset.da.values
 

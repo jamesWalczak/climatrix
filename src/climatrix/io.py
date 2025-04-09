@@ -1,4 +1,3 @@
-import os
 import tomllib as toml
 from importlib import resources
 from pathlib import Path

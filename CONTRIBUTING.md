@@ -23,8 +23,12 @@ Thank you for contributing! Please follow these rules:
 
 This repo uses [pre-commit](https://pre-commit.com/) for code formatting:
 
-- `black` for code style
-- `isort` for import sorting
+- `black` for code style,
+- `isort` for import sorting,
+- `pre-commit-hook` for checking against `breakpoint()`, private keys, and mixed endline characters,
+- `pyupgrade` for upgrading syntax to newer versions of the language,
+- `flake8` for checking against PEP8 compliance,
+- `mdformat` for Markdown files formatting
 
 To set it up:
 
