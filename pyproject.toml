@@ -36,7 +36,8 @@ dependencies = [
 dev = [
     "cdsapi>=0.7.4",
     "isort",
-    "black"
+    "black",
+    "pre-commit"
 ]
 plot = [
     "hvplot",

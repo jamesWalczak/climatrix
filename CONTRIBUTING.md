@@ -18,3 +18,17 @@ Thank you for contributing! Please follow these rules:
 - Make sure your PR is linked to an issue or ticket.
 - Add a clear description of what it does.
 - Don't forget about unit tests.
+
+## 🔧 Pre-commit hooks
+
+This repo uses [pre-commit](https://pre-commit.com/) for code formatting:
+
+- `black` for code style
+- `isort` for import sorting
+
+To set it up:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
