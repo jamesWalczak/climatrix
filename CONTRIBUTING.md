@@ -2,6 +2,10 @@
 
 Thank you for contributing! Please follow these rules:
 
+## 🍴 Forks
+
+Fork the repository first.
+
 ## 🖊️ Commits
 
 - All commits **must be signed off** using `git commit -s`
