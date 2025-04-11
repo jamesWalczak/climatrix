@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 import torch
+from numpy.core.umath import ndarray
 from torch.utils.data import Dataset
 
 from climatrix.decorators.runtime import log_input
@@ -19,24 +20,15 @@ log = logging.getLogger(__name__)
 
 
 class SDFPredictDataset(Dataset):
-    coord_mean: np.ndarray
-    coord_max: np.ndarray
-    coord_min: np.ndarray
     coordinates: np.ndarray
 
     @log_input(log, level=logging.DEBUG)
     def __init__(
         self,
         coordinates: np.ndarray,
-        keep_aspect_ratio: bool = True,
-        device: torch.device | None = None,
     ) -> None:
         super().__init__()
-        coordinates = self.center(coordinates)
-        self.coordinates = self.normalize(
-            coordinates, keep_aspect_ratio=keep_aspect_ratio
-        )
-        self.device = device or torch.device("cpu")
+        self.coordinates = coordinates
 
     def __len__(self) -> int:
         return len(self.coordinates)
@@ -46,33 +38,15 @@ class SDFPredictDataset(Dataset):
         self.coord_mean = np.mean(coordinates, axis=0, keepdims=True)
         return coordinates - self.coord_mean
 
-    def normalize(
-        self, coordinates: np.ndarray, keep_aspect_ratio: bool
-    ) -> np.ndarray:
-        if keep_aspect_ratio:
-            log.debug("Normalizing coordinates with aspect ratio...")
-            self.coord_max = np.max(coordinates)
-            self.coord_min = np.min(coordinates)
-        else:
-            log.debug("Normalizing coordinates without aspect ratio...")
-            self.coord_max = np.max(coordinates, axis=0, keepdims=True)
-            self.coord_min = np.min(coordinates, axis=0, keepdims=True)
-
-        # Normalize to [0, 1]
-        coordinates = (coordinates - self.coord_min) / (
-            self.coord_max - self.coord_min
-        )
-
-        coordinates -= 0.5  # Normalize to [-0.5, 0.5]
-        coordinates *= 2.0  # Normalize to [-1, 1]
-        return coordinates
-
     def __getitem__(self, index) -> torch.Tensor:
         return torch.from_numpy(self.coordinates[index]).float()
 
 
 class SDFTrainDataset(SDFPredictDataset):
     k_for_normals: ClassVar[int] = 10
+    coord_mean: np.ndarray
+    coord_max: np.ndarray
+    coord_min: np.ndarray
 
     @log_input(log, level=logging.DEBUG)
     def __init__(
@@ -81,14 +55,43 @@ class SDFTrainDataset(SDFPredictDataset):
         num_surface_points: int = 1_000,
         num_off_surface_points: int = 1_000,
         keep_aspect_ratio: bool = True,
-        device: torch.device | None = None,
     ) -> None:
-        super().__init__(coordinates, keep_aspect_ratio, device)
+        super().__init__(coordinates)
+        if keep_aspect_ratio:
+            log.debug("Normalizing coordinates with aspect ratio...")
+            self.coord_max = np.array(np.max(coordinates), ndmin=1)
+            self.coord_min = np.array(np.min(coordinates), ndmin=1)
+        else:
+            log.debug("Normalizing coordinates without aspect ratio...")
+            self.coord_max = np.array(np.max(coordinates, axis=0), ndmin=1)
+            self.coord_min = np.array(np.min(coordinates, axis=0), ndmin=1)
         self.num_surface_points = num_surface_points
         self.num_off_surface_points = num_off_surface_points
+        self.coordinates = self.transform(coordinates)
 
     def __len__(self) -> int:
         return len(self.coordinates) // self.num_surface_points
+
+    def normalize(self, coordinates: np.ndarray) -> np.ndarray:
+        # Normalize to [0, 1]
+        coordinates = (coordinates - self.coord_min) / (
+            self.coord_max - self.coord_min
+        )
+        return coordinates
+
+    def transform(self, coordinates: np.ndarray) -> np.ndarray:
+        coordinates = self.normalize(coordinates)
+        coordinates -= 0.5  # Normalize to [-0.5, 0.5]
+        coordinates *= 2.0  # Normalize to [-1, 1]
+        return coordinates
+
+    def inverse_transform_z(self, z_values: np.ndarray) -> np.ndarray:
+        z_values = z_values.squeeze()
+        z_values /= 2.0
+        z_values += 0.5
+        z_values *= self.coord_max[-1] - self.coord_min[-1]
+        z_values += self.coord_min[-1]
+        return z_values
 
     def _compute_normals(self, idx) -> np.ndarray:
         log.info("Computing normals...")

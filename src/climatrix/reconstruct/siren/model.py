@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.init import _calculate_correct_fan
 
 
 class BatchLinear(nn.Linear):
@@ -804,72 +805,55 @@ def compl_mul(x, y):
     return out
 
 
-class SineLayer(nn.Module):
+def siren_uniform_(tensor: torch.Tensor, mode: str = "fan_in", c: float = 6):
+    fan = _calculate_correct_fan(tensor, mode)
+    std = 1.0 / math.sqrt(fan)
+    bound = math.sqrt(c) * std
+    with torch.no_grad():
+        return tensor.uniform_(-bound, bound)
 
-    def __init__(
-        self, in_features, out_features, bias=True, is_first=False, omega_0=30
-    ):
+
+class SineActivation(nn.Module):
+    scale: float
+
+    def __init__(self, scale: float = 1.0):
         super().__init__()
-        self.omega_0 = omega_0
-        self.is_first = is_first
-        self.in_features = in_features
-        self.linear = nn.Linear(in_features, out_features, bias=bias)
-        self.init_weights()
+        self.scale = scale
 
-    def init_weights(self):
-        with torch.no_grad():
-            if self.is_first:
-                self.linear.weight.uniform_(
-                    -1 / self.in_features, 1 / self.in_features
-                )
-            else:
-                self.linear.weight.uniform_(
-                    -np.sqrt(6 / self.in_features) / self.omega_0,
-                    np.sqrt(6 / self.in_features) / self.omega_0,
-                )
-
-    def forward(self, input):
-        return torch.sin(self.omega_0 * self.linear(input))
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.sin(self.scale * x)
 
 
 class SIREN(nn.Module):
-
     def __init__(
         self,
-        in_features,
-        hidden_features,
-        hidden_layers,
-        out_features,
-        outermost_linear=True,
-        omega_0=30,
+        in_features: int,
+        out_features: int,
+        mlp: list[int],
+        scale: float = 1.0,
+        scale_first_layer: float = 30.0,
+        bias: bool = True,
+        c: float = 6,
     ):
         super().__init__()
-        self.net = []
-        self.net.append(
-            SineLayer(
-                in_features, hidden_features, is_first=True, omega_0=omega_0
-            )
-        )
+        if len(mlp) == 0:
+            mlp = [64, 64]
+        layers = [
+            nn.Linear(in_features, mlp[0], bias=bias),
+            SineActivation(scale=scale_first_layer),
+        ]
+        for i in range(len(mlp) - 1):
+            layers.append(nn.Linear(mlp[i], mlp[i + 1], bias=bias))
+            layers.append(SineActivation(scale=scale))
 
-        for _ in range(hidden_layers):
-            self.net.append(
-                SineLayer(hidden_features, hidden_features, omega_0=omega_0)
-            )
+        layers.append(nn.Linear(mlp[-1], out_features, bias=bias))
 
-        if outermost_linear:
-            final_linear = nn.Linear(hidden_features, out_features)
-            with torch.no_grad():
-                final_linear.weight.uniform_(
-                    -np.sqrt(6 / hidden_features) / omega_0,
-                    np.sqrt(6 / hidden_features) / omega_0,
-                )
-            self.net.append(final_linear)
-        else:
-            self.net.append(
-                SineLayer(hidden_features, out_features, omega_0=omega_0)
-            )
+        self.net = nn.Sequential(*layers)
 
-        self.net = nn.Sequential(*self.net)
+        for m in self.net.modules():
+            if isinstance(m, nn.Linear):
+                siren_uniform_(m.weight, mode="fan_in", c=c)
 
-    def forward(self, coords):
-        return self.net(coords)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        coords = x.clone().detach().requires_grad_(True)
+        return coords, self.net(coords)

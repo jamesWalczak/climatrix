@@ -24,12 +24,17 @@ from rich.progress import track
 import climatrix as cm
 from climatrix.dataset.dense import DenseDataset
 
-TRIALS: int = 30
+TRIALS: int = 1  # 30
 N_POINTS: int = 1_000
 
-K: int = 27
-POWER: float = 2.79
-K_MIN: int = 17
+NUM_SURFACE_POINTS: int = 1_000
+NUM_OFF_SURFACE_POINTS: int = 1_000
+LR: float = 1e-5
+NUM_EPOCHS: int = 10_000
+SDF_LOSS_WEIGHT: float = 3e3
+INTER_LOSS_WEIGHT: float = 1e2
+NORMAL_LOSS_WEIGHT: float = 1e2
+EIKONAL_LOSS_WEIGHT: float = 5e1
 
 RECON_DATASET_PATH = Path("data/europe_recon.nc")
 RESULT_DIR = Path("results/inr")
@@ -52,10 +57,15 @@ def reconstruct_and_save_report(
     )
     recon_dset = sparse_dset.reconstruct(
         source_dataset.domain,
-        method="inr",
-        k=K,
-        power=POWER,
-        k_min=K_MIN,
+        method="siren",
+        num_surface_points=NUM_SURFACE_POINTS,
+        num_off_surface_points=NUM_OFF_SURFACE_POINTS,
+        lr=LR,
+        num_epochs=NUM_EPOCHS,
+        sdf_loss_weight=SDF_LOSS_WEIGHT,
+        inter_loss_weight=INTER_LOSS_WEIGHT,
+        normal_loss_weight=NORMAL_LOSS_WEIGHT,
+        eikonal_loss_weight=EIKONAL_LOSS_WEIGHT,
     )
     cm.Comparison(recon_dset, source_dataset).save_report(target_dir)
 
