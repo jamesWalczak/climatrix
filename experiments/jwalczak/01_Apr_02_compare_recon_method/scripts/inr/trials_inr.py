@@ -30,7 +30,7 @@ N_POINTS: int = 1_000
 NUM_SURFACE_POINTS: int = 1_000
 NUM_OFF_SURFACE_POINTS: int = 1_000
 LR: float = 1e-5
-NUM_EPOCHS: int = 10_000
+NUM_EPOCHS: int = 5_000
 SDF_LOSS_WEIGHT: float = 3e3
 INTER_LOSS_WEIGHT: float = 1e2
 NORMAL_LOSS_WEIGHT: float = 1e2
@@ -67,6 +67,7 @@ def reconstruct_and_save_report(
         normal_loss_weight=NORMAL_LOSS_WEIGHT,
         eikonal_loss_weight=EIKONAL_LOSS_WEIGHT,
     )
+    recon_dset.plot()
     cm.Comparison(recon_dset, source_dataset).save_report(target_dir)
 
 

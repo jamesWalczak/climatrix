@@ -226,11 +226,65 @@ class SIRENReconstructor(BaseReconstructor):
         self,
         siren_model,
         batch,
-        max_iter: int = 200,
+        max_iter: int = 2_000,
         tol: float = 1e-6,
         alpha: float = 1e-0,
     ) -> np.ndarray:
         coordinates = batch.clone().detach().to(self.device)
+
+        # x_val = coordinates[:, 0].unsqueeze(0)
+        # y_val = coordinates[:, 1].unsqueeze(0)
+        # initial_z = 2 * torch.rand_like(x_val) - 1
+        # z = torch.nn.Parameter(initial_z.clone()
+        # .detach().requires_grad_(True).to(self.device))
+        # optimizer = torch.optim.Adam([z], lr=0.02)
+
+        # for j in range(max_iter):
+        #     optimizer.zero_grad()
+        #     feed = torch.concat((x_val, y_val, z)).T
+        #     sdf = siren_model(feed)
+        #     loss = torch.abs(sdf).sum()
+        #     print(loss.item())
+
+        #     loss.backward()
+        #     optimizer.step()
+
+        #     if loss.item() < tol:
+        #         break
+        # return z.detach().cpu().numpy().squeeze()
+
+        # batch_size = coordinates.size(0)
+        # optimized_z_values = torch.zeros(batch_size, 1)
+
+        # for i in range(batch_size):
+        #     x_val = coordinates[i, 0].unsqueeze(0)
+        #     y_val = coordinates[i, 1].unsqueeze(0)
+        #     initial_z = 2 * torch.rand(1) - 1
+        #     z = torch.nn.Parameter(initial_z
+        # .clone().detach().requires_grad_(True).to(self.device))
+        #     optimizer = torch.optim.Adam([z], lr=0.005)
+
+        #     for j in range(max_iter):
+        #         optimizer.zero_grad()
+        #         feed = torch.stack((x_val, y_val, z), dim=1)
+        #         sdf = siren_model(feed)
+        #         loss = torch.abs(sdf)
+        #         print(loss.item())
+
+        #         loss.backward()
+        #         optimizer.step()
+
+        #         if loss.item() < tol:
+        #             print(f"  Converged at iteration {j+1}
+        # with loss: {loss.item()}")
+        #             optimized_z_values[i, 0] = z.item()
+        #             break
+        #     else:
+        #         optimized_z_values[i, 0] = z.item()
+        #         print(f"  Did not converge within {max_iter}
+        #  iterations. Final loss: {loss.item()}")
+
+        # return optimized_z_values.detach().cpu().numpy().squeeze()
 
         def find_temperature(decoder, x, y, z_min, z_max, num_samples=2_000):
             z_values = torch.linspace(
@@ -242,7 +296,7 @@ class SIRENReconstructor(BaseReconstructor):
             points = torch.stack([x_values, y_values, z_values], dim=1)
 
             with torch.no_grad():
-                sdf_values = decoder(points)[1].squeeze()
+                sdf_values = decoder(points).squeeze()
 
             abs_sdf_values = torch.abs(sdf_values)
             min_idx = torch.argmin(abs_sdf_values)
@@ -353,9 +407,10 @@ class SIRENReconstructor(BaseReconstructor):
                     coordinates = coordinates.to(self.device)
                     normals = normals.to(self.device)
                     sdf = sdf.to(self.device)
-                    coordinates_org, pred_sdf = siren_model(coordinates)
+                    coordinates = coordinates.detach().requires_grad_(True)
+                    pred_sdf = siren_model(coordinates)
                     loss_component: LossEntity = compute_sdf_losses(
-                        coordinates_org, pred_sdf, normals, sdf
+                        coordinates, pred_sdf, normals, sdf
                     )
                     train_loss = self._aggregate_loss(
                         loss_component=loss_component
