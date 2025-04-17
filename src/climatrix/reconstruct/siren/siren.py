@@ -222,7 +222,11 @@ class SIRENReconstructor(BaseReconstructor):
                     xy = xy.detach().requires_grad_(True)
                     pred_z = siren_model(xy)
                     loss_component: LossEntity = compute_sdf_losses(
-                        xy, pred_z * self.datasets.field_transformer.data_range_[0] + self.datasets.field_transformer.data_min_[0], true_z * self.datasets.field_transformer.data_range_[0] + self.datasets.field_transformer.data_min_[0]
+                        xy,
+                        pred_z * self.datasets.field_transformer.data_range_[0]
+                        + self.datasets.field_transformer.data_min_[0],
+                        true_z * self.datasets.field_transformer.data_range_[0]
+                        + self.datasets.field_transformer.data_min_[0],
                     )
                     # loss_component: LossEntity = compute_sdf_losses(
                     #     xy, pred_z, true_z
@@ -262,37 +266,79 @@ class SIRENReconstructor(BaseReconstructor):
         )
         log.info("Preparing StaticDenseDataset...")
         breakpoint()
-        dd =  StaticDenseDataset(
+        dd = StaticDenseDataset(
             xr.DataArray(
-                unscaled_values.reshape(len(self.query_lon), len(self.query_lat)).transpose(),
+                unscaled_values.reshape(
+                    len(self.query_lon), len(self.query_lat)
+                ).transpose(),
                 coords=coordinates,
                 dims=dims,
                 name=self.dataset.da.name,
             )
-        )    
+        )
         return dd
         ax = dd.plot(show=False)
         self.dataset.plot(ax=ax)
-        breakpoint()    
+        breakpoint()
         pass
 
-        
         # NOTE: plot here unscaled values and sparse points
         import matplotlib.pyplot as plt
+
         fig, ax = plt.subplots()
 
         breakpoint()
-        xr.DataArray(unscaled_values.reshape(len(self.query_lon), len(self.query_lat))).plot(ax=ax)
-        ax.scatter(self.dataset.latitude, self.dataset.longitude, c=self.dataset.da.values)
+        xr.DataArray(
+            unscaled_values.reshape(len(self.query_lon), len(self.query_lat))
+        ).plot(ax=ax)
+        ax.scatter(
+            self.dataset.latitude,
+            self.dataset.longitude,
+            c=self.dataset.da.values,
+        )
         td = self.datasets.train_dataset
-        ax.scatter(self.datasets.train_coordinates[:, 0], self.datasets.train_coordinates[:, 1], c=self.datasets.train_field)
-        temp = siren_model(torch.from_numpy(self.datasets.train_coordinates).float().to(self.device))
-        ttemp = siren_model(torch.from_numpy(self.datasets.target_coordinates).float().to(self.device))
-        ((temp - torch.from_numpy(self.datasets.train_field).to(self.device)) ** 2).mean()
-        plt.scatter(self.datasets.target_coordinates[:, 1], self.datasets.target_coordinates[:, 0], c=ttemp.detach().cpu().numpy())
-        plt.scatter(self.datasets.train_coordinates[:, 1], self.datasets.train_coordinates[:, 0], c=temp.detach().cpu().numpy())
-        plt.scatter(self.datasets.train_coordinates[:, 0], self.datasets.train_coordinates[:, 1], c=self.datasets.train_field)
-        plt.scatter(self.dataset.longitude, self.dataset.latitude, c=self.dataset.da.values)
+        ax.scatter(
+            self.datasets.train_coordinates[:, 0],
+            self.datasets.train_coordinates[:, 1],
+            c=self.datasets.train_field,
+        )
+        temp = siren_model(
+            torch.from_numpy(self.datasets.train_coordinates)
+            .float()
+            .to(self.device)
+        )
+        ttemp = siren_model(
+            torch.from_numpy(self.datasets.target_coordinates)
+            .float()
+            .to(self.device)
+        )
+        (
+            (
+                temp
+                - torch.from_numpy(self.datasets.train_field).to(self.device)
+            )
+            ** 2
+        ).mean()
+        plt.scatter(
+            self.datasets.target_coordinates[:, 1],
+            self.datasets.target_coordinates[:, 0],
+            c=ttemp.detach().cpu().numpy(),
+        )
+        plt.scatter(
+            self.datasets.train_coordinates[:, 1],
+            self.datasets.train_coordinates[:, 0],
+            c=temp.detach().cpu().numpy(),
+        )
+        plt.scatter(
+            self.datasets.train_coordinates[:, 0],
+            self.datasets.train_coordinates[:, 1],
+            c=self.datasets.train_field,
+        )
+        plt.scatter(
+            self.dataset.longitude,
+            self.dataset.latitude,
+            c=self.dataset.da.values,
+        )
         self.datasets.target_coordinates.max()
 
         values = values.reshape(len(self.query_lon), len(self.query_lat))

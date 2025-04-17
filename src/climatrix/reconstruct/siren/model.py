@@ -38,12 +38,15 @@ class SineActivation(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return torch.sin(self.scale * x)
 
+
 class PositionalEncoding(nn.Module):
     def __init__(self, num_frequencies: int = 6, include_input: bool = True):
         super().__init__()
         self.num_frequencies = num_frequencies
         self.include_input = include_input
-        self.freq_bands = 2.0 ** torch.linspace(0, num_frequencies - 1, num_frequencies)
+        self.freq_bands = 2.0 ** torch.linspace(
+            0, num_frequencies - 1, num_frequencies
+        )
 
     def forward(self, x):
         out = [x] if self.include_input else []
@@ -51,6 +54,7 @@ class PositionalEncoding(nn.Module):
             out.append(torch.sin(freq * x))
             out.append(torch.cos(freq * x))
         return torch.cat(out, dim=-1)
+
 
 class SiNET(nn.Module):
     def __init__(
@@ -65,7 +69,9 @@ class SiNET(nn.Module):
         super().__init__()
         if len(mlp) == 0:
             mlp = [64, 64]
-        self.encoder = PositionalEncoding(num_frequencies=6, include_input=True)
+        self.encoder = PositionalEncoding(
+            num_frequencies=6, include_input=True
+        )
         layers = [
             nn.Linear(in_features * (2 * 6 + 1), mlp[0], bias=bias),
             SineActivation(scale=scale_first_layer),

@@ -57,7 +57,9 @@ class SiNETDatasetGenerator:
             train_latitudes = np.deg2rad(train_latitudes)
             train_longitudes = np.deg2rad(train_longitudes)
         self.radius = radius
-        self.train_coordinates = np.stack((train_latitudes, train_longitudes), axis=1)
+        self.train_coordinates = np.stack(
+            (train_latitudes, train_longitudes), axis=1
+        )
         # self.train_coordinates = (
         #     SiNETDatasetGenerator.convert_spherical_to_cartesian(
         #         np.stack((train_latitudes, train_longitudes), axis=1),
@@ -89,7 +91,9 @@ class SiNETDatasetGenerator:
         if degree:
             target_latitudes = np.deg2rad(target_latitudes)
             target_longitudes = np.deg2rad(target_longitudes)
-        self.target_coordinates = np.stack((target_latitudes, target_longitudes), axis=1)
+        self.target_coordinates = np.stack(
+            (target_latitudes, target_longitudes), axis=1
+        )
         # self.target_coordinates = (
         #     SiNETDatasetGenerator.convert_spherical_to_cartesian(
         #         np.stack((target_latitudes, target_longitudes), axis=1),
