@@ -101,7 +101,7 @@ class SIRENReconstructor(BaseReconstructor):
         log.info("Initializing SIREN model...")
         # NOTE: we are using 3 input cooridnates as lat/lon are converted
         # to cartesian coordinates on unit sphere
-        return SiNET(in_features=3, out_features=1, mlp=[64, 128]).to(
+        return SiNET(in_features=2, out_features=1, mlp=[256, 256, 256]).to(
             self.device
         )
 
@@ -222,8 +222,11 @@ class SIRENReconstructor(BaseReconstructor):
                     xy = xy.detach().requires_grad_(True)
                     pred_z = siren_model(xy)
                     loss_component: LossEntity = compute_sdf_losses(
-                        xy, pred_z, true_z
+                        xy, pred_z * self.datasets.field_transformer.data_range_[0] + self.datasets.field_transformer.data_min_[0], true_z * self.datasets.field_transformer.data_range_[0] + self.datasets.field_transformer.data_min_[0]
                     )
+                    # loss_component: LossEntity = compute_sdf_losses(
+                    #     xy, pred_z, true_z
+                    # )
                     train_loss = self._aggregate_loss(
                         loss_component=loss_component
                     )
@@ -244,14 +247,53 @@ class SIRENReconstructor(BaseReconstructor):
             )
         siren_model.eval()
         values = self._find_surface(siren_model, self.datasets.target_dataset)
+        # unscaled_values = values
         unscaled_values = self.datasets.field_transformer.inverse_transform(
             values
         )
 
+        coordinates = {
+            self.dataset.latitude_name: self.query_lat,
+            self.dataset.longitude_name: self.query_lon,
+        }
+        dims = (
+            self.dataset.latitude_name,
+            self.dataset.longitude_name,
+        )
+        log.info("Preparing StaticDenseDataset...")
+        breakpoint()
+        dd =  StaticDenseDataset(
+            xr.DataArray(
+                unscaled_values.reshape(len(self.query_lon), len(self.query_lat)).transpose(),
+                coords=coordinates,
+                dims=dims,
+                name=self.dataset.da.name,
+            )
+        )    
+        return dd
+        ax = dd.plot(show=False)
+        self.dataset.plot(ax=ax)
+        breakpoint()    
+        pass
+
+        
         # NOTE: plot here unscaled values and sparse points
-        xr.DataArray(
-            unscaled_values.reshape(len(self.query_lon), len(self.query_lat))
-        ).plot()
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots()
+
+        breakpoint()
+        xr.DataArray(unscaled_values.reshape(len(self.query_lon), len(self.query_lat))).plot(ax=ax)
+        ax.scatter(self.dataset.latitude, self.dataset.longitude, c=self.dataset.da.values)
+        td = self.datasets.train_dataset
+        ax.scatter(self.datasets.train_coordinates[:, 0], self.datasets.train_coordinates[:, 1], c=self.datasets.train_field)
+        temp = siren_model(torch.from_numpy(self.datasets.train_coordinates).float().to(self.device))
+        ttemp = siren_model(torch.from_numpy(self.datasets.target_coordinates).float().to(self.device))
+        ((temp - torch.from_numpy(self.datasets.train_field).to(self.device)) ** 2).mean()
+        plt.scatter(self.datasets.target_coordinates[:, 1], self.datasets.target_coordinates[:, 0], c=ttemp.detach().cpu().numpy())
+        plt.scatter(self.datasets.train_coordinates[:, 1], self.datasets.train_coordinates[:, 0], c=temp.detach().cpu().numpy())
+        plt.scatter(self.datasets.train_coordinates[:, 0], self.datasets.train_coordinates[:, 1], c=self.datasets.train_field)
+        plt.scatter(self.dataset.longitude, self.dataset.latitude, c=self.dataset.da.values)
+        self.datasets.target_coordinates.max()
 
         values = values.reshape(len(self.query_lon), len(self.query_lat))
 

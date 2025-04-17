@@ -29,12 +29,12 @@ N_POINTS: int = 1_000
 
 NUM_SURFACE_POINTS: int = 1_000
 NUM_OFF_SURFACE_POINTS: int = 1_000
-LR: float = 1e-5
+LR: float = 1e-3
 BATCH_SIZE: int = 512
-NUM_EPOCHS: int = 5_000
-MSE_LOSS_WEIGHT: float = 1.0
-EIKONAL_LOSS_WEIGHT: float = 1.0
-LAPLACE_LOSS_WEIGHT: float = 1.0
+NUM_EPOCHS: int = 1_000
+MSE_LOSS_WEIGHT: float = 2.0
+EIKONAL_LOSS_WEIGHT: float = 0.1
+LAPLACE_LOSS_WEIGHT: float = 0.01
 
 RECON_DATASET_PATH = Path("data/europe_recon.nc")
 RESULT_DIR = Path("results/inr")
@@ -66,7 +66,11 @@ def reconstruct_and_save_report(
         laplace_loss_weight=LAPLACE_LOSS_WEIGHT,
     )
     recon_dset.plot()
-    cm.Comparison(recon_dset, source_dataset).save_report(target_dir)
+    cmp = cm.Comparison(recon_dset, source_dataset)
+    cmp.predicted_dataset.plot()
+    breakpoint()
+    cmp.plot_diff()
+    cmp.save_report(target_dir)
 
 
 def run_experiment_uniform_sampling(source_dataset: DenseDataset):
