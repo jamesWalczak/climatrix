@@ -18,7 +18,7 @@ from climatrix.reconstruct.siren.dataset import (
     SiNETDatasetGenerator,
 )
 from climatrix.reconstruct.siren.losses import LossEntity, compute_sdf_losses
-from climatrix.reconstruct.siren.model import SiNET, SingleBVPNet
+from climatrix.reconstruct.siren.model import SiNET
 
 if TYPE_CHECKING:
     from climatrix.dataset.dense import DenseDataset
@@ -183,9 +183,9 @@ class SIRENReconstructor(BaseReconstructor):
         )
         all_z = []
         log.info("Creating mini-batches for surface reconstruction...")
-        for i, (xy, _) in enumerate(data_loader):
+        for i, xy in enumerate(data_loader):
             log.info("Processing mini-batch %d/%d...", i + 1, len(data_loader))
-            xy = xy.to(self.device)
+            xy = xy[0].to(self.device)
             z = siren_model(xy)
             all_z.append(z.cpu().numpy())
         log.info("Surface finding complete. Concatenating results.")
@@ -244,9 +244,15 @@ class SIRENReconstructor(BaseReconstructor):
             )
         siren_model.eval()
         values = self._find_surface(siren_model, self.datasets.target_dataset)
+        unscaled_values = self.datasets.field_transformer.inverse_transform(
+            values
+        )
 
-        # NOTE: we just transform the Z values (axis=2)
-        values = self.train_dataset.inverse_transform_z(values)
+        # NOTE: plot here unscaled values and sparse points
+        xr.DataArray(
+            unscaled_values.reshape(len(self.query_lon), len(self.query_lat))
+        ).plot()
+
         values = values.reshape(len(self.query_lon), len(self.query_lat))
 
         coordinates = {
@@ -260,7 +266,7 @@ class SIRENReconstructor(BaseReconstructor):
         log.info("Preparing StaticDenseDataset...")
         return StaticDenseDataset(
             xr.DataArray(
-                values.transpose(),
+                unscaled_values.transpose(),
                 coords=coordinates,
                 dims=dims,
                 name=self.dataset.da.name,

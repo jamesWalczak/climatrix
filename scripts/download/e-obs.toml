@@ -1,0 +1,15 @@
+filename = "e-obs.nc"
+
+dataset = "insitu-gridded-observations-europe"
+
+[request]
+variable = [
+        "mean_temperature",
+        
+    ]
+grid_resolution = "0_1deg"
+period = "2011_2024"
+version = "30_0e"
+
+
+

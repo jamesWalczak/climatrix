@@ -17,7 +17,7 @@ def compute_sdf_losses(
     grad = torch.autograd.grad(
         pred_z, [xy], grad_outputs=grad_outputs, create_graph=True
     )[0]
-    eikonal_loss = torch.abs(grad.norm(dim=-1) - 1)
+    eikonal_loss = torch.abs(grad.norm(dim=-1) - 1).mean()
 
     grad2 = torch.autograd.grad(grad.sum(), [xy], create_graph=True)[0]
     laplace_loss = (grad2**2).norm(dim=-1).mean()

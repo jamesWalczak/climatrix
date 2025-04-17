@@ -64,7 +64,9 @@ class SiNETDatasetGenerator:
             )
         )
         self.field_transformer = MinMaxScaler((-1, 1))
-        self.train_field = self.field_transformer.fit_transform(train_field)
+        self.train_field = self.field_transformer.fit_transform(
+            train_field.reshape(-1, 1)
+        )
 
     @staticmethod
     def convert_spherical_to_cartesian(
