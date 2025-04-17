@@ -30,11 +30,11 @@ N_POINTS: int = 1_000
 NUM_SURFACE_POINTS: int = 1_000
 NUM_OFF_SURFACE_POINTS: int = 1_000
 LR: float = 1e-5
+BATCH_SIZE: int = 512
 NUM_EPOCHS: int = 5_000
-SDF_LOSS_WEIGHT: float = 3e3
-INTER_LOSS_WEIGHT: float = 1e2
-NORMAL_LOSS_WEIGHT: float = 1e2
-EIKONAL_LOSS_WEIGHT: float = 5e1
+MSE_LOSS_WEIGHT: float = 1.0
+EIKONAL_LOSS_WEIGHT: float = 1.0
+LAPLACE_LOSS_WEIGHT: float = 1.0
 
 RECON_DATASET_PATH = Path("data/europe_recon.nc")
 RESULT_DIR = Path("results/inr")
@@ -50,22 +50,20 @@ def reconstruct_and_save_report(
     sampling_policy: str,
     nan_policy: str,
 ) -> xr.Dataset:
-    if target_dir.exists():
-        return None
+    # if target_dir.exists():
+    #     return None
     sparse_dset = source_dataset.sample(
         number=N_POINTS, kind=sampling_policy, nan_policy=nan_policy
     )
     recon_dset = sparse_dset.reconstruct(
         source_dataset.domain,
         method="siren",
-        num_surface_points=NUM_SURFACE_POINTS,
-        num_off_surface_points=NUM_OFF_SURFACE_POINTS,
         lr=LR,
         num_epochs=NUM_EPOCHS,
-        sdf_loss_weight=SDF_LOSS_WEIGHT,
-        inter_loss_weight=INTER_LOSS_WEIGHT,
-        normal_loss_weight=NORMAL_LOSS_WEIGHT,
+        batch_size=BATCH_SIZE,
+        mse_loss_weight=MSE_LOSS_WEIGHT,
         eikonal_loss_weight=EIKONAL_LOSS_WEIGHT,
+        laplace_loss_weight=LAPLACE_LOSS_WEIGHT,
     )
     recon_dset.plot()
     cm.Comparison(recon_dset, source_dataset).save_report(target_dir)

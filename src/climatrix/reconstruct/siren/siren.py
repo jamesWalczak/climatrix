@@ -9,16 +9,16 @@ import numpy as np
 import torch
 import torch.nn as nn
 import xarray as xr
+from scipy.constants import degree
 from torch.utils.data import DataLoader
 
 from climatrix.decorators.runtime import log_input, raise_if_not_installed
 from climatrix.reconstruct.base import BaseReconstructor
 from climatrix.reconstruct.siren.dataset import (
-    SDFPredictDataset,
-    SDFTrainDataset,
+    SiNETDatasetGenerator,
 )
 from climatrix.reconstruct.siren.losses import LossEntity, compute_sdf_losses
-from climatrix.reconstruct.siren.model import SIREN, SingleBVPNet
+from climatrix.reconstruct.siren.model import SiNET, SingleBVPNet
 
 if TYPE_CHECKING:
     from climatrix.dataset.dense import DenseDataset
@@ -28,34 +28,6 @@ log = logging.getLogger(__name__)
 
 
 class SIRENReconstructor(BaseReconstructor):
-    """
-    SIREN (Sinusoidal Representation Networks) reconstructor.
-
-    Parameters
-    ----------
-    dataset : SparseDataset
-        The input dataset.
-    lat : slice or np.ndarray, optional
-        The latitude range (default is slice(-90, 90, 1)).
-    lon : slice or np.ndarray, optional
-        The longitude range (default is slice(-180, 180, 1)).
-    num_surface_points : int, optional
-        The number of on-surface points (default is 1000).
-    num_off_surface_points : int, optional
-        The number of off-surface points (default is 1000).
-    lr : float, optional
-        The learning rate (default is 1e-4).
-    num_epochs : int, optional
-        The number of num_epochs (default is 5000).
-    num_workers : int, optional
-        The number of workers (default is 0).
-    device : str, optional
-        The device to use (default is "cuda").
-    clip_grad : float, optional
-        The gradient clipping value (default is None).
-    checkpoint : str or os.PathLike or Path, optional
-        The checkpoint file (default is None).
-    """
 
     @log_input(log, level=logging.DEBUG)
     def __init__(
@@ -68,50 +40,50 @@ class SIRENReconstructor(BaseReconstructor):
             -180, 180, BaseReconstructor._DEFAULT_LON_RESOLUTION
         ),
         *,
-        num_surface_points: int = 1_000,
-        num_off_surface_points: int = 1_000,
         lr: float = 3e-4,
+        batch_size: int = 512,
         num_epochs: int = 5_000,
         num_workers: int = 0,
         device: str = "cuda",
         gradient_clipping_value: float | None = None,
         checkpoint: str | os.PathLike | Path | None = None,
-        sdf_loss_weight: float = 3e3,
-        inter_loss_weight: float = 1e2,
-        normal_loss_weight: float = 1e2,
+        mse_loss_weight: float = 3e3,
         eikonal_loss_weight: float = 5e1,
+        laplace_loss_weight: float = 1e2,
     ) -> None:
         super().__init__(dataset, lat, lon)
         if dataset.is_dynamic:
-            log.error("SIREN is not supported for dynamic datasets.")
-            raise ValueError("SIREN is not supported for dynamic datasets.")
+            log.error("SiNET is not yet supported for dynamic datasets.")
+            raise ValueError(
+                "SiNET is not yet supported for dynamic datasets."
+            )
         if device == "cuda" and not torch.cuda.is_available():
             log.error("CUDA is not available on this machine")
             raise ValueError("CUDA is not available on this machine")
         self.device = torch.device(device)
-        self.train_dataset = SDFTrainDataset(
-            np.stack(
-                (
-                    dataset.latitude.values,
-                    dataset.longitude.values,
-                    dataset.da.values,
-                ),
-                axis=1,
-            ),
-            keep_aspect_ratio=False,
-            num_surface_points=num_surface_points,
-            num_off_surface_points=num_off_surface_points,
+        self.datasets = SiNETDatasetGenerator(
+            dataset.latitude.values,
+            dataset.longitude.values,
+            dataset.da.values,
+            degree=True,
+            radius=1,
+        )
+        dense_query_lat, dense_query_lon = self._form_query_pairs()
+        self.datasets.set_target_coordinates(
+            dense_query_lat, dense_query_lon, degree=True
         )
         self.num_workers = num_workers
         self.num_epochs = num_epochs
         self.lr = lr
+        self.batch_size = batch_size
         self.gradient_clipping_value = gradient_clipping_value
         self.checkpoint = None
         self.is_model_loaded: bool = False
-        self.sdf_loss_weight = sdf_loss_weight
-        self.inter_loss_weight = inter_loss_weight
-        self.normal_loss_weight = normal_loss_weight
+
+        self.mse_loss_weight = mse_loss_weight
         self.eikonal_loss_weight = eikonal_loss_weight
+        self.laplace_loss_weight = laplace_loss_weight
+
         if checkpoint:
             self.checkpoint = Path(checkpoint).expanduser().absolute()
             log.info("Using checkpoint path: %s", self.checkpoint)
@@ -120,20 +92,18 @@ class SIRENReconstructor(BaseReconstructor):
         self, siren_model: torch.nn.Module
     ) -> torch.optim.Optimizer:
         log.info(
-            "Configuring Adam optimizer with learning rate: %0.4f",
+            "Configuring Adam optimizer with learning rate: %0.6f",
             self.lr,
         )
         return torch.optim.Adam(lr=self.lr, params=siren_model.parameters())
 
     def _init_model(self) -> torch.nn.Module:
         log.info("Initializing SIREN model...")
-        return SingleBVPNet(type="sine", mode="mlp", in_features=3).to(
+        # NOTE: we are using 3 input cooridnates as lat/lon are converted
+        # to cartesian coordinates on unit sphere
+        return SiNET(in_features=3, out_features=1, mlp=[64, 128]).to(
             self.device
         )
-
-        # return SIREN(in_features=3, out_features=1, mlp=[64, 64]).to(
-        # self.device
-        # )
 
     def _maybe_clip_grads(self, siren_model: torch.nn.Module) -> None:
         if self.gradient_clipping_value:
@@ -147,7 +117,7 @@ class SIRENReconstructor(BaseReconstructor):
     @log_input(log, level=logging.DEBUG)
     def _aggregate_loss(self, loss_component: LossEntity) -> torch.Tensor:
         """
-        Aggregate SIREN training loss component.
+        Aggregate SiNET training loss component.
 
         Parameters
         ----------
@@ -160,10 +130,9 @@ class SIRENReconstructor(BaseReconstructor):
             The aggregated loss.
         """
         return (
-            loss_component.sdf * self.sdf_loss_weight
-            + loss_component.inter * self.inter_loss_weight
-            + loss_component.normal * self.normal_loss_weight
+            loss_component.mse * self.mse_loss_weight
             + loss_component.eikonal * self.eikonal_loss_weight
+            + loss_component.laplace * self.laplace_loss_weight
         )
 
     def _maybe_load_checkpoint(
@@ -204,6 +173,7 @@ class SIRENReconstructor(BaseReconstructor):
                 "Checkpoint saving skipped as no checkpoint path is provided."
             )
 
+    @torch.no_grad()
     def _find_surface(self, siren_model, dataset) -> np.ndarray:
         log.info("Finding surface using the trained INR model")
         data_loader = DataLoader(
@@ -213,175 +183,18 @@ class SIRENReconstructor(BaseReconstructor):
         )
         all_z = []
         log.info("Creating mini-batches for surface reconstruction...")
-        for i, batch in enumerate(data_loader):
+        for i, (xy, _) in enumerate(data_loader):
             log.info("Processing mini-batch %d/%d...", i + 1, len(data_loader))
-            batch = batch.to(self.device)
-            z_values = self._predict_z_values(siren_model, batch)
-            all_z.append(z_values)
+            xy = xy.to(self.device)
+            z = siren_model(xy)
+            all_z.append(z.cpu().numpy())
         log.info("Surface finding complete. Concatenating results.")
         return np.concatenate(all_z)
 
-    @log_input(log, level=logging.DEBUG)
-    def _predict_z_values(
-        self,
-        siren_model,
-        batch,
-        max_iter: int = 2_000,
-        tol: float = 1e-6,
-        alpha: float = 1e-0,
-    ) -> np.ndarray:
-        coordinates = batch.clone().detach().to(self.device)
-
-        # x_val = coordinates[:, 0].unsqueeze(0)
-        # y_val = coordinates[:, 1].unsqueeze(0)
-        # initial_z = 2 * torch.rand_like(x_val) - 1
-        # z = torch.nn.Parameter(initial_z.clone()
-        # .detach().requires_grad_(True).to(self.device))
-        # optimizer = torch.optim.Adam([z], lr=0.02)
-
-        # for j in range(max_iter):
-        #     optimizer.zero_grad()
-        #     feed = torch.concat((x_val, y_val, z)).T
-        #     sdf = siren_model(feed)
-        #     loss = torch.abs(sdf).sum()
-        #     print(loss.item())
-
-        #     loss.backward()
-        #     optimizer.step()
-
-        #     if loss.item() < tol:
-        #         break
-        # return z.detach().cpu().numpy().squeeze()
-
-        # batch_size = coordinates.size(0)
-        # optimized_z_values = torch.zeros(batch_size, 1)
-
-        # for i in range(batch_size):
-        #     x_val = coordinates[i, 0].unsqueeze(0)
-        #     y_val = coordinates[i, 1].unsqueeze(0)
-        #     initial_z = 2 * torch.rand(1) - 1
-        #     z = torch.nn.Parameter(initial_z
-        # .clone().detach().requires_grad_(True).to(self.device))
-        #     optimizer = torch.optim.Adam([z], lr=0.005)
-
-        #     for j in range(max_iter):
-        #         optimizer.zero_grad()
-        #         feed = torch.stack((x_val, y_val, z), dim=1)
-        #         sdf = siren_model(feed)
-        #         loss = torch.abs(sdf)
-        #         print(loss.item())
-
-        #         loss.backward()
-        #         optimizer.step()
-
-        #         if loss.item() < tol:
-        #             print(f"  Converged at iteration {j+1}
-        # with loss: {loss.item()}")
-        #             optimized_z_values[i, 0] = z.item()
-        #             break
-        #     else:
-        #         optimized_z_values[i, 0] = z.item()
-        #         print(f"  Did not converge within {max_iter}
-        #  iterations. Final loss: {loss.item()}")
-
-        # return optimized_z_values.detach().cpu().numpy().squeeze()
-
-        def find_temperature(decoder, x, y, z_min, z_max, num_samples=2_000):
-            z_values = torch.linspace(
-                z_min, z_max, num_samples, device=self.device
-            )
-
-            x_values = torch.full((num_samples,), x, device=self.device)
-            y_values = torch.full((num_samples,), y, device=self.device)
-            points = torch.stack([x_values, y_values, z_values], dim=1)
-
-            with torch.no_grad():
-                sdf_values = decoder(points).squeeze()
-
-            abs_sdf_values = torch.abs(sdf_values)
-            min_idx = torch.argmin(abs_sdf_values)
-            best_z = z_values[min_idx].item()
-            return best_z
-
-        all_z = []
-        for i, row in enumerate(coordinates):
-            x, y, _ = row[0].item(), row[1].item(), row[2].item()
-
-            predicted_z = find_temperature(siren_model, x, y, -1, 1)
-            all_z.append(predicted_z)
-
-        return np.array(all_z)
-
-        # coordinates = batch.clone().detach().to(self.device)
-        # siren_model.eval()
-        # for i in range(max_iter):
-        #     coordinates = coordinates.detach()
-        #     cc, sdf = siren_model(coordinates)
-
-        #     if (sdf.abs() < tol).all():
-        #         break
-        #     grad_outputs = torch.ones_like(sdf)
-        #     print("iter", i, "sdf: ", sdf.abs().sum())
-        #     grads = torch.autograd.grad(sdf, [cc], grad_outputs,
-        # create_graph=True)[0]
-        #     coordinates[..., -1] = coordinates[..., -1]
-        # - 1e-1 * (sdf / grads)[..., -1]
-        # return coordinates[:, -1].detach().cpu().numpy()
-
-        # z_values = []
-        # res_sdf = []
-        # for i in range(len(coordinates)):
-        #     if i % 1_000 == 0:
-        #         log.info(
-        #             "Processing point %d/%d...", i + 1, len(coordinates)
-        #         )
-        #     pp = coordinates[i]
-
-        #     for _ in range(max_iter):
-        #         pp, sdf = siren_model(pp.unsqueeze(0))
-
-        #         if (sdf.abs() < tol).all():
-        #             break
-        #         grad_outputs = torch.ones_like(sdf)
-        #         grads = torch.autograd.grad(sdf, [pp], grad_outputs,
-        # create_graph=True)[0]
-        #         pp = pp.detach()
-        #         pp = pp.squeeze()
-        #         pp[-1] = pp[-1] - 1e-1 * (sdf / grads).squeeze()[-1]
-        #     z_values.append(pp[-1].item())
-        #     res_sdf.append(sdf.item())
-        # return np.array(z_values)
-
-        # grad_f_squared = 2 * sdf.view(-1, 1) * grads
-        # step = grad_f_squared / (
-        #     grad_f_squared.norm(dim=-1, keepdim=True) + tol
-        # )
-
-        # coordinates = coordinates.detach()
-        # step = (
-        #     sdf.view(-1, 1)
-        #     * grads
-        #     / (grads.norm(dim=-1, keepdim=True) + tol)
-        # )
-        # coordinates = coordinates - alpha * step
-
-        # if (sdf.abs() < tol).all():
-        #     break
-        # import matplotlib.pyplot as plt
-        # breakpoint()
-        # coordinates = coordinates.detach().cpu().numpy().squeeze()
-
-        return coordinates.detach().cpu().numpy().squeeze()[:, 2]
-
-    def _form_target_coordinates(self):
+    def _form_query_pairs(self) -> tuple[np.ndarray, np.ndarray]:
         """Form target domain coordinates for reconstruction."""
         lat_grid, lon_grid = np.meshgrid(self.query_lat, self.query_lon)
-        lat_grid = lat_grid.reshape(-1)
-        lon_grid = lon_grid.reshape(-1)
-        return np.stack(
-            (lat_grid, lon_grid, np.random.uniform(-1, 1, size=len(lat_grid))),
-            axis=1,
-        )
+        return lat_grid.reshape(-1), lon_grid.reshape(-1)
 
     @raise_if_not_installed("torch")
     def reconstruct(self) -> DenseDataset:
@@ -394,23 +207,22 @@ class SIRENReconstructor(BaseReconstructor):
             log.info("Training SIREN model...")
             optimizer = self._configure_optimizer(siren_model)
             data_loader = DataLoader(
-                self.train_dataset,
+                self.datasets.train_dataset,
                 shuffle=True,
-                batch_size=1,
+                batch_size=self.batch_size,
                 pin_memory=True,
                 num_workers=self.num_workers,
             )
 
             for epoch in range(1, self.num_epochs + 1):
                 epoch_loss = 0
-                for coordinates, normals, sdf in data_loader:
-                    coordinates = coordinates.to(self.device)
-                    normals = normals.to(self.device)
-                    sdf = sdf.to(self.device)
-                    coordinates = coordinates.detach().requires_grad_(True)
-                    pred_sdf = siren_model(coordinates)
+                for xy, true_z in data_loader:
+                    xy = xy.to(self.device)
+                    true_z = true_z.to(self.device)
+                    xy = xy.detach().requires_grad_(True)
+                    pred_z = siren_model(xy)
                     loss_component: LossEntity = compute_sdf_losses(
-                        coordinates, pred_sdf, normals, sdf
+                        xy, pred_z, true_z
                     )
                     train_loss = self._aggregate_loss(
                         loss_component=loss_component
@@ -431,10 +243,7 @@ class SIRENReconstructor(BaseReconstructor):
                 siren_model=siren_model, checkpoint=self.checkpoint
             )
         siren_model.eval()
-        target_grid = self._form_target_coordinates()
-        target_grid_transformed = self.train_dataset.transform(target_grid)
-        target_dataset = SDFPredictDataset(target_grid_transformed)
-        values = self._find_surface(siren_model, target_dataset)
+        values = self._find_surface(siren_model, self.datasets.target_dataset)
 
         # NOTE: we just transform the Z values (axis=2)
         values = self.train_dataset.inverse_transform_z(values)
