@@ -31,27 +31,23 @@ def sample_data(dset):
 def recon(
     source_dset,
     sparse_dset,
-    num_surface_points: int,
-    num_off_surface_points: int,
     lr: float,
+    batch_size: int,
     gradient_clipping_value: float,
-    sdf_loss_weight: float,
-    inter_loss_weight: float,
-    normal_loss_weight: float,
+    mse_loss_weight: float,
     eikonal_loss_weight: float,
+    laplace_loss_weight: float,
 ) -> float:
     recon_dset = sparse_dset.reconstruct(
         source_dset.domain,
         method="siren",
-        num_surface_points=int(num_surface_points),
-        num_off_surface_points=int(num_off_surface_points),
+        batch_size=int(batch_size),
         lr=float(lr),
         num_epochs=MAX_HYPER_PARAMS_EPOCH,
         gradient_clipping_value=float(gradient_clipping_value),
-        sdf_loss_weight=float(sdf_loss_weight),
-        inter_loss_weight=float(inter_loss_weight),
-        normal_loss_weight=float(normal_loss_weight),
+        mse_loss_weight=float(mse_loss_weight),
         eikonal_loss_weight=float(eikonal_loss_weight),
+        laplace_loss_weight=float(laplace_loss_weight),
     )
     metrics = Comparison(recon_dset, source_dset).compute_report()
     # NOTE: minus to force maximizing
@@ -63,14 +59,12 @@ def find_hyperparameters():
     sparse_dset = sample_data(dset)
     func = partial(recon, source_dset=dset, sparse_dset=sparse_dset)
     hyperparameters_bounds = {
-        "num_surface_points": (100, sparse_dset.domain.size),
-        "num_off_surface_points": (100, 10 * sparse_dset.domain.size),
-        "lr": (1e-5, 5e-1),
+        "lr": (1e-5, 1e-2),
         "gradient_clipping_value": (0.0, 1e3),
-        "sdf_loss_weight": (0.0, 1e4),
-        "inter_loss_weight": (0.0, 1e3),
-        "normal_loss_weight": (0.0, 1e3),
+        "batch_size": (10, 500),
+        "mse_loss_weight": (1.0, 1e3),
         "eikonal_loss_weight": (0.0, 1e2),
+        "laplace_loss_weight": (0.0, 1e2),
     }
 
     optimizer = BayesianOptimization(

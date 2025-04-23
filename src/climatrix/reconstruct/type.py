@@ -3,7 +3,7 @@ from typing import Self
 
 from climatrix.reconstruct.idw import IDWReconstructor
 from climatrix.reconstruct.kriging import OrdinaryKrigingReconstructor
-from climatrix.reconstruct.siren.siren import SIRENReconstructor
+from climatrix.reconstruct.sinet.sinet import SiNETReconstructor
 
 
 class ReconstructionType(Enum):
@@ -11,7 +11,7 @@ class ReconstructionType(Enum):
 
     IDW = IDWReconstructor
     OK = OrdinaryKrigingReconstructor
-    SIREN = SIRENReconstructor
+    SiNET = SiNETReconstructor
 
     def __missing__(self, value):
         raise ValueError(f"Unknown reconstruction method: {value}")

@@ -38,7 +38,7 @@ dev = [
     "isort",
     "black",
     "pre-commit",
-    "autoflake"
+    "autoflake",
 ]
 plot = [
     "hvplot",
