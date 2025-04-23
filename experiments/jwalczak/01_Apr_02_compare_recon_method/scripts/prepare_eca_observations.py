@@ -1,19 +1,29 @@
+import gc
+import importlib.resources
 import os
-from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import xarray as xr
-from dask import delayed
-from dask.base import compute
 from rich.progress import track
 
-DATA_DIR = os.path.join("..", "..", "..", "..", "data", "eca_nonblend")
+import climatrix as cm
+
+DATA_DIR = importlib.resources.files("climatrix").joinpath(
+    "..", "..", "data", "eca_nonblend"
+)
 STATIONS_DEF_PATH = os.path.join(DATA_DIR, "sources.txt")
 ECA_START_DATE = datetime(1756, 1, 1)
 ECA_END_DATE = datetime(2025, 2, 28)
 TARGET_FILE = os.path.join(DATA_DIR, "eca_nonblend.nc")
+
+EXP_DIR = Path(__file__).parent
+TUNING_DSET_PATH = EXP_DIR / "data" / "eca_obs_europe_tuning.nc"
+TUNING_DATE = datetime(2009, 2, 28)
+RECON_DSET_PATH = EXP_DIR / "data" / "eca_obs_europe_recon.nc"
+RECON_DATE = datetime(2010, 2, 28)
 
 
 def lon_dms_to_decimal(dms_str):
@@ -25,7 +35,7 @@ def lon_dms_to_decimal(dms_str):
         decimal -= 360
     if not (-180 <= decimal <= 180):
         raise ValueError(f"Invalid longitude: {dms_str}")
-    return sign * (degrees + minutes / 60 + seconds / 3600)
+    return decimal
 
 
 def lat_dms_to_decimal(dms_str):
@@ -38,114 +48,144 @@ def lat_dms_to_decimal(dms_str):
 
 
 def load_sources() -> pd.DataFrame:
-    with open(STATIONS_DEF_PATH, encoding="utf-8") as f:
-        lines = f.readlines()
-    for i, line in enumerate(lines):
-        if "SOUID,SOUNAME" in line.strip():
-            data_start_line = i
-            break
-    df = pd.read_csv(
+    """
+    Load station metadata handling stations with commas in their names
+    """
+    # First find the header line
+    HEADER_LINES_NBR = 23
+    COLUMNS_SPECS = [
+        (0, 6),  # SOUID,
+        (7, 47),  # SOUNAME,
+        (51, 60),  # LAT
+        (61, 71),  # LON
+        (72, 76),  # HGHT
+    ]
+    NAMES = [
+        "SOUID",
+        "SOUNAME",
+        "LAT",
+        "LON",
+        "HGHT",
+    ]
+    df = pd.read_fwf(
         STATIONS_DEF_PATH,
-        skiprows=data_start_line + 1,
-        skipinitialspace=True,
-        on_bad_lines="skip",
-        names=[
-            "SOUID",
-            "SOUNAME",
-            "CN",
-            "LAT",
-            "LON",
-            "HGHT",
-            "ELEID",
-            "START",
-            "STOP",
-            "PARID",
-            "PARNAME",
-        ],
+        skiprows=HEADER_LINES_NBR,
+        colspecs=COLUMNS_SPECS,
+        names=NAMES,
     )
+
     df["LAT_degrees"] = df["LAT"].apply(lat_dms_to_decimal)
+    df["LON_degrees"] = df["LON"].apply(lon_dms_to_decimal)
+
+    df["HGHT"] = pd.to_numeric(df["HGHT"], errors="coerce")
+
     return df[["SOUID", "LAT_degrees", "LON_degrees", "HGHT"]]
 
 
-def load_data(path):
-    with open(path, encoding="utf-8") as f:
-        lines = f.readlines()
-    for i, line in enumerate(lines):
-        if "SOUID," in line.strip():
-            data_start_line = i
-            break
-    df = pd.read_csv(
-        path,
-        skiprows=data_start_line + 1,
-        skipinitialspace=True,
-        on_bad_lines="skip",
-        names=["STAID", "SOUID", "DATE", "TG", "Q_TG"],
+def load_station_data(souid):
+    """Load data for a single station with memory optimization"""
+    path = os.path.join(DATA_DIR, f"TG_SOUID{souid}.txt")
+    HEADER_LINES_NBR = 19
+    COLUMNS_SPECS = [
+        (7, 13),  # SOUID,
+        (14, 22),  # DATE,
+        (23, 28),  # TG
+    ]
+    NAMES = [
+        "SOUID",
+        "DATE",
+        "TG",
+    ]
+    df = pd.read_fwf(
+        path, skiprows=HEADER_LINES_NBR, colspecs=COLUMNS_SPECS, names=NAMES
     )
-    df["TG"] = df["TG"].astype(float) / 10.0
+
+    df = df.dropna(subset=["TG"])
+    if df.empty:
+        return None
+
+    df["TG"] = df["TG"] / 10.0
+
     df["DATE"] = pd.to_datetime(df["DATE"], format="%Y%m%d")
-    return df[["DATE", "TG"]]
+    df["TG"] = np.where(df["TG"] == -999.9, np.nan, df["TG"])
+
+    df = df.set_index("DATE")
+    return df["TG"]
 
 
-BBOX = {"north": 71, "south": 36, "west": -24, "east": 35}
+def get_time_range():
+    """Determine the full time range without loading all data at once"""
+    min_date = pd.Timestamp(ECA_START_DATE)
+    max_date = pd.Timestamp(ECA_END_DATE)
+    return pd.date_range(start=min_date, end=max_date, freq="D")
 
 
-def create_dataarray(metadata_df):
-    all_times = set()
-    station_data = []
-
-    for idx, row in track(metadata_df.iterrows(), total=len(metadata_df)):
-        souid = int(row["SOUID"])
-        lat = row["LAT_degrees"]
-        lon = row["LON_degrees"]
-        height = row["HGHT"]
-
-        df = load_data(os.path.join(DATA_DIR, f"TG_SOUID{souid}.txt"))
-        df = df.dropna(subset=["TG"])
-
-        all_times.update(df["DATE"].unique())
-
-        station_data.append(
-            {
-                "souid": souid,
-                "lat": lat,
-                "lon": lon,
-                "height": height,
-                "time_series": df.set_index("DATE")["TG"],
-            }
-        )
-
-    all_times = sorted(all_times)
-    time_index = pd.DatetimeIndex(all_times)
-
-    values_array = np.full((len(time_index), len(station_data)), np.nan)
-
-    for i, station in track(enumerate(station_data)):
-        ts = station["time_series"]
-        aligned_ts = ts.reindex(time_index)
-        values_array[:, i] = aligned_ts.values
-
-    lats = [s["lat"] for s in station_data]
-    lons = [s["lon"] for s in station_data]
-    souids = [s["souid"] for s in station_data]
-
-    data_array = xr.DataArray(
-        data=values_array,
-        dims=["time", "point"],
-        coords={
-            "time": time_index,
-            "point": np.arange(len(station_data)),
-            "latitude": ("point", lats),
-            "longitude": ("point", lons),
-            "height": ("point", [s["height"] for s in station_data]),
-            "souid": ("point", souids),
+def process_in_chunks(metadata_df, time_index):
+    """Process stations in chunks to reduce memory usage"""
+    num_stations = len(metadata_df)
+    if os.path.exists(TARGET_FILE):
+        print("Dataset already exists, skipping processing")
+        return
+    ds = xr.Dataset(
+        data_vars={
+            "mean_temperature": (
+                ["valid_time", "point"],
+                np.zeros((len(time_index), num_stations), dtype=np.float32)
+                * np.nan,
+            )
         },
-        name="mean_temperature",
+        coords={
+            "valid_time": time_index,
+            "point": np.arange(num_stations),
+            "latitude": ("point", np.zeros(num_stations)),
+            "longitude": ("point", np.zeros(num_stations)),
+            "height": ("point", np.zeros(num_stations)),
+            "souid": ("point", np.zeros(num_stations, dtype=np.int32)),
+        },
+    )
+    ds.latitude.attrs["units"] = "degrees_north"
+    ds.longitude.attrs["units"] = "degrees_east"
+    ds.height.attrs["units"] = "m"
+    ds.mean_temperature.attrs["units"] = "degC"
+
+    for station in track(range(0, num_stations), description="Processing..."):
+        row = metadata_df.iloc[station]
+        ds.latitude[station] = row["LAT_degrees"]
+        ds.longitude[station] = row["LON_degrees"]
+        ds.height[station] = row["HGHT"]
+        ds.souid[station] = int(row["SOUID"])
+
+        ts = load_station_data(int(row["SOUID"]))
+        if ts is not None:
+            if ts.index.shape != time_index.shape:
+                mask = np.isin(time_index, ts.index, assume_unique=True)
+                ds.mean_temperature[mask, station] = ts.values
+            else:
+                ds.mean_temperature[:, station] = ts.values
+
+        del ts
+        if station % 10 == 0:
+            gc.collect()
+
+    ds.to_netcdf(TARGET_FILE, mode="w")
+
+
+def prepare_tuning_dataset():
+    xr.open_dataset(TARGET_FILE).sel(valid_time=TUNING_DATE).to_netcdf(
+        TUNING_DSET_PATH
     )
 
-    return data_array
+
+def prepare_recon_dataset():
+    xr.open_dataset(TARGET_FILE).sel(valid_time=RECON_DATE).to_netcdf(
+        RECON_DSET_PATH
+    )
 
 
 if __name__ == "__main__":
-    sources: pd.DataFrame = load_sources()
-    da = create_dataarray(sources)
-    da.to_netcdf(TARGET_FILE)
+    sources = load_sources()
+    time_index = get_time_range()
+    process_in_chunks(sources, time_index)
+
+    prepare_tuning_dataset()
+    prepare_recon_dataset()
