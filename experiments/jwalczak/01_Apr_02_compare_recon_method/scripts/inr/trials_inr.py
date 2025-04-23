@@ -11,7 +11,7 @@ Bayesian optimisation output (init_points=30, n_iter=200)
         'batch_size': np.float64(347.51957759714594),
         'gradient_clipping_value': np.float64(180.8058300526181),
         'lr': np.float64(5.404738409598668e-05),
-        'mse_loss_weight': np.float64(494.29206838653624)
+        'mse_loss_weight': np.float64(494.29206838653624),
         'eikonal_loss_weight': np.float64(55.760909614566955),
         'laplace_loss_weight': np.float64(0.15144664737775093),
         }
