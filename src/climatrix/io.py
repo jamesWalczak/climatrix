@@ -50,7 +50,13 @@ def get_download_request(dataset: DatasetType):
         The absolute path to the TOML file with the download request.
     """
     rel_path = (
-        Path(".") / ".." / ".." / "scripts" / "download" / f"{dataset}.toml"
+        Path(".")
+        / ".."
+        / ".."
+        / "scripts"
+        / "download"
+        / "cds"
+        / f"{dataset}.toml"
     )
     return get_resource_path(rel_path)
 

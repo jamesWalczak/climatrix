@@ -4,15 +4,17 @@ This module contains the code for the INR trials.
 All hyper-parameters were selected using constrained Bayesian
 optimisation.
 
-Bayesian optimisation output (init_points=30, n_iter=100)
+Bayesian optimisation output (init_points=30, n_iter=200)
 {
-    'target (RMSE)': np.float64(-1.4241189958579608),
-    'params':
-    {
-        'k': np.float64(27.40201996616449),
-        'k_min': np.float64(17.348586061728497),
-        'power': np.float64(2.7965365027773164)
-    }
+    'target': np.float64(-2.4601502418518066),
+    'params': {
+        'batch_size': np.float64(347.51957759714594),
+        'gradient_clipping_value': np.float64(180.8058300526181),
+        'lr': np.float64(5.404738409598668e-05),
+        'mse_loss_weight': np.float64(494.29206838653624),
+        'eikonal_loss_weight': np.float64(55.760909614566955),
+        'laplace_loss_weight': np.float64(0.15144664737775093),
+        }
 }
 """
 
@@ -27,14 +29,13 @@ from climatrix.dataset.dense import DenseDataset
 TRIALS: int = 1  # 30
 N_POINTS: int = 1_000
 
-NUM_SURFACE_POINTS: int = 1_000
-NUM_OFF_SURFACE_POINTS: int = 1_000
-LR: float = 1e-5
-NUM_EPOCHS: int = 5_000
-SDF_LOSS_WEIGHT: float = 3e3
-INTER_LOSS_WEIGHT: float = 1e2
-NORMAL_LOSS_WEIGHT: float = 1e2
-EIKONAL_LOSS_WEIGHT: float = 5e1
+LR: float = 5.405e-5
+BATCH_SIZE: int = 347
+NUM_EPOCHS: int = 10_000
+MSE_LOSS_WEIGHT: float = 494.292
+EIKONAL_LOSS_WEIGHT: float = 55.761
+LAPLACE_LOSS_WEIGHT: float = 0.151
+GRADIENT_CLIPPING_VALUE: float = 180.806
 
 RECON_DATASET_PATH = Path("data/europe_recon.nc")
 RESULT_DIR = Path("results/inr")
@@ -50,25 +51,28 @@ def reconstruct_and_save_report(
     sampling_policy: str,
     nan_policy: str,
 ) -> xr.Dataset:
-    if target_dir.exists():
-        return None
+    # if target_dir.exists():
+    #     return None
     sparse_dset = source_dataset.sample(
         number=N_POINTS, kind=sampling_policy, nan_policy=nan_policy
     )
     recon_dset = sparse_dset.reconstruct(
         source_dataset.domain,
         method="siren",
-        num_surface_points=NUM_SURFACE_POINTS,
-        num_off_surface_points=NUM_OFF_SURFACE_POINTS,
         lr=LR,
         num_epochs=NUM_EPOCHS,
-        sdf_loss_weight=SDF_LOSS_WEIGHT,
-        inter_loss_weight=INTER_LOSS_WEIGHT,
-        normal_loss_weight=NORMAL_LOSS_WEIGHT,
+        batch_size=BATCH_SIZE,
+        gradient_clipping_value=GRADIENT_CLIPPING_VALUE,
+        mse_loss_weight=MSE_LOSS_WEIGHT,
         eikonal_loss_weight=EIKONAL_LOSS_WEIGHT,
+        laplace_loss_weight=LAPLACE_LOSS_WEIGHT,
     )
     recon_dset.plot()
-    cm.Comparison(recon_dset, source_dataset).save_report(target_dir)
+    cmp = cm.Comparison(recon_dset, source_dataset)
+    cmp.predicted_dataset.plot()
+    # cmp.plot_diff()
+    # breakpoint()
+    cmp.save_report(target_dir)
 
 
 def run_experiment_uniform_sampling(source_dataset: DenseDataset):
