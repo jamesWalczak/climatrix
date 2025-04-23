@@ -63,8 +63,7 @@ def load_sources() -> pd.DataFrame:
             "PARNAME",
         ],
     )
-    df["LAT_degrees"] = df["LAT"].apply(lon_dms_to_decimal)
-    df["LON_degrees"] = df["LON"].apply(lon_dms_to_decimal)
+    df["LAT_degrees"] = df["LAT"].apply(lat_dms_to_decimal)
     return df[["SOUID", "LAT_degrees", "LON_degrees", "HGHT"]]
 
 
