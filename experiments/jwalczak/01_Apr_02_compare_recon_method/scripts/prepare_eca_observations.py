@@ -12,17 +12,17 @@ from rich.progress import track
 import climatrix as cm
 
 DATA_DIR = importlib.resources.files("climatrix").joinpath(
-    "..", "..", "data", "eca_nonblend"
+    "..", "..", "data", "ecad_nonblend"
 )
 STATIONS_DEF_PATH = os.path.join(DATA_DIR, "sources.txt")
 ECA_START_DATE = datetime(1756, 1, 1)
 ECA_END_DATE = datetime(2025, 2, 28)
-TARGET_FILE = os.path.join(DATA_DIR, "eca_nonblend.nc")
+TARGET_FILE = os.path.join(DATA_DIR, "ecad_nonblend.nc")
 
 EXP_DIR = Path(__file__).parent
-TUNING_DSET_PATH = EXP_DIR / "data" / "eca_obs_europe_tuning.nc"
+TUNING_DSET_PATH = EXP_DIR / ".." / "data" / "ecad_obs_europe_tuning.nc"
 TUNING_DATE = datetime(2009, 2, 28)
-RECON_DSET_PATH = EXP_DIR / "data" / "eca_obs_europe_recon.nc"
+RECON_DSET_PATH = EXP_DIR / ".." / "data" / "ecad_obs_europe_recon.nc"
 RECON_DATE = datetime(2010, 2, 28)
 
 
@@ -123,9 +123,6 @@ def get_time_range():
 def process_in_chunks(metadata_df, time_index):
     """Process stations in chunks to reduce memory usage"""
     num_stations = len(metadata_df)
-    if os.path.exists(TARGET_FILE):
-        print("Dataset already exists, skipping processing")
-        return
     ds = xr.Dataset(
         data_vars={
             "mean_temperature": (
