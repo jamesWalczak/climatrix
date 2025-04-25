@@ -58,7 +58,7 @@ def reconstruct_and_save_report(
     )
     recon_dset = sparse_dset.reconstruct(
         source_dataset.domain,
-        method="siren",
+        method="sinet",
         lr=LR,
         num_epochs=NUM_EPOCHS,
         batch_size=BATCH_SIZE,

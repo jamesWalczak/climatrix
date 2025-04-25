@@ -8,17 +8,17 @@ from typing import TYPE_CHECKING
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
+import numpy as np
 import xarray as xr
 from matplotlib.axes import Axes
 
+from climatrix.dataset.axis import Axis
 from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.reconstruct.type import ReconstructionType
 
 if TYPE_CHECKING:
     from climatrix.dataset.dense import DenseDataset
     from climatrix.dataset.domain import Domain
-
-SPARSE_DIM: str = "point"
 
 
 class SparseDataset(BaseClimatrixDataset):

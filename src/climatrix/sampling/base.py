@@ -39,15 +39,19 @@ class BaseSampler(ABC):
 
     def __init__(
         self,
-        dataset: DenseDataset,
+        dataset: DenseDataset | SparseDataset,
         portion: float | None = None,
         number: int | None = None,
     ):
         from climatrix.dataset.dense import DenseDataset
+        from climatrix.dataset.sparse import SparseDataset
 
-        if not isinstance(dataset, DenseDataset):
-            raise TypeError("Only DenseDataset object can be sampled")
         self.dataset = dataset
+        if not isinstance(dataset, (DenseDataset, SparseDataset)):
+            raise TypeError(
+                f"Dataset must be of type DenseDataset or SparseDataset, "
+                f"not {type(dataset)}"
+            )
         if not (portion or number):
             raise ValueError("Either portion or number must be provided")
         if portion and number:
@@ -85,11 +89,11 @@ class BaseSampler(ABC):
         return n
 
     @abstractmethod
-    def _sample_data(self, lats, lons, n) -> SparseDataset:
+    def _sample_data(self, n) -> SparseDataset:
         raise NotImplementedError
 
     @abstractmethod
-    def _sample_no_nans(self, lats, lons, n) -> SparseDataset:
+    def _sample_no_nans(self, n) -> SparseDataset:
         raise NotImplementedError
 
     def _ensure_dataset_not_too_large(self):

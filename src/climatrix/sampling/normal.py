@@ -5,11 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import xarray as xr
 
-from climatrix.dataset.sparse import (
-    SPARSE_DIM,
-    DynamicSparseDataset,
-    StaticSparseDataset,
-)
+from climatrix.dataset.axis import Axis
 from climatrix.sampling.base import BaseSampler
 
 if TYPE_CHECKING:
@@ -34,13 +30,20 @@ class NormalSampler(BaseSampler):
         self.center_point = center_point
         self.sigma = sigma
 
-    def _sample_data(self, lats, lons, n) -> SparseDataset:
+    def _sample_data(self, n) -> SparseDataset:
         if self.center_point is None:
-            center_point = np.array([np.mean(lats), np.mean(lons)])
+            center_point = np.array(
+                [
+                    np.mean(self.dataset.latitude),
+                    np.mean(self.dataset.longitude),
+                ]
+            )
         else:
             center_point = np.array(self.center_point)
 
-        x_grid, y_grid = np.meshgrid(lons, lats)
+        x_grid, y_grid = np.meshgrid(
+            self.dataset.longitude, self.dataset.latitude
+        )
         distances = np.sqrt(
             (x_grid - center_point[0]) ** 2 + (y_grid - center_point[1]) ** 2
         )
@@ -56,16 +59,20 @@ class NormalSampler(BaseSampler):
         data = self.dataset.da.sel(
             {
                 self.dataset.latitude_name: xr.DataArray(
-                    selected_lats, dims=[SPARSE_DIM]
+                    selected_lats, dims=[Axis.POINT]
                 ),
                 self.dataset.longitude_name: xr.DataArray(
-                    selected_lons, dims=[SPARSE_DIM]
+                    selected_lons, dims=[Axis.POINT]
                 ),
             },
             method="nearest",
         )
         if self.dataset.is_dynamic:
+            from climatrix.dataset.sparse import DynamicSparseDataset
+
             return DynamicSparseDataset(data)
+        else:
+            from climatrix.dataset.sparse import StaticSparseDataset
         return StaticSparseDataset(data)
 
     def _sample_no_nans(self, lats, lons, n) -> SparseDataset:

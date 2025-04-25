@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class Axis(Enum):
+class Axis(StrEnum):
     LATITUDE = "latitude"
     LONGITUDE = "longitude"
     TIME = "time"

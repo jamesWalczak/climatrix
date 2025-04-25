@@ -2,15 +2,17 @@
 This script manages IDW reconstruction and hyper-parameter optimisation
 """
 
-import os
 from functools import partial
+from pathlib import Path
 
 import xarray as xr
 from bayes_opt import BayesianOptimization
 
 from climatrix import Comparison
 
-TUNING_DSET_PATH = os.path.join(".", "data", "europe_tuning.nc")
+TUNING_DSET_PATH = (
+    Path(__file__).parent.parent.parent / "data" / "ecad_obs_europe_train.nc"
+)
 POINTS = 1_000
 SAMPLING_TYPE = "uniform"
 NAN_POLICY = "resample"

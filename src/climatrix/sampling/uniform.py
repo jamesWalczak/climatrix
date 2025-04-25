@@ -1,8 +1,8 @@
 import numpy as np
 import xarray as xr
 
+from climatrix.dataset.axis import Axis
 from climatrix.dataset.sparse import (
-    SPARSE_DIM,
     DynamicSparseDataset,
     StaticSparseDataset,
 )
@@ -11,16 +11,16 @@ from climatrix.sampling.base import BaseSampler
 
 class UniformSampler(BaseSampler):
 
-    def _sample_data(self, lats, lons, n):
-        selected_lats = np.random.choice(lats, n)
-        selected_lons = np.random.choice(lons, n)
+    def _sample_data(self, n):
+        selected_lats = np.random.choice(self.dataset.latitude, n)
+        selected_lons = np.random.choice(self.dataset.longitude, n)
         data = self.dataset.da.sel(
             {
                 self.dataset.latitude_name: xr.DataArray(
-                    selected_lats, dims=[SPARSE_DIM]
+                    selected_lats, dims=[Axis.POINT]
                 ),
                 self.dataset.longitude_name: xr.DataArray(
-                    selected_lons, dims=[SPARSE_DIM]
+                    selected_lons, dims=[Axis.POINT]
                 ),
             },
             method="nearest",
@@ -31,10 +31,10 @@ class UniformSampler(BaseSampler):
             else StaticSparseDataset(data)
         )
 
-    def _sample_no_nans(self, lats, lons, n):
+    def _sample_no_nans(self, n):
         if self.dataset.is_dynamic:
             stack_keys = {
-                SPARSE_DIM: [
+                Axis.POINT: [
                     self.dataset.time_name,
                     self.dataset.latitude_name,
                     self.dataset.longitude_name,
@@ -42,7 +42,7 @@ class UniformSampler(BaseSampler):
             }
         else:
             stack_keys = {
-                SPARSE_DIM: [
+                Axis.POINT: [
                     self.dataset.latitude_name,
                     self.dataset.longitude_name,
                 ]
@@ -52,17 +52,17 @@ class UniformSampler(BaseSampler):
         rand_idx = np.arange(len(valid_da))
         np.random.shuffle(rand_idx)
         rand_idx = rand_idx[:n]
-        sparse_data = valid_da.isel({SPARSE_DIM: rand_idx})
+        sparse_data = valid_da.isel({Axis.POINT: rand_idx})
         selected_lats = sparse_data[self.dataset.latitude_name].values
         selected_lons = sparse_data[self.dataset.longitude_name].values
 
         data = self.dataset.da.sel(
             {
                 self.dataset.latitude_name: xr.DataArray(
-                    selected_lats, dims=[SPARSE_DIM]
+                    selected_lats, dims=[Axis.POINT]
                 ),
                 self.dataset.longitude_name: xr.DataArray(
-                    selected_lons, dims=[SPARSE_DIM]
+                    selected_lons, dims=[Axis.POINT]
                 ),
             },
             method="nearest",
