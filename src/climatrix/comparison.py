@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import os
 import warnings
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -8,8 +11,11 @@ import pandas as pd
 import seaborn as sns
 from matplotlib.axes import Axes
 
-from climatrix.dataset.dense import DenseDataset
+from climatrix.dataset import domain
 from climatrix.decorators import raise_if_not_installed
+
+if TYPE_CHECKING:
+    from climatrix.dataset.base import BaseClimatrixDataset
 
 sns.set_style("darkgrid")
 
@@ -40,15 +46,17 @@ class Comparison:
 
     def __init__(
         self,
-        predicted_dataset: DenseDataset,
-        true_dataset: DenseDataset,
+        predicted_dataset: BaseClimatrixDataset,
+        true_dataset: BaseClimatrixDataset,
         map_nan_from_source: bool = True,
     ):
-        if not isinstance(predicted_dataset, DenseDataset) or not isinstance(
-            true_dataset, DenseDataset
-        ):
-            raise NotImplementedError(
-                "Comparison is currently enabled only for dense datasets."
+        from climatrix.dataset.base import BaseClimatrixDataset
+
+        if not isinstance(
+            predicted_dataset, BaseClimatrixDataset
+        ) or not isinstance(true_dataset, BaseClimatrixDataset):
+            raise TypeError(
+                "Both datasets must be BaseClimatrixDataset objects"
             )
         self.predicted_dataset = predicted_dataset
         self.true_dataset = true_dataset
@@ -60,9 +68,12 @@ class Comparison:
         self.diff = self.predicted_dataset - self.true_dataset
 
     def _assert_static(self):
-        if self.predicted_dataset.is_dynamic or self.true_dataset.is_dynamic:
+        if (
+            self.predicted_dataset.domain.is_dynamic
+            or self.true_dataset.domain.is_dynamic
+        ):
             raise NotImplementedError(
-                "Comaprison between dynamic datasets is not yet implemented"
+                "Comparison between dynamic datasets is not yet implemented"
             )
 
     def plot_diff(self, ax: Axes | None = None) -> Axes:

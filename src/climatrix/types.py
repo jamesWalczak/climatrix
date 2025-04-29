@@ -1,0 +1,2 @@
+Longitude = float
+Latitude = float

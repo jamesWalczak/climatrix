@@ -7,12 +7,12 @@ import numpy as np
 import xarray as xr
 from scipy.spatial import cKDTree
 
+from climatrix.dataset.domain import Domain
 from climatrix.decorators.runtime import log_input
 from climatrix.reconstruct.base import BaseReconstructor
 
 if TYPE_CHECKING:
-    from climatrix.dataset.dense import DenseDataset
-    from climatrix.dataset.sparse import SparseDataset
+    from climatrix.dataset.base import BaseClimatrixDataset
 
 log = logging.getLogger(__name__)
 
@@ -51,78 +51,26 @@ class IDWReconstructor(BaseReconstructor):
     @log_input(log, level=logging.DEBUG)
     def __init__(
         self,
-        dataset: SparseDataset,
-        lat: slice | np.ndarray = slice(-90, 90, 0.1),
-        lon: slice | np.ndarray = slice(-180, 180, 0.1),
+        dataset: BaseClimatrixDataset,
+        target_domain: Domain,
         power: int = 2,
         k: int = 5,
         k_min: int = 2,
     ):
-        super().__init__(dataset, lat, lon)
+        super().__init__(dataset, target_domain)
+        if dataset.domain.is_dynamic:
+            raise ValueError(
+                "IDW reconstruction is not yet supported for dynamic datasets."
+            )
+        if k_min > k:
+            raise ValueError("k_min must be <= k")
+        if k < 1:
+            raise ValueError("k must be >= 1")
         self.k = k
         self.k_min = k_min
         self.power = power
 
-    def _build_grid(
-        self,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Build a grid of latitudes and longitudes.
-
-        Parameters
-        ----------
-        self : IDWReconstructor
-
-        Returns
-        -------
-        lat_grid : np.ndarray
-            The latitude grid points.
-        lon_grid : np.ndarray
-            The longitude grid points.
-        points : np.ndarray
-            The input points in the form of a 2D array where each row
-            is a point in the form (longitude, latitude).
-        query_points : np.ndarray
-            The query points in the form of a 2D array where each row
-            is a point in the form (longitude, latitude) that will be
-            used to query the nearest neighbors.
-        """
-        if isinstance(self.query_lat, slice):
-            log.debug(
-                "Creating target latitude values from slice %s...",
-                self.query_lat,
-            )
-            lat_grid = np.arange(
-                self.query_lat.start,
-                self.query_lat.stop + self.query_lat.step,
-                self.query_lat.step,
-            )
-        else:
-            lat_grid = self.query_lat
-        if isinstance(self.query_lon, slice):
-            log.debug(
-                "Creating target longitude values from slice %s...",
-                self.query_lon,
-            )
-            lon_grid = np.arange(
-                self.query_lon.start,
-                self.query_lon.stop + self.query_lon.step,
-                self.query_lon.step,
-            )
-        else:
-            lon_grid = self.query_lon
-        points = np.column_stack(
-            (self.dataset.longitude.values, self.dataset.latitude.values)
-        )
-        lon_mesh, lat_mesh = np.meshgrid(lon_grid, lat_grid)
-        return (
-            lat_grid,
-            lon_grid,
-            points,
-            np.column_stack((lon_mesh.flatten(), lat_mesh.flatten())),
-        )
-
-    def reconstruct(self) -> DenseDataset:
+    def reconstruct(self) -> BaseClimatrixDataset:
         """
         Perform Inverse Distance Weighting (IDW) reconstruction.
 
@@ -146,76 +94,80 @@ class IDWReconstructor(BaseReconstructor):
         - If fewer than `self.k_min` neighbors are available,
         NaN values are assigned to the corresponding points in the output.
         """
+        from climatrix.dataset.base import BaseClimatrixDataset
 
         values = self.dataset.da.values
 
-        lat_grid, lon_grid, points, query_points = self._build_grid()
         log.debug("Building KDtree for efficient nearest neighbor queries...")
-        kdtree = cKDTree(points)
+        spatial_points = self.dataset.domain.get_all_spatial_points()
+        if not isinstance(spatial_points, np.ndarray) or spatial_points.ndim != 2 or spatial_points.shape[1] != 2:
+            raise ValueError(
+                "Expected a 2D NumPy array with shape (N, 2) from get_all_spatial_points(), "
+                f"but got {type(spatial_points)} with shape {getattr(spatial_points, 'shape', None)}."
+            )
+        kdtree = cKDTree(spatial_points)
         log.debug("Querying %d nearest neighbors...", self.k)
+        query_points = self.target_domain.get_all_spatial_points()
         dists, idxs = kdtree.query(query_points, k=self.k, workers=-1)
+
         if self.k == 1:
             idxs = idxs[..., np.newaxis]
             dists = dists[..., np.newaxis]
         dists = np.maximum(dists, 1e-10)
-        weights = 1 / np.power(dists, self.power)
+        weights = 1.0 / np.power(dists, self.power)
         weights /= np.nansum(weights, axis=1, keepdims=True)
 
-        if self.dataset.is_dynamic:
-            from climatrix.dataset.dense import DynamicDenseDataset
+        knn_data = values[idxs]
+        valid_mask = np.isfinite(knn_data)
+        weights[~valid_mask] = 0.0
+        weights_sum = np.nansum(weights, axis=1).squeeze()
+        interp_vals = np.divide(
+            np.nansum(knn_data * weights, axis=1),
+            weights_sum,
+            where=weights_sum != 0,
+        )
 
-            log.info("Reconstructing dynamic dataset...")
-            time_values = []
-            for t in range(len(self.dataset.time)):
-                log.debug("Reconstructing time step: %s...", t)
-                v = values[t, :]
-                interp_vals = np.nansum(v[idxs] * weights, axis=1)
-                interp_vals[np.isfinite(weights).sum(axis=1) < self.k_min] = (
-                    np.nan
-                )
-                time_values.append(
-                    interp_vals.reshape(len(lat_grid), len(lon_grid))
-                )
-            interp_data = np.stack(time_values, axis=0)
+        valid_neighbor_counts = np.isfinite(knn_data).sum(axis=1)
+        interp_vals[valid_neighbor_counts < self.k_min] = np.nan
+
+        if self.target_domain.is_sparse:
             coords = {
-                self.dataset.time_name: self.dataset.time.values,
-                self.dataset.latitude_name: lat_grid,
-                self.dataset.longitude_name: lon_grid,
-            }
-            dims = (
-                self.dataset.time_name,
-                self.dataset.latitude_name,
-                self.dataset.longitude_name,
-            )
-            return DynamicDenseDataset(
-                xr.DataArray(
-                    interp_data,
-                    coords=coords,
-                    dims=dims,
-                    name=self.dataset.da.name,
+                self.target_domain.latitude_name: (
+                    self.target_domain.point_name,
+                    self.target_domain.latitude,
                 ),
+                self.target_domain.longitude_name: (
+                    self.target_domain.point_name,
+                    self.target_domain.longitude,
+                ),
+            }
+            dims = (self.target_domain.point_name,)
+            dset = xr.DataArray(
+                interp_vals,
+                coords=coords,
+                dims=dims,
+                name=self.dataset.da.name,
             )
         else:
-            from climatrix.dataset.dense import StaticDenseDataset
-
-            log.info("Reconstructing static dataset...")
-            interp_vals = np.nansum(values[idxs] * weights, axis=1)
-            interp_vals[np.isfinite(weights).sum(axis=1) < self.k_min] = np.nan
-            interp_vals = interp_vals.reshape(len(lat_grid), len(lon_grid))
+            interp_vals = interp_vals.reshape(
+                len(self.target_domain.latitude),
+                len(self.target_domain.longitude),
+            )
             coords = {
-                self.dataset.latitude_name: lat_grid,
-                self.dataset.longitude_name: lon_grid,
+                self.target_domain.latitude_name: self.target_domain.latitude,
+                self.target_domain.longitude_name: (
+                    self.target_domain.longitude
+                ),
             }
             dims = (
-                self.dataset.latitude_name,
-                self.dataset.longitude_name,
+                self.target_domain.latitude_name,
+                self.target_domain.longitude_name,
+            )
+            dset = xr.DataArray(
+                interp_vals,
+                coords=coords,
+                dims=dims,
+                name=self.dataset.da.name,
             )
 
-            return StaticDenseDataset(
-                xr.DataArray(
-                    interp_vals,
-                    coords=coords,
-                    dims=dims,
-                    name=self.dataset.da.name,
-                ),
-            )
+        return BaseClimatrixDataset(dset)

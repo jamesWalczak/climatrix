@@ -1,181 +1,55 @@
 from __future__ import annotations
 
 import os
-import re
-from abc import ABC, abstractmethod
 from datetime import datetime
-from functools import lru_cache
 from pathlib import Path
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 import numpy as np
 import xarray as xr
+from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 
-from climatrix.dataset.domain import Domain
+from climatrix.dataset.domain import (
+    Domain,
+    SamplingNaNPolicy,
+    ensure_single_var,
+)
 from climatrix.decorators import cm_arithmetic_binary_operator
+from climatrix.exceptions import LongitudeConventionMismatch
+from climatrix.reconstruct.type import ReconstructionType
+from climatrix.types import Latitude, Longitude
 
-from .axis import Axis
+# if TYPE_CHECKING:
 
-# Based on MetPy
-# (https://github.com/Unidata/MetPy/blob/main/src/metpy/xarray.py)
-_coords_name_regex: dict[Axis, str] = {
-    Axis.TIME: re.compile(r"^(x?)(valid_?)time(s?)([0-9]*)$"),
-    Axis.VERTICAL: re.compile(
-        r"^(z|lv_|bottom_top|sigma|h(ei)?ght|altitude|depth|"
-        r"isobaric|pres|isotherm)"
-        r"[a-z_]*[0-9]*$"
-    ),
-    Axis.LATITUDE: re.compile(r"^(x?)lat[a-z0-9_]*$"),
-    Axis.LONGITUDE: re.compile(r"^(x?)lon[a-z0-9_]*$"),
-    Axis.POINT: re.compile(r"^(point|points|values)$"),
-}
+
+def drop_scalar_coords_and_dims(da: xr.DataArray) -> xr.DataArray:
+    coords_and_dims = {*da.dims, *da.coords.keys()}
+    for coord in coords_and_dims:
+        if len(da[coord].shape) == 0:
+            da = da.drop(coord)
+    return da
 
 
 @xr.register_dataset_accessor("cm")
-class BaseClimatrixDataset(ABC):
-    __slots__ = ("da", "_axis_mapping", "domain")
+class BaseClimatrixDataset:
+    __slots__ = (
+        "da",
+        "domain",
+    )
 
     da: xr.DataArray
-    _axis_mapping: dict[Axis, str]
-
-    def __new__(cls, xarray_obj: xr.Dataset | xr.DataArray) -> Self:
-        cls._validate_input(xarray_obj)
-        da = cls._ensure_single_var(xarray_obj)
-        axis_mapping = cls._match_axis_names(da)
-        cls._validate_spatial_axes(axis_mapping)
-
-        if cls is BaseClimatrixDataset:
-            if (
-                Axis.TIME in axis_mapping
-                and da[axis_mapping[Axis.TIME]].size > 1
-            ):
-                if cls._check_is_dense(da, axis_mapping):
-                    from .dense import DynamicDenseDataset
-
-                    return DynamicDenseDataset(da)
-                else:
-                    from .sparse import DynamicSparseDataset
-
-                    return DynamicSparseDataset(da)
-            else:
-                if cls._check_is_dense(da, axis_mapping):
-                    from .dense import StaticDenseDataset
-
-                    return StaticDenseDataset(da)
-                else:
-                    from .sparse import StaticSparseDataset
-
-                    return StaticSparseDataset(da)
-        return super().__new__(cls)
-
-    @staticmethod
-    def _validate_input(da: xr.Dataset | xr.DataArray):
-        if not isinstance(da, (xr.Dataset, xr.DataArray)):
-            raise NotImplementedError(
-                "At the moment, dataset can be created only based on "
-                "xarray.DataArray or single-variable xarray.Dataset "
-                f"objects, but provided {type(da).__name__}"
-            )
-
-    @staticmethod
-    def _ensure_single_var(da: xr.Dataset | xr.DataArray) -> xr.DataArray:
-        if isinstance(da, xr.Dataset):
-            if len(da.data_vars) > 1:
-                raise ValueError(
-                    "Dataset can be created only based on "
-                    "xarray.DataArray or xarray.Dataset with single variable "
-                    "objects, but provided xarray.Dataset with multiple "
-                    "data_vars."
-                )
-            return da[list(da.data_vars.keys())[0]]
-        return da
-
-    @staticmethod
-    def _match_axis_names(da: xr.DataArray) -> dict[Axis, str]:
-        # TODO: should be moved to Domain class
-        axis_names = {}
-        coords_and_dims = {*da.dims, *da.coords.keys()}
-        for coord in coords_and_dims:
-            for axis, regex in _coords_name_regex.items():
-                if regex.match(coord):
-                    axis_names[axis] = coord
-                    break
-        return axis_names
-
-    @staticmethod
-    def _validate_spatial_axes(axis_mapping: dict[Axis, str]):
-        # TODO: should be moved to Domain class
-        for axis in [Axis.LATITUDE, Axis.LONGITUDE]:
-            if axis not in axis_mapping:
-                raise ValueError(f"Dataset has no {axis.name} axis")
-
-    @staticmethod
-    def _check_is_dense(
-        da: xr.DataArray, axis_mapping: dict[Axis, str]
-    ) -> bool:
-        return (axis_mapping[Axis.LATITUDE] in da.dims) and (
-            axis_mapping[Axis.LONGITUDE] in da.dims
-        )
+    domain: Domain
 
     def __init__(self, xarray_obj: xr.DataArray):
-        self.da = self._ensure_single_var(xarray_obj)
-        self.axis_mapping = self._match_axis_names(self.da)
-        self._update_domain()
-
-    def _update_domain(self) -> None:
-        self.domain = Domain(
-            {
-                axis: self.da[axis_name].values
-                for axis, axis_name in self.axis_mapping.items()
-            }
-        )
-
-    # ###############################
-    #  Properties
-    # ###############################
-
-    @property
-    def latitude_name(self) -> str:
-        return self.axis_mapping[Axis.LATITUDE]
-
-    @property
-    def longitude_name(self) -> str:
-        return self.axis_mapping[Axis.LONGITUDE]
-
-    @property
-    def time_name(self) -> str | None:
-        if Axis.TIME not in self.axis_mapping:
-            return None
-        return self.axis_mapping[Axis.TIME]
-
-    @property
-    @lru_cache(maxsize=1)
-    def latitude(self) -> xr.DataArray:
-        return self.da[self.latitude_name]
-
-    @property
-    @lru_cache(maxsize=1)
-    def longitude(self) -> xr.DataArray:
-        return self.da[self.longitude_name]
-
-    @property
-    @lru_cache(maxsize=1)
-    def time(self) -> xr.DataArray:
-        if self.time_name is None:
-            raise AttributeError("The dataset has no time dimension")
-        return self.da[self.time_name]
-
-    @property
-    @lru_cache(maxsize=1)
-    def is_dynamic(self) -> bool:
-        return self.time_name and self.time.size > 1
-
-    @property
-    @lru_cache(maxsize=1)
-    def size(self) -> int:
-        time_size = self.time.size if self.time_name else 1
-        return self.latitude.size * self.longitude.size * time_size
+        # NOTE: At the moment we only support DataArray or
+        # Dataset with a single variable
+        xarray_obj = ensure_single_var(xarray_obj)
+        xarray_obj = drop_scalar_coords_and_dims(xarray_obj)
+        self.domain = Domain(xarray_obj)
+        self.da = xarray_obj
 
     # ###############################
     #  Operators
@@ -193,10 +67,275 @@ class BaseClimatrixDataset(ABC):
     def __truediv__(self, other: Any) -> Self: ...  # noqa: E704
 
     # ###############################
-    #  Abstract methods
+    #  Rolling
     # ###############################
+    def to_signed_longitude(self) -> Self:
+        """
+        Convert the dataset to signed longitude convention.
 
-    @abstractmethod
+        The longitude values are converted to be in
+        the range (-180 to 180 degrees).
+        """
+        # Code derived from https://github.com/CMCC-Foundation/geokube
+        roll_value = (self.da[self.domain.longitude_name] >= 180).sum().item()
+        res = self.da.assign_coords(
+            {
+                self.domain.longitude_name: (
+                    ((self.da[self.domain.longitude_name] + 180) % 360) - 180
+                )
+            }
+        ).roll(**{self.domain.longitude_name: roll_value}, roll_coords=True)
+        res[self.domain.longitude_name].attrs.update(
+            self.da[self.domain.longitude_name].attrs
+        )
+        return type(self)(res)
+
+    def to_positive_longitude(self) -> Self:
+        """
+        Convert the dataset to positive longitude convention.
+
+        The longitude values are converted to be in
+        the range (0 to 360 degrees).
+        """
+        # Code derived from https://github.com/CMCC-Foundation/geokube
+        roll_value = (self.da[self.domain.longitude_name] <= 0).sum().item()
+        res = (
+            self.da.assign_coords(
+                {
+                    self.domain.longitude_name: (
+                        self.da[self.domain.longitude_name] % 360
+                    )
+                }
+            )
+            .roll(
+                **{self.domain.longitude_name: -roll_value}, roll_coords=True
+            )
+            .assign_attrs(**self.da[self.domain.longitude_name].attrs)
+        )
+        res[self.domain.longitude_name].attrs.update(
+            self.da[self.domain.longitude_name].attrs
+        )
+        return type(self)(res)
+
+    def mask_nan(self, source: Self) -> Self:
+        """
+        Apply NaN values from another dataset to the current one.
+
+        Parameters
+        ----------
+        source : BaseClimatrixDataset
+            Dataset whose NaN values will be applied to the current one.
+
+        Returns
+        -------
+        DenseDataset
+            A new dataset with NaN values applied.
+        """
+        if not isinstance(source, BaseClimatrixDataset):
+            raise TypeError("Argument `source` must be a BaseClimatrixDataset")
+        da = xr.where(source.da.isnull(), np.nan, self.da)
+        return type(self)(da)
+
+    # ###############################
+    #  Subsetting
+    # ###############################
+    def subset(
+        self,
+        north: float | None = None,
+        south: float | None = None,
+        west: float | None = None,
+        east: float | None = None,
+    ) -> Self:
+        """
+        Subset data with the specified bounding box.
+
+        If an argument is not provided, it means no bounds set
+        in that direction. For example, if `north` is not provided,
+        it means that the maximum latitude of the dataset will be used.
+        If `north` and `south` are provided, the dataset will be
+        subsetted to the area between these two latitudes.
+
+        Parameters
+        ----------
+        north : float, optional
+            North latitude of the bounding box.
+        south : float, optional
+            South latitude of the bounding box.
+        west : float, optional
+            West longitude of the bounding box.
+        east : float, optional
+            East longitude of the bounding box.
+
+        Returns
+        -------
+        Self
+            The subsetted dataset.
+        """
+        idx, start, stop = self.domain._compute_subset_indexers(
+            north=north,
+            south=south,
+            west=west,
+            east=east,
+        )
+        first_el, _ = (
+            self.domain.longitude.min(),
+            self.domain.longitude.max(),
+        )
+        start = 0 if start is None else start
+        stop = 0 if stop is None else stop
+        sel_neg_conv = (start < 0) | (stop < 0)
+        sel_pos_conv = (start > 180) | (stop > 180)
+
+        dset_neg_conv = first_el < 0
+        dset_pos_conv = first_el >= 0
+        if dset_pos_conv and sel_neg_conv:
+            raise LongitudeConventionMismatch(
+                "The dataset is in positive-only convention "
+                "(longitude goes from 0 to 360) while you are "
+                "requesting negative values (longitude goes "
+                "from -180 to 180). Run `to_signed_longitude()` "
+                "first to convert dataset properly."
+            )
+        if dset_neg_conv and sel_pos_conv:
+            raise LongitudeConventionMismatch(
+                "The dataset is in signed-longitude convention "
+                "(longitude goes from -180 to 180) while you are "
+                "requesting values from 0 to 360. "
+                "Run `to_positive_longitude()` first to convert "
+                "dataset properly."
+            )
+        da = self.da.sel(idx)
+        return type(self)(da)
+
+    def time(
+        self, time: datetime | np.datetime64 | slice | list | np.ndarray
+    ) -> Self:
+        """
+        Select data at a specific time or times.
+
+        Parameters
+        ----------
+        time : datetime, np.datetime64, slice, list, or np.ndarray
+            Time or times to be selected.
+
+        Returns
+        -------
+        Self
+            The dataset with the selected time or times.
+        """
+        return type(self)(
+            self.da.sel({self.domain.time_name: time}, method="nearest")
+        )
+
+    def itime(self, time: int | list[int] | np.ndarray | slice) -> Self:
+        """
+        Select time value by index.
+
+        Parameters
+        ----------
+        time : int, list[int], np.ndarray, or slice
+            Time index or indices to be selected.
+
+        Returns
+        -------
+        Self
+            The dataset with the selected time or times.
+        """
+        if self.domain.is_dynamic:
+            return type(self)(self.da.isel({self.domain.time_name: time}))
+        return self
+
+    # ##############################
+    #  Sampling
+    # ###############################
+    def sample_uniform(
+        self,
+        portion: float | None = None,
+        number: int | None = None,
+        nan: SamplingNaNPolicy | str = "ignore",
+    ) -> Self:
+        """
+        Sample the dataset using a uniform distribution.
+
+        Parameters
+        ----------
+        portion : float, optional
+            Portion of the dataset to be sampled.
+        number : int, optional
+            Number of points to be sampled.
+        nan : SamplingNaNPolicy | str, optional
+            Policy for handling NaN values.
+        """
+        nan = SamplingNaNPolicy.get(nan)
+        if nan in (SamplingNaNPolicy.RAISE, SamplingNaNPolicy.IGNORE):
+            idx = self.domain._compute_sample_uniform_indexers(
+                portion=portion, number=number
+            )
+        elif nan == SamplingNaNPolicy.RESAMPLE:
+            idx = self.domain._compute_sample_no_nans_indexers(
+                self.da, portion=portion, number=number
+            )
+        da = self.da.sel(idx)
+        if nan == SamplingNaNPolicy.RAISE and da.isnull().any():
+            raise ValueError("Not all points have data")
+        return type(self)(da)
+
+    def sample_normal(
+        self,
+        portion: float | None = None,
+        number: int | None = None,
+        center_point: tuple[Longitude, Latitude] = None,
+        sigma: float = 10.0,
+        nan: SamplingNaNPolicy | str = "ignore",
+    ) -> Self:
+        """
+        Sample the dataset using a normal distribution.
+
+        Parameters
+        ----------
+        portion : float, optional
+            Portion of the dataset to be sampled.
+        number : int, optional
+            Number of points to be sampled.
+        center_point : tuple[Longitude, Latitude], optional
+            Center point for the normal distribution.
+        sigma : float, optional
+            Standard deviation for the normal distribution.
+        nan : SamplingNaNPolicy | str, optional
+            Policy for handling NaN values.
+        """
+        nan = SamplingNaNPolicy.get(nan)
+        idx = self.domain._compute_sample_normal_indexers(
+            portion=portion,
+            number=number,
+            center_point=center_point,
+            sigma=sigma,
+        )
+        da = self.da.sel(idx)
+        if nan == SamplingNaNPolicy.RAISE and da.isnull().any():
+            raise ValueError("Not all points have data")
+        return type(self)(da)
+
+    # ###############################
+    #  Reconstruction
+    # ###############################
+    def reconstruct(
+        self,
+        target: Domain,
+        *,
+        method: ReconstructionType | str,
+        **recon_kwargs,
+    ) -> Self:
+        method = ReconstructionType.get(method)
+        return (
+            ReconstructionType.get(method)
+            .value(self, target_domain=target, **recon_kwargs)
+            .reconstruct()
+        )
+
+    # ###############################
+    #  Plotting
+    # ###############################
     def plot(
         self,
         title: str | None = None,
@@ -204,16 +343,89 @@ class BaseClimatrixDataset(ABC):
         show: bool = True,
         **kwargs,
     ) -> Axes:
-        raise NotImplementedError
+        figsize = kwargs.pop("figsize", (12, 6))
+        vmin = kwargs.pop("vmin", None)
+        vmax = kwargs.pop("vmax", None)
+        cmap = kwargs.pop("cmap", "seismic")
+        ax = kwargs.pop("ax", None)
+        cbar_name = kwargs.pop("cbar_name", None)
+        title = title or self.da.name or "Climatrix Dataset"
 
-    def sel_time(
-        self, time: datetime | np.datetime64 | slice | list | np.ndarray
-    ) -> Self:
-        return type(self)(
-            self.da.sel({self.time_name: time}, method="nearest")
+        lat = self.da[self.domain.latitude_name]
+        lon = self.da[self.domain.longitude_name]
+        proj = ccrs.PlateCarree()
+
+        if ax is None:
+            fig, ax = plt.subplots(
+                figsize=figsize, subplot_kw={"projection": proj}
+            )
+            ax.coastlines()
+            ax.add_feature(cfeature.BORDERS, linewidth=0.5)
+            ax.add_feature(cfeature.LAND, facecolor="lightgray")
+            ax.add_feature(cfeature.OCEAN, facecolor="lightblue")
+            ax.gridlines(draw_labels=True, linewidth=0.2, linestyle="--")
+
+            ax.text(
+                -0.07,
+                0.55,
+                "latitude",
+                va="bottom",
+                ha="center",
+                rotation="vertical",
+                rotation_mode="anchor",
+                transform=ax.transAxes,
+            )
+            ax.text(
+                0.5,
+                -0.1,
+                "longitude",
+                va="bottom",
+                ha="center",
+                rotation="horizontal",
+                rotation_mode="anchor",
+                transform=ax.transAxes,
+            )
+
+            ax.set_aspect("equal")
+
+        if self.domain.is_sparse:
+            size = kwargs.pop("size", 10)
+            actor = ax.scatter(
+                lon,
+                lat,
+                c=self.da,
+                cmap=cmap,
+                vmin=vmin,
+                vmax=vmax,
+                transform=proj,
+                marker="x",
+                s=size,
+            )
+        else:
+            actor = ax.pcolormesh(
+                lon,
+                lat,
+                self.da,
+                transform=proj,
+                cmap=cmap,
+                shading="auto",
+                vmin=vmin,
+                vmax=vmax,
+            )
+
+        cbar = plt.colorbar(
+            actor, ax=ax, orientation="vertical", shrink=0.7, pad=0.05
         )
+        cbar.set_label(cbar_name or self.da.name or "Value")
 
-    def isel_time(self, time: int | list[int] | np.ndarray | slice) -> Self:
-        if self.time_name and self.time.size > 1:
-            return type(self)(self.da.isel({self.time_name: time}))
-        return self
+        if title:
+            ax.set_title(title, fontsize=14)
+
+        plt.tight_layout()
+        if target is not None:
+            target = Path(target)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            plt.savefig(target, dpi=300)
+        if show:
+            plt.show()
+        return ax

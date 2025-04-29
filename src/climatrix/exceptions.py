@@ -8,3 +8,7 @@ class TimeRelatedDatasetNotSupportedError(DatasetCreationError):
 
 class TooLargeSamplePortionWarning(UserWarning):
     pass
+
+
+class LongitudeConventionMismatch(ValueError):
+    pass
