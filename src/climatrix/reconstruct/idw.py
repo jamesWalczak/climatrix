@@ -99,7 +99,13 @@ class IDWReconstructor(BaseReconstructor):
         values = self.dataset.da.values
 
         log.debug("Building KDtree for efficient nearest neighbor queries...")
-        kdtree = cKDTree(self.dataset.domain.get_all_spatial_points())
+        spatial_points = self.dataset.domain.get_all_spatial_points()
+        if not isinstance(spatial_points, np.ndarray) or spatial_points.ndim != 2 or spatial_points.shape[1] != 2:
+            raise ValueError(
+                "Expected a 2D NumPy array with shape (N, 2) from get_all_spatial_points(), "
+                f"but got {type(spatial_points)} with shape {getattr(spatial_points, 'shape', None)}."
+            )
+        kdtree = cKDTree(spatial_points)
         log.debug("Querying %d nearest neighbors...", self.k)
         query_points = self.target_domain.get_all_spatial_points()
         dists, idxs = kdtree.query(query_points, k=self.k, workers=-1)
