@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 import warnings
 from abc import abstractmethod
-from enum import Enum, StrEnum
-from typing import Any, ClassVar, Self
+from enum import StrEnum
+from typing import Any, ClassVar, Literal, Self
 
 import numpy as np
 import xarray as xr
@@ -27,7 +27,7 @@ _coords_name_regex: dict[Axis, str] = {
     ),
     Axis.LATITUDE: re.compile(r"^(x?)lat[a-z0-9_]*$"),
     Axis.LONGITUDE: re.compile(r"^(x?)lon[a-z0-9_]*$"),
-    Axis.POINT: re.compile(r"^(point|points|values)$"),
+    Axis.POINT: re.compile(r"^(point.*|values|nstation.*)$"),
 }
 
 
@@ -66,7 +66,6 @@ def match_axis_names(da: xr.DataArray) -> dict[Axis, str]:
 
 
 def validate_spatial_axes(axis_mapping: dict[Axis, str]):
-    # TODO: should be moved to Domain class
     for axis in [Axis.LATITUDE, Axis.LONGITUDE]:
         if axis not in axis_mapping:
             raise ValueError(f"Dataset has no {axis.name} axis")
@@ -138,7 +137,7 @@ class Domain:
         cls,
         lat: slice | np.ndarray = slice(-90, 90, _DEFAULT_LAT_RESOLUTION),
         lon: slice | np.ndarray = slice(-180, 180, _DEFAULT_LON_RESOLUTION),
-        kind: str = "sparse",
+        kind: Literal["sparse", "dense"] = "sparse",
     ) -> Self:
         if isinstance(lat, slice):
             lat = np.arange(
