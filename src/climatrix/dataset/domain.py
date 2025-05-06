@@ -217,22 +217,25 @@ class Domain:
     def get_size(self, axis: Axis) -> int:
         if not isinstance(axis, Axis):
             raise TypeError(f"Axis {axis} is not an instance of Axis")
-        if axis not in self._axis_mapping:
+        if axis not in self.coords:
             return 1
-        return self._axis_mapping[axis].size
+        return self.coords[axis].size
 
     @property
     def size(self) -> int:
         if Axis.POINT in self.coords:
-            lat_lon = self.coords[Axis.POINT].size
-        lat_lon = self.latitude.size * self.longitude.size
+            lat_lon = self.get_size(Axis.POINT)
+        else:
+            lat_lon = self.get_size(Axis.LATITUDE) * self.get_size(
+                Axis.LONGITUDE
+            )
         if not self.time_name:
             return lat_lon
-        return lat_lon * self.time.size
+        return lat_lon * self.get_size(Axis.TIME)
 
     @property
     def is_dynamic(self) -> bool:
-        return self.time_name and self.time.size > 1
+        return self.time_name and self.get_size(Axis.TIME) > 1
 
     def __eq__(self, value: Any) -> bool:
         if not isinstance(value, Domain):
@@ -394,16 +397,14 @@ class SparseDomain(Domain):
         point_nbr = self.get_size(Axis.POINT)
         time_nbr = self.get_size(Axis.TIME)
 
-        values = np.atleast_2d(values)
         if values.shape == (point_nbr, time_nbr):
             pass
         elif values.shape == (time_nbr, point_nbr):
             values = values.T
+        elif values.shape == (point_nbr,) or values.shape == (1, point_nbr):
+            values = values.squeeze()
         elif values.shape == (point_nbr * time_nbr,):
-            values = values.reshape(
-                point_nbr,
-                time_nbr,
-            )
+            values = values.reshape(point_nbr, time_nbr)
         else:
             raise ValueError(
                 f"Values shape {values.shape} does not match "
@@ -414,7 +415,7 @@ class SparseDomain(Domain):
                 self.point_name,
                 self.latitude,
             ),
-            self.target_domain.longitude_name: (
+            self.longitude_name: (
                 self.point_name,
                 self.longitude,
             ),
@@ -423,12 +424,13 @@ class SparseDomain(Domain):
         if self.is_dynamic:
             coords[self.time_name] = self.time
             dims = (self.point_name, self.time_name)
-        return xr.DataArray(
+        dset = xr.DataArray(
             values,
             coords=coords,
             dims=dims,
             name=name,
         )
+        return dset
 
 
 class DenseDomain(Domain):
@@ -556,10 +558,9 @@ class DenseDomain(Domain):
         lat_nbr = self.get_size(Axis.LATITUDE)
         lon_nbr = self.get_size(Axis.LONGITUDE)
         time_nbr = self.get_size(Axis.TIME)
-        values = np.atleast_2d(values)
         if values.shape == (lat_nbr, lon_nbr, time_nbr):
             pass
-        elif values.shape == (lat_nbr, lon_nbr):
+        elif values.shape == (lat_nbr, lon_nbr) and time_nbr == 1:
             pass
         elif values.shape == (lon_nbr, lat_nbr):
             values = values.T

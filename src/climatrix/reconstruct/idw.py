@@ -96,7 +96,7 @@ class IDWReconstructor(BaseReconstructor):
         """
         from climatrix.dataset.base import BaseClimatrixDataset
 
-        values = self.dataset.da.values
+        values = self.dataset.da.values.squeeze()
 
         log.debug("Building KDtree for efficient nearest neighbor queries...")
         spatial_points = self.dataset.domain.get_all_spatial_points()

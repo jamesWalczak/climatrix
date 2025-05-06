@@ -133,6 +133,10 @@ class BaseClimatrixDataset:
         """
         if not isinstance(source, BaseClimatrixDataset):
             raise TypeError("Argument `source` must be a BaseClimatrixDataset")
+        if source.domain.is_sparse or self.domain.is_sparse:
+            raise ValueError(
+                "Masking NaN values is only supported for dense domain."
+            )
         da = xr.where(source.da.isnull(), np.nan, self.da)
         return type(self)(da)
 
