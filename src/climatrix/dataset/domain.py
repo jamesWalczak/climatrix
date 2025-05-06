@@ -214,6 +214,13 @@ class Domain:
             )
         return self.coords[Axis.POINT]
 
+    def get_size(self, axis: Axis) -> int:
+        if not isinstance(axis, Axis):
+            raise TypeError(f"Axis {axis} is not an instance of Axis")
+        if axis not in self._axis_mapping:
+            return 1
+        return self._axis_mapping[axis].size
+
     @property
     def size(self) -> int:
         if Axis.POINT in self.coords:
@@ -286,6 +293,12 @@ class Domain:
                 TooLargeSamplePortionWarning,
             )
         return number
+
+    @abstractmethod
+    def to_xarray(
+        self, values: np.ndarray, name: str | None = None
+    ) -> xr.DataArray:
+        raise NotImplementedError
 
 
 class SparseDomain(Domain):
@@ -374,6 +387,48 @@ class SparseDomain(Domain):
         return {
             self.point_name: selected_points,
         }
+
+    def to_xarray(
+        self, values: np.ndarray, name: str | None = None
+    ) -> xr.DataArray:
+        point_nbr = self.get_size(Axis.POINT)
+        time_nbr = self.get_size(Axis.TIME)
+
+        values = np.atleast_2d(values)
+        if values.shape == (point_nbr, time_nbr):
+            pass
+        elif values.shape == (time_nbr, point_nbr):
+            values = values.T
+        elif values.shape == (point_nbr * time_nbr,):
+            values = values.reshape(
+                point_nbr,
+                time_nbr,
+            )
+        else:
+            raise ValueError(
+                f"Values shape {values.shape} does not match "
+                f"expected shape ({len(self.point)}, 1)"
+            )
+        coords = {
+            self.latitude_name: (
+                self.point_name,
+                self.latitude,
+            ),
+            self.target_domain.longitude_name: (
+                self.point_name,
+                self.longitude,
+            ),
+        }
+        dims = (self.point_name,)
+        if self.is_dynamic:
+            coords[self.time_name] = self.time
+            dims = (self.point_name, self.time_name)
+        return xr.DataArray(
+            values,
+            coords=coords,
+            dims=dims,
+            name=name,
+        )
 
 
 class DenseDomain(Domain):
@@ -494,3 +549,51 @@ class DenseDomain(Domain):
                 selected_lons, dims=[Axis.POINT]
             ),
         }
+
+    def to_xarray(
+        self, values: np.ndarray, name: str | None = None
+    ) -> xr.DataArray:
+        lat_nbr = self.get_size(Axis.LATITUDE)
+        lon_nbr = self.get_size(Axis.LONGITUDE)
+        time_nbr = self.get_size(Axis.TIME)
+        values = np.atleast_2d(values)
+        if values.shape == (lat_nbr, lon_nbr, time_nbr):
+            pass
+        elif values.shape == (lat_nbr, lon_nbr):
+            pass
+        elif values.shape == (lon_nbr, lat_nbr):
+            values = values.T
+        elif values.shape == (lat_nbr * lon_nbr, time_nbr):
+            values = values.reshape(
+                lat_nbr,
+                lon_nbr,
+                time_nbr,
+            )
+        elif values.shape == (lat_nbr * lon_nbr,):
+            values = values.reshape(
+                lat_nbr,
+                lon_nbr,
+            )
+        else:
+            raise ValueError(
+                f"Values shape {values.shape} does not match "
+                f"expected shape ({len(self.latitude)}, {len(self.longitude)})"
+            )
+        coords = {
+            self.latitude_name: self.latitude,
+            self.longitude_name: self.longitude,
+        }
+        dims = (
+            self.latitude_name,
+            self.longitude_name,
+        )
+        if self.is_dynamic:
+            coords[self.time_name] = self.time
+            dims = (self.latitude_name, self.longitude_name, self.time_name)
+
+        return xr.DataArray(
+            values,
+            coords=coords,
+            dims=dims,
+            name=name,
+        )

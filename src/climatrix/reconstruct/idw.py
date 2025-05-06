@@ -135,44 +135,6 @@ class IDWReconstructor(BaseReconstructor):
         valid_neighbor_counts = np.isfinite(knn_data).sum(axis=1)
         interp_vals[valid_neighbor_counts < self.k_min] = np.nan
 
-        if self.target_domain.is_sparse:
-            coords = {
-                self.target_domain.latitude_name: (
-                    self.target_domain.point_name,
-                    self.target_domain.latitude,
-                ),
-                self.target_domain.longitude_name: (
-                    self.target_domain.point_name,
-                    self.target_domain.longitude,
-                ),
-            }
-            dims = (self.target_domain.point_name,)
-            dset = xr.DataArray(
-                interp_vals,
-                coords=coords,
-                dims=dims,
-                name=self.dataset.da.name,
-            )
-        else:
-            interp_vals = interp_vals.reshape(
-                len(self.target_domain.latitude),
-                len(self.target_domain.longitude),
-            )
-            coords = {
-                self.target_domain.latitude_name: self.target_domain.latitude,
-                self.target_domain.longitude_name: (
-                    self.target_domain.longitude
-                ),
-            }
-            dims = (
-                self.target_domain.latitude_name,
-                self.target_domain.longitude_name,
-            )
-            dset = xr.DataArray(
-                interp_vals,
-                coords=coords,
-                dims=dims,
-                name=self.dataset.da.name,
-            )
-
-        return BaseClimatrixDataset(dset)
+        return BaseClimatrixDataset(
+            self.target_domain.to_xarray(interp_vals, self.dataset.da.name)
+        )
