@@ -12,10 +12,10 @@ from rich.progress import track
 import climatrix as cm
 
 DATA_DIR = importlib.resources.files("climatrix").joinpath(
-    "..", "..", "data", "ecad_nonblend"
+    "..", "..", "data", "ecad_blend"
 )
 STATIONS_DEF_PATH = DATA_DIR / "sources.txt"
-TARGET_FILE = DATA_DIR / "ecad_nonblend.nc"
+TARGET_FILE = DATA_DIR / "ecad_blend.nc"
 
 EXP_DIR = Path(__file__).parent
 TRAIN_DSET_PATH = EXP_DIR / ".." / "data" / "ecad_obs_europe_train.nc"
@@ -50,17 +50,19 @@ def load_sources() -> pd.DataFrame:
     Load station metadata handling stations with commas in their names
     """
     # First find the header line
-    HEADER_LINES_NBR = 23
+    HEADER_LINES_NBR = 24
     COLUMNS_SPECS = [
-        (0, 6),  # SOUID,
-        (7, 47),  # SOUNAME,
-        (51, 60),  # LAT
-        (61, 71),  # LON
-        (72, 76),  # HGHT
-        (82, 90),  # START_DATE
-        (91, 99),  # END_DATE
+        (1, 5),  # STATION_ID
+        (6, 12),  # SOUID
+        (13, 53),  # SOUNAME,
+        (57, 66),  # LAT
+        (67, 77),  # LON
+        (78, 82),  # HGHT
+        (88, 96),  # START_DATE
+        (97, 105),  # END_DATE
     ]
     NAMES = [
+        "STATION_ID",
         "SOUID",
         "SOUNAME",
         "LAT",
@@ -75,7 +77,6 @@ def load_sources() -> pd.DataFrame:
         colspecs=COLUMNS_SPECS,
         names=NAMES,
     )
-
     df["LAT_degrees"] = df["LAT"].apply(lat_dms_to_decimal)
     df["LON_degrees"] = df["LON"].apply(lon_dms_to_decimal)
     df["START_DATE"] = pd.to_datetime(df["START_DATE"], format="%Y%m%d")
@@ -86,16 +87,16 @@ def load_sources() -> pd.DataFrame:
     df["HGHT"] = pd.to_numeric(df["HGHT"], errors="coerce")
 
     return (
-        df[["SOUID", "LAT_degrees", "LON_degrees", "HGHT"]],
+        df[["STATION_ID", "LAT_degrees", "LON_degrees", "HGHT"]],
         min_date,
         max_date,
     )
 
 
-def load_station_data(souid):
+def load_station_data(station_id):
     """Load data for a single station with memory optimization"""
-    path = os.path.join(DATA_DIR, f"TG_SOUID{souid}.txt")
-    HEADER_LINES_NBR = 19
+    path = os.path.join(DATA_DIR, f"TG_STAID{str(station_id).zfill(6)}.txt")
+    HEADER_LINES_NBR = 21
     COLUMNS_SPECS = [
         (7, 13),  # SOUID,
         (14, 22),  # DATE,
@@ -145,7 +146,7 @@ def process_in_chunks(metadata_df, time_index):
             "latitude": ("point", np.zeros(num_stations)),
             "longitude": ("point", np.zeros(num_stations)),
             "height": ("point", np.zeros(num_stations)),
-            "souid": ("point", np.zeros(num_stations, dtype=np.int32)),
+            "station_id": ("point", np.zeros(num_stations, dtype=np.int32)),
         },
     )
     ds.latitude.attrs["units"] = "degrees_north"
@@ -158,9 +159,14 @@ def process_in_chunks(metadata_df, time_index):
         ds.latitude[station] = row["LAT_degrees"]
         ds.longitude[station] = row["LON_degrees"]
         ds.height[station] = row["HGHT"]
-        ds.souid[station] = int(row["SOUID"])
+        ds.station_id[station] = int(row["STATION_ID"])
 
-        ts = load_station_data(int(row["SOUID"]))
+        try:
+            ts = load_station_data(int(row["STATION_ID"]))
+        except FileNotFoundError:
+            ds.mean_temperature[:, station] = np.nan
+            continue
+
         if ts is not None:
             if ts.index.shape != time_index.shape:
                 mask = np.isin(time_index, ts.index, assume_unique=True)

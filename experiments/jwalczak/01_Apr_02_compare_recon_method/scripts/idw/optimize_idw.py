@@ -4,48 +4,50 @@ This script manages IDW reconstruction and hyper-parameter optimisation
 
 import os
 from functools import partial
+from pathlib import Path
 
 import xarray as xr
 from bayes_opt import BayesianOptimization
 
-from climatrix import Comparison
+import climatrix as cm
 
-TUNING_DSET_PATH = os.path.join(".", "data", "europe_tuning.nc")
-POINTS = 1_000
-SAMPLING_TYPE = "uniform"
+TRAIN_DSET_PATH = Path(__file__).parent.parent.parent.joinpath(
+    "data", "ecad_obs_europe_train.nc"
+)
+VALIDATION_DSET_PATH = Path(__file__).parent.parent.parent.joinpath(
+    "data", "ecad_obs_europe_val.nc"
+)
 NAN_POLICY = "resample"
 SEED = 1
 
-
-def load_data():
-    return xr.open_dataset(TUNING_DSET_PATH).cm
+cm.seed_all(SEED)
 
 
-def sample_data(dset):
-    return dset.sample(
-        number=POINTS, kind=SAMPLING_TYPE, nan_policy=NAN_POLICY
+def load_data() -> tuple:
+    return (
+        xr.open_dataset(TRAIN_DSET_PATH).cm,
+        xr.open_dataset(VALIDATION_DSET_PATH).cm,
     )
 
 
-def recon(source_dset, sparse_dset, k: int, power: float, k_min: int) -> float:
+def recon(train_dset, val_dset, k: int, power: float, k_min: int) -> float:
     if k_min > k:
         return -100
-    recon_dset = sparse_dset.reconstruct(
-        source_dset.domain,
+    recon_dset = train_dset.reconstruct(
+        val_dset.domain,
         method="idw",
         k=int(k),
         power=float(power),
         k_min=int(k_min),
     )
-    metrics = Comparison(recon_dset, source_dset).compute_report()
+    metrics = cm.Comparison(recon_dset, val_dset).compute_report()
     # NOTE: minus to force maximizing
     return -metrics["RMSE"]
 
 
 def find_hyperparameters():
-    dset = load_data()
-    sparse_dset = sample_data(dset)
-    func = partial(recon, source_dset=dset, sparse_dset=sparse_dset)
+    train_dset, val_dset = load_data()
+    func = partial(recon, train_dset=train_dset, val_dset=val_dset)
     hyperparameters_bounds = {
         "k": (1, 50),
         "power": (-2.0, 5.0),
