@@ -39,6 +39,7 @@ dev = [
     "black",
     "pre-commit",
     "autoflake",
+    "pytest"
 ]
 plot = [
     "hvplot",
