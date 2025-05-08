@@ -1,4 +1,5 @@
 import re
+from functools import partial
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -29,16 +30,13 @@ from climatrix.types import Latitude, Longitude
 
 
 class TestSamplingNaNPolicy:
-    """Test the SamplingNaNPolicy enum class."""
 
     def test_valid_policies(self):
-        """Test that valid policies can be accessed."""
         assert SamplingNaNPolicy.IGNORE == "ignore"
         assert SamplingNaNPolicy.RESAMPLE == "resample"
         assert SamplingNaNPolicy.RAISE == "raise"
 
     def test_missing_policy(self):
-        """Test that missing policy raises ValueError."""
         with pytest.raises(
             ValueError,
             match="'invalid_policy' is not a valid SamplingNaNPolicy",
@@ -46,48 +44,37 @@ class TestSamplingNaNPolicy:
             SamplingNaNPolicy("invalid_policy")
 
     def test_get_method_with_string(self):
-        """Test the get method with string input."""
         assert SamplingNaNPolicy.get("ignore") == SamplingNaNPolicy.IGNORE
         assert SamplingNaNPolicy.get("IGNORE") == SamplingNaNPolicy.IGNORE
 
     def test_get_method_with_enum(self):
-        """Test the get method with enum input."""
         policy = SamplingNaNPolicy.IGNORE
         assert SamplingNaNPolicy.get(policy) == policy
 
     def test_get_method_with_invalid_string(self):
-        """Test that get method raises ValueError for invalid string."""
         with pytest.raises(ValueError, match="Unknown Nan policy: invalid"):
             SamplingNaNPolicy.get("invalid")
 
 
 class TestDomainHelperFunctions:
-    """Test the helper functions for Domain classes."""
 
     def test_validate_input(self):
-        """Test validate_input function."""
-        # Since implementation is not provided, we'll just test the interface
         da = xr.DataArray(np.random.rand(5, 5))
-        validate_input(da)  # Should not raise an error
+        validate_input(da)
 
         ds = xr.Dataset({"var": da})
-        validate_input(ds)  # Should not raise an error
+        validate_input(ds)
 
     def test_ensure_single_var(self):
-        """Test ensure_single_var function."""
-        # Create a simple DataArray
         da = xr.DataArray(np.random.rand(5, 5), dims=["x", "y"])
         result = ensure_single_var(da)
         assert isinstance(result, xr.DataArray)
 
-        # Create a Dataset with single variable
         ds = xr.Dataset({"var": da})
         result = ensure_single_var(ds)
         assert isinstance(result, xr.DataArray)
 
     def test_match_axis_names(self):
-        """Test match_axis_names function."""
-        # Create a DataArray with standard dimension names
         da = xr.DataArray(
             np.random.rand(3, 4, 5),
             dims=["time", "lat", "lon"],
@@ -106,24 +93,20 @@ class TestDomainHelperFunctions:
         assert Axis.LONGITUDE in result
 
     def test_validate_spatial_axes_if_present(self):
-        """Test validate_spatial_axes function."""
-        # Valid axis mapping with lat and lon
         axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
-        validate_spatial_axes(axis_mapping)  # Should not raise an error
+        validate_spatial_axes(axis_mapping)
 
     def test_validate_spatial_axes_if_lat_missing(self):
         axis_mapping = {Axis.POINT: "point", Axis.LONGITUDE: "lon"}
-        with pytest.raises(ValueError, match="Dataset has no latitude axis"):
+        with pytest.raises(ValueError, match="Dataset has no LATITUDE axis"):
             validate_spatial_axes(axis_mapping)
 
     def test_validate_spatial_axes_if_lon_missing(self):
         axis_mapping = {Axis.POINT: "point", Axis.LATITUDE: "lat"}
-        with pytest.raises(ValueError, match="Dataset has no longitude axis"):
+        with pytest.raises(ValueError, match="Dataset has no LONGITUDE axis"):
             validate_spatial_axes(axis_mapping)
 
     def test_check_is_dense(self):
-        """Test check_is_dense function."""
-        # Create a dense DataArray
         da = xr.DataArray(
             np.random.rand(3, 3),
             dims=["lat", "lon"],
@@ -141,7 +124,7 @@ class TestDomainHelperFunctions:
             "lat": np.array([-90, 0, 90]),
             "lon": np.array([-180, 0, 180]),
         }
-        coords2 = ensure_all_numpy_arrays(coords)  # Should not raise an error
+        coords2 = ensure_all_numpy_arrays(coords)
         assert isinstance(coords2["lat"], np.ndarray)
         assert isinstance(coords2["lon"], np.ndarray)
 
@@ -152,8 +135,6 @@ class TestDomainHelperFunctions:
         assert isinstance(coords2["lon"], np.ndarray)
 
     def test_filter_out_single_value_coord(self):
-        """Test filter_out_single_value_coord function."""
-        # Dictionary with arrays of different lengths
         coords = {
             "lat": np.array([-90, 0, 90]),
             "lon": np.array([-180, 0, 180]),
@@ -166,11 +147,8 @@ class TestDomainHelperFunctions:
 
 
 class TestDomain:
-    """Test the Domain base class."""
 
-    def test_domain_factory_method(self):
-        """Test that Domain.__new__ returns appropriate subclass."""
-        # Create a dense DataArray
+    def test_domain_factory_method_dense(self):
         dense_da = xr.DataArray(
             np.random.rand(3, 3),
             dims=["lat", "lon"],
@@ -180,31 +158,44 @@ class TestDomain:
             },
         )
 
-        # Mock the check_is_dense function to always return True
         with patch(
             "climatrix.dataset.domain.check_is_dense", return_value=True
         ):
             domain = Domain(dense_da)
             assert isinstance(domain, DenseDomain)
 
-        # Mock the check_is_dense function to always return False
+    def test_domain_factory_method_sparse(self):
+        dense_da = xr.DataArray(
+            np.random.rand(3, 3),
+            dims=["lat", "lon"],
+            coords={
+                "lat": np.linspace(-90, 90, 3),
+                "lon": np.linspace(-180, 180, 3),
+            },
+        )
+
         with patch(
             "climatrix.dataset.domain.check_is_dense", return_value=False
         ):
             domain = Domain(dense_da)
             assert isinstance(domain, SparseDomain)
 
-    def test_from_lat_lon(self):
-        """Test the from_lat_lon class method."""
-        # Test with default parameters (sparse domain)
-        domain = Domain.from_lat_lon()
-        assert isinstance(domain, SparseDomain)
+    def test_from_lat_lon_sparse_fail_on_coord_length_mismatch(self):
+        lat = np.array([-90, 0, 90])
+        lon = np.array([-180, 0])
+        with pytest.raises(
+            ValueError,
+            match="For sparse domain, lat and lon must have the same length",
+        ):
+            Domain.from_lat_lon(lat=lat, lon=lon, kind="sparse")
 
-        # Test with explicit dense domain
-        domain = Domain.from_lat_lon(kind="dense")
+    def test_from_lat_lon_dense_coord_length_mismatch(self):
+        lat = np.array([-90, 0, 90])
+        lon = np.array([-180, 0])
+        domain = Domain.from_lat_lon(lat=lat, lon=lon, kind="dense")
         assert isinstance(domain, DenseDomain)
 
-        # Test with custom lat/lon arrays
+    def test_from_lat_lon(self):
         lat = np.array([-90, 0, 90])
         lon = np.array([-180, 0, 180])
         domain = Domain.from_lat_lon(lat=lat, lon=lon)
@@ -212,8 +203,6 @@ class TestDomain:
         np.testing.assert_array_equal(domain.longitude, lon)
 
     def test_coordinate_properties(self):
-        """Test coordinate name and value properties."""
-        # Create a mock Domain instance
         domain = MagicMock(spec=Domain)
         domain._axis_mapping = {
             Axis.LATITUDE: "lat",
@@ -222,71 +211,79 @@ class TestDomain:
             Axis.POINT: "point",
         }
         domain.coords = {
-            "lat": np.array([-90, 0, 90]),
-            "lon": np.array([-180, 0, 180]),
-            "time": np.array(["2020-01-01", "2020-01-02"], dtype="datetime64"),
-            "point": np.array([1, 2, 3]),
+            Axis.LATITUDE: np.array([-90, 0, 90]),
+            Axis.LONGITUDE: np.array([-180, 0, 180]),
+            Axis.TIME: np.array(
+                ["2020-01-01", "2020-01-02"], dtype="datetime64"
+            ),
+            Axis.POINT: np.array([1, 2, 3]),
         }
 
-        # Test coordinate name properties
         assert Domain.latitude_name.__get__(domain) == "lat"
         assert Domain.longitude_name.__get__(domain) == "lon"
         assert Domain.time_name.__get__(domain) == "time"
         assert Domain.point_name.__get__(domain) == "point"
 
-        # Test coordinate value properties
         np.testing.assert_array_equal(
-            Domain.latitude.__get__(domain), domain.coords["lat"]
+            Domain.latitude.__get__(domain), domain.coords[Axis.LATITUDE]
         )
         np.testing.assert_array_equal(
-            Domain.longitude.__get__(domain), domain.coords["lon"]
+            Domain.longitude.__get__(domain), domain.coords[Axis.LONGITUDE]
         )
         np.testing.assert_array_equal(
-            Domain.time.__get__(domain), domain.coords["time"]
+            Domain.time.__get__(domain), domain.coords[Axis.TIME]
         )
         np.testing.assert_array_equal(
-            Domain.point.__get__(domain), domain.coords["point"]
+            Domain.point.__get__(domain), domain.coords[Axis.POINT]
         )
 
     def test_size_methods(self):
-        """Test size-related methods."""
-        # Create a mock Domain instance
         domain = MagicMock(spec=Domain)
+        domain.get_size = partial(Domain.get_size, domain)
         domain._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
         domain.coords = {
-            "lat": np.array([-90, 0, 90]),
-            "lon": np.array([-180, 0, 180]),
+            Axis.LATITUDE: np.array([-90, 0, 90]),
+            Axis.LONGITUDE: np.array([-180, 0, 180]),
         }
 
-        # Test get_size for specific axis
-        assert Domain.get_size(domain, Axis.LATITUDE) == 3
+        assert domain.get_size(Axis.LATITUDE) == 3
 
-        # Test overall size property (this depends on implementation)
-        # For testing, we'll assume it's the product of all dimensions
         domain.get_size.side_effect = lambda axis: len(
             domain.coords[domain._axis_mapping[axis]]
         )
         assert Domain.size.__get__(domain) > 0
 
-    def test_is_dynamic(self):
-        """Test is_dynamic property."""
-        # Create a mock Domain instance
+    def test_is_dynamic_false_on_missing_time_coordinate(self):
         domain = MagicMock(spec=Domain)
         domain._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
+        domain.time_name = None
 
-        # Without time, should not be dynamic
         assert not Domain.is_dynamic.__get__(domain)
 
-        # With time, should be dynamic
-        domain._axis_mapping[Axis.TIME] = "time"
+    def test_is_dynamic_false_on_single_time_coordinate(self):
+        domain = MagicMock(spec=Domain)
+        domain._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
+        domain.time_name = "time"
+        domain.time = np.array(["2020-01-01"], dtype="datetime64")
+        domain.get_size = partial(Domain.get_size, domain)
+
+        assert not Domain.is_dynamic.__get__(domain)
+
+    def test_is_dynamic_true_on_multiple_time_coordinates(self):
+        domain = MagicMock(spec=Domain)
+        domain._axis_mapping = {
+            Axis.LATITUDE: "lat",
+            Axis.LONGITUDE: "lon",
+            Axis.TIME: "time",
+        }
+        domain.get_size = partial(Domain.get_size, domain)
+
         domain.coords = {
             "time": np.array(["2020-01-01", "2020-01-02"], dtype="datetime64")
         }
         assert Domain.is_dynamic.__get__(domain)
 
-    def test_equality(self):
-        """Test equality comparison."""
-        # Create two mock Domain instances
+    def test_equality_valid(self):
         domain1 = MagicMock(spec=Domain)
         domain1.coords = {
             "lat": np.array([-90, 0, 90]),
@@ -301,62 +298,99 @@ class TestDomain:
         }
         domain2._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
 
-        # Test equality
         assert Domain.__eq__(domain1, domain2)
 
-        # Test inequality with different coords
-        domain2.coords["lat"] = np.array([-45, 0, 45])
+    def test_equality_false_on_different_coord_values(self):
+        domain1 = MagicMock(spec=Domain)
+        domain1.coords = {
+            "lat": np.array([-90, 0, 90]),
+            "lon": np.array([-180, 0, 180]),
+        }
+        domain1._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
+
+        domain2 = MagicMock(spec=Domain)
+        domain2.coords = {
+            "lat": np.array([-45, 0, 45]),
+            "lon": np.array([-180, 0, 180]),
+        }
+        domain2._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
+
         assert not Domain.__eq__(domain1, domain2)
 
-        # Test inequality with different axis mapping
-        domain2.coords["lat"] = np.array([-90, 0, 90])
-        domain2._axis_mapping[Axis.LATITUDE] = "latitude"
-        assert not Domain.__eq__(domain1, domain2)
+    def test_equality_false_on_different_coords(self):
+        domain1 = MagicMock(spec=Domain)
+        domain1.coords = {
+            "lat": np.array([-90, 0, 90]),
+            "lon": np.array([-180, 0, 180]),
+        }
+        domain1._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
 
-        # Test inequality with different type
+        domain2 = MagicMock(spec=Domain)
+        domain2.coords = {
+            "point": np.array([-45, 0, 45]),
+        }
+        domain2._axis_mapping = {Axis.POINT: "point"}
+
+    def test_equality_false_on_non_domain_type(self):
+        domain1 = MagicMock(spec=Domain)
+
         assert not Domain.__eq__(domain1, "not a domain")
 
-    def test_sampling_points_calculation(self):
-        """Test _get_sampling_points_nbr method."""
-        # Create a mock Domain instance
+    def test_sampling_points_calculation_portion_passed(self):
         domain = MagicMock(spec=Domain)
         domain.size = 100
 
-        # Test with portion specified
         assert (
             Domain._get_sampling_points_nbr(domain, portion=0.5, number=None)
             == 50
         )
 
-        # Test with number specified
+    def test_sampling_points_calculation_number_passed(self):
+        domain = MagicMock(spec=Domain)
+        domain.size = 100
         assert (
             Domain._get_sampling_points_nbr(domain, portion=None, number=30)
             == 30
         )
 
-        # Test with both specified (number should take precedence)
-        assert (
+    def test_sampling_points_calculation_fail_on_portion_and_number_passed(
+        self,
+    ):
+        domain = MagicMock(spec=Domain)
+
+        with pytest.raises(
+            ValueError,
+            match="Either portion or number must be provided, but not both",
+        ):
             Domain._get_sampling_points_nbr(domain, portion=0.5, number=30)
-            == 30
-        )
 
-        # Test with neither specified (should return entire size)
-        assert (
+    def test_sampling_points_calculation_fail_on_missing_portion_and_number(
+        self,
+    ):
+        domain = MagicMock(spec=Domain)
+
+        with pytest.raises(
+            ValueError, match="Either portion or number must be provided"
+        ):
             Domain._get_sampling_points_nbr(domain, portion=None, number=None)
-            == 100
-        )
 
-        # Test warning for large portion
+    def test_sampling_points_calculation_warn_on_too_large_portion(self):
+        domain = MagicMock(spec=Domain)
+
         with pytest.warns(TooLargeSamplePortionWarning):
-            Domain._get_sampling_points_nbr(domain, portion=0.9, number=None)
+            Domain._get_sampling_points_nbr(domain, portion=1.9, number=None)
+
+    def test_sampling_points_calculation_warn_on_too_large_number(self):
+        domain = MagicMock(spec=Domain)
+        domain.size = 100
+
+        with pytest.warns(TooLargeSamplePortionWarning):
+            Domain._get_sampling_points_nbr(domain, portion=None, number=101)
 
 
 class TestSparseDomain:
-    """Test the SparseDomain class."""
 
     def test_get_all_spatial_points(self):
-        """Test get_all_spatial_points method."""
-        # Create a mock SparseDomain instance
         domain = MagicMock(spec=SparseDomain)
         domain.coords = {
             "lat": np.array([-90, 0, 90]),
@@ -366,15 +400,11 @@ class TestSparseDomain:
         domain.latitude = domain.coords["lat"]
         domain.longitude = domain.coords["lon"]
 
-        # Call the method
         result = SparseDomain.get_all_spatial_points(domain)
 
-        # Check that result is a numpy array
         assert isinstance(result, np.ndarray)
 
-    def test_compute_subset_indexers(self):
-        """Test _compute_subset_indexers method."""
-        # Create a mock SparseDomain instance
+    def test_compute_subset_indexers_valid_types(self):
         domain = MagicMock(spec=SparseDomain)
         domain.coords = {
             "lat": np.array([-90, -45, 0, 45, 90]),
@@ -384,107 +414,87 @@ class TestSparseDomain:
         domain.latitude = domain.coords["lat"]
         domain.longitude = domain.coords["lon"]
 
-        # Call the method with various boundary conditions
         result = SparseDomain._compute_subset_indexers(
             domain, north=45, south=-45, west=-90, east=90
         )
+        assert isinstance(result, tuple)
+        assert isinstance(result[0], dict)
 
-        # Check that result is a SparseDomain or dict
-        assert isinstance(result, (SparseDomain, dict))
+    def test_compute_subset_indexers_valid_points(self):
+        domain = MagicMock(spec=SparseDomain)
+        domain.coords = {
+            "lat": np.array([-90, -45, 0, 45, 90]),
+            "lon": np.array([-180, -90, 0, 90, 180]),
+        }
+        domain._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
+        domain.latitude = domain.coords["lat"]
+        domain.longitude = domain.coords["lon"]
+
+        result = SparseDomain._compute_subset_indexers(
+            domain, north=45, south=-45, west=-90, east=90
+        )
+        assert isinstance(result, tuple)
+        assert list(next(iter(result[0].values()))) == [1, 2, 3]
 
     def test_compute_sample_uniform_indexers(self):
-        """Test _compute_sample_uniform_indexers method."""
-        # Create a mock SparseDomain instance
         domain = MagicMock(spec=SparseDomain)
         domain.size = 100
         domain._get_sampling_points_nbr.return_value = 50
+        domain.point.size = 100
 
-        # Call the method
         result = SparseDomain._compute_sample_uniform_indexers(
             domain, portion=0.5
         )
 
-        # Check that result is a dict
         assert isinstance(result, dict)
 
     def test_compute_sample_normal_indexers(self):
-        """Test _compute_sample_normal_indexers method."""
-        # Create a mock SparseDomain instance
         domain = MagicMock(spec=SparseDomain)
         domain.size = 100
+        domain.point = np.array([1, 2, 3, 4, 5])
         domain._get_sampling_points_nbr.return_value = 50
         domain.latitude = np.array([-90, -45, 0, 45, 90])
         domain.longitude = np.array([-180, -90, 0, 90, 180])
 
-        # Call the method with default center point
         result = SparseDomain._compute_sample_normal_indexers(
             domain, portion=0.5, center_point=None, sigma=10.0
         )
 
-        # Check that result is a dict
         assert isinstance(result, dict)
 
-        # Call the method with specified center point
         result = SparseDomain._compute_sample_normal_indexers(
             domain, portion=0.5, center_point=(0, 0), sigma=10.0
         )
 
-        # Check that result is a dict
         assert isinstance(result, dict)
 
-    def test_compute_sample_no_nans_indexers(self):
-        """Test _compute_sample_no_nans_indexers method."""
-        # Create a mock SparseDomain instance
+    def test_compute_sample_no_nan_indexers_for_nan(self):
         domain = MagicMock(spec=SparseDomain)
         domain.size = 100
         domain._get_sampling_points_nbr.return_value = 50
+        domain.point = np.array([1, 2, 3, 4, 5])
+        domain.point_name = "point"
 
-        # Create a simple DataArray with some NaN values
         da = xr.DataArray(
-            np.random.rand(5, 5),
-            dims=["lat", "lon"],
+            np.random.rand(5),
+            dims=["point"],
             coords={
-                "lat": np.linspace(-90, 90, 5),
-                "lon": np.linspace(-180, 180, 5),
+                "lat": (("point",), np.linspace(-90, 90, 5)),
+                "lon": (("point",), np.linspace(-180, 180, 5)),
             },
         )
-        da.values[1, 1] = np.nan
-
-        # Call the method
-        result = SparseDomain._compute_sample_no_nans_indexers(
-            domain, da, portion=0.5
-        )
-
-        # Check that result is a dict
+        da.values[1] = np.nan
+        domain = Domain(da)
+        result = domain._compute_sample_no_nans_indexers(da, portion=0.5)
         assert isinstance(result, dict)
-
-    def test_to_xarray(self):
-        """Test to_xarray method based on docstring."""
-        # Create a mock SparseDomain instance
-        domain = MagicMock(spec=SparseDomain)
-        domain.coords = {
-            "lat": np.array([-90, 0, 90]),
-            "lon": np.array([-180, 0, 180]),
-        }
-        domain._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
-
-        # Create sample values
-        values = np.random.rand(3, 3)
-
-        # Call the method
-        result = SparseDomain.to_xarray(domain, values, name="test")
-
-        # Check that result is a DataArray
-        assert isinstance(result, xr.DataArray)
-        assert result.name == "test"
+        assert "point" in result
+        assert len(result["point"]) == 2
+        assert 1 not in result["point"]
 
 
 class TestDenseDomain:
-    """Test the DenseDomain class."""
 
     def test_get_all_spatial_points(self):
-        """Test get_all_spatial_points method."""
-        # Create a mock DenseDomain instance
         domain = MagicMock(spec=DenseDomain)
         domain.coords = {
             "lat": np.array([-90, 0, 90]),
@@ -494,15 +504,11 @@ class TestDenseDomain:
         domain.latitude = domain.coords["lat"]
         domain.longitude = domain.coords["lon"]
 
-        # Call the method
         result = DenseDomain.get_all_spatial_points(domain)
 
-        # Check that result is a numpy array
         assert isinstance(result, np.ndarray)
 
     def test_compute_subset_indexers(self):
-        """Test _compute_subset_indexers method."""
-        # Create a mock DenseDomain instance
         domain = MagicMock(spec=DenseDomain)
         domain.coords = {
             "lat": np.array([-90, -45, 0, 45, 90]),
@@ -512,62 +518,46 @@ class TestDenseDomain:
         domain.latitude = domain.coords["lat"]
         domain.longitude = domain.coords["lon"]
 
-        # Call the method with various boundary conditions
         result, _, _ = DenseDomain._compute_subset_indexers(
             domain, north=45, south=-45, west=-90, east=90
         )
 
-        # Check that result is a dict
         assert isinstance(result, dict)
 
     def test_compute_sample_uniform_indexers(self):
-        """Test _compute_sample_uniform_indexers method."""
-        # Create a mock DenseDomain instance
-        domain = MagicMock(spec=DenseDomain)
-        domain.size = 100
-        domain._get_sampling_points_nbr.return_value = 50
-
-        # Call the method
-        result = DenseDomain._compute_sample_uniform_indexers(
-            domain, portion=0.5
-        )
-
-        # Check that result is a dict
-        assert isinstance(result, dict)
-
-    def test_compute_sample_normal_indexers(self):
-        """Test _compute_sample_normal_indexers method."""
-        # Create a mock DenseDomain instance
         domain = MagicMock(spec=DenseDomain)
         domain.size = 100
         domain._get_sampling_points_nbr.return_value = 50
         domain.latitude = np.array([-90, -45, 0, 45, 90])
         domain.longitude = np.array([-180, -90, 0, 90, 180])
 
-        # Call the method with default center point
+        result = DenseDomain._compute_sample_uniform_indexers(
+            domain, portion=0.5
+        )
+
+        assert isinstance(result, dict)
+
+    def test_compute_sample_normal_indexers(self):
+        domain = MagicMock(spec=DenseDomain)
+        domain.size = 100
+        domain._get_sampling_points_nbr.return_value = 50
+        domain.latitude = np.array([-90, -45, 0, 45, 90])
+        domain.longitude = np.array([-180, -90, 0, 90, 180])
+
         result = DenseDomain._compute_sample_normal_indexers(
             domain, portion=0.5, center_point=None, sigma=10.0
         )
 
-        # Check that result is a dict
         assert isinstance(result, dict)
 
-        # Call the method with specified center point
         result = DenseDomain._compute_sample_normal_indexers(
             domain, portion=0.5, center_point=(0, 0), sigma=10.0
         )
 
-        # Check that result is a dict
         assert isinstance(result, dict)
 
     def test_compute_sample_no_nans_indexers(self):
-        """Test _compute_sample_no_nans_indexers method based on docstring."""
-        # Create a mock DenseDomain instance
-        domain = MagicMock(spec=DenseDomain)
-        domain.size = 100
-        domain._get_sampling_points_nbr.return_value = 50
 
-        # Create a simple DataArray with some NaN values
         da = xr.DataArray(
             np.random.rand(5, 5),
             dims=["lat", "lon"],
@@ -577,37 +567,15 @@ class TestDenseDomain:
             },
         )
         da.values[1, 1] = np.nan
+        domain = Domain(da)
 
-        # Call the method
         result = DenseDomain._compute_sample_no_nans_indexers(
             domain, da, portion=0.5
         )
 
-        # Check that result is a dict with the expected keys
         assert isinstance(result, dict)
 
-        # Test with specific number of points
         result = DenseDomain._compute_sample_no_nans_indexers(
             domain, da, number=10
         )
         assert isinstance(result, dict)
-
-    def test_to_xarray(self):
-        """Test to_xarray method based on docstring."""
-        # Create a mock DenseDomain instance
-        domain = MagicMock(spec=DenseDomain)
-        domain.coords = {
-            "lat": np.array([-90, 0, 90]),
-            "lon": np.array([-180, 0, 180]),
-        }
-        domain._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
-
-        # Create sample values
-        values = np.random.rand(3, 3)
-
-        # Call the method
-        result = DenseDomain.to_xarray(domain, values, name="test")
-
-        # Check that result is a DataArray
-        assert isinstance(result, xr.DataArray)
-        assert result.name == "test"
