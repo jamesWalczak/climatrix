@@ -27,6 +27,7 @@ dependencies = [
     "rich",
     "setuptools",
     "scipy",
+    "open3d",
 ]
 
 [project.optional-dependencies]
