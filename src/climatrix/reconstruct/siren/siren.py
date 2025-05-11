@@ -6,15 +6,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
-import open3d as o3d
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
 from climatrix.dataset.domain import Domain
 from climatrix.decorators.runtime import log_input, raise_if_not_installed
 from climatrix.reconstruct.base import BaseReconstructor
 
+from .dataset import SIRENDataset
 from .losses import (
     sdf_loss,
 )
@@ -24,132 +24,6 @@ if TYPE_CHECKING:
     from climatrix.dataset.base import BaseClimatrixDataset
 
 log = logging.getLogger(__name__)
-
-
-class SIRENDataset(Dataset):
-
-    def __init__(
-        self,
-        coordinates: np.ndarray,
-        values: np.ndarray,
-        on_surface_points: int = 1024,
-    ):
-        if len(values.shape) == 1:
-            values = values.reshape(-1, 1)
-        if values.shape[1] != 1:
-            raise ValueError(
-                f"Values must be shape [N] or [N, 1], got {values.shape}"
-            )
-
-        if coordinates.shape[0] != values.shape[0]:
-            raise ValueError(
-                f"Mismatch between coordinates ({coordinates.shape[0]})"
-                f" and values ({values.shape[0]}) count"
-            )
-
-        points_3d = np.concatenate(
-            [coordinates, values], axis=1
-        )  # Shape [N, 3]
-        log.info(
-            f"Created 3D points from coordinates and values: {points_3d.shape}"
-        )
-
-        # TODO I'v added it because even though I specify nan="resample"
-        # TODO a lot of values were nans
-        nan_mask = np.isnan(points_3d[:, 2])
-        if np.any(nan_mask):
-            nan_count = np.sum(nan_mask)
-            log.info(
-                f"Found {nan_count} NaN values"
-                f" in Z. Removing {nan_count} points."
-            )
-            points_3d = points_3d[~nan_mask]
-            log.info(f"Points after NaN removal: {points_3d.shape}")
-
-        self.coord_min = np.min(points_3d, axis=0)
-        self.coord_max = np.max(points_3d, axis=0)
-
-        normals_np = self._calculate_normals(points_3d)
-
-        self.points_3d = torch.tensor(points_3d, dtype=torch.float32)
-        self.normals = torch.tensor(normals_np, dtype=torch.float32)
-
-        if self.normals.shape != self.points_3d.shape:
-            log.error(
-                f"Mismatch between points ({self.points_3d.shape})"
-                f" and calculated normals ({self.normals.shape})"
-                f" shape. Setting normals to zeros."
-            )
-            self.normals = torch.zeros_like(self.points_3d)
-
-        self.points_3d = self._normalize_coords(self.points_3d)
-        self.points_3d = torch.tensor(self.points_3d, dtype=torch.float32)
-        log.info("Normalized 3D on-surface points.")
-
-        self.on_surface_points = on_surface_points
-        self.total_points = self.points_3d.shape[0]
-
-        log.info(
-            f"Created dataset with {self.total_points}"
-            f" total on-surface points"
-        )
-
-    def _calculate_normals(self, points: np.ndarray) -> np.ndarray:
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(points)
-        pcd.estimate_normals()
-
-        return np.asarray(pcd.normals)
-
-    def _normalize_coords(self, coords_3d: torch.Tensor):
-        normalized = (coords_3d - self.coord_min) / (
-            self.coord_max - self.coord_min
-        )
-        normalized = normalized * 2.0 - 1.0
-        return normalized
-
-    def __len__(self):
-        return self.total_points // self.on_surface_points
-
-    def __getitem__(self, idx):
-        """
-        Return a batch of mixed on-surface and off-surface points.
-        The off-surface points are generated on-the-fly in this method.
-        """
-
-        on_surface_samples = self.on_surface_points
-        off_surface_samples = self.on_surface_points
-
-        rand_idcs = torch.randint(0, self.total_points, (on_surface_samples,))
-        on_surface_coords = self.points_3d[rand_idcs]
-        on_surface_normals = self.normals[rand_idcs]
-
-        off_surface_coords = torch.FloatTensor(
-            off_surface_samples, 3
-        ).uniform_(-1, 1)
-
-        off_surface_normals = (
-            torch.ones((off_surface_samples, 3), dtype=torch.float32) * -1
-        )
-
-        on_surface_sdf = torch.zeros(
-            (on_surface_samples, 1), dtype=torch.float32
-        )
-        off_surface_sdf = (
-            torch.ones((off_surface_samples, 1), dtype=torch.float32) * -1
-        )
-
-        coords = torch.cat([on_surface_coords, off_surface_coords], dim=0)
-        normals = torch.cat([on_surface_normals, off_surface_normals], dim=0)
-        sdf = torch.cat([on_surface_sdf, off_surface_sdf], dim=0)
-
-        shuffle_idx = torch.randperm(coords.shape[0])
-
-        return (
-            coords[shuffle_idx],
-            sdf[shuffle_idx],
-            normals[shuffle_idx],
-        )
 
 
 class SIRENReconstructor(BaseReconstructor):
