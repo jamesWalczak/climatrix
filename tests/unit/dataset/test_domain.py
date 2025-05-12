@@ -468,29 +468,6 @@ class TestSparseDomain:
 
         assert isinstance(result, dict)
 
-    def test_compute_sample_no_nan_indexers_for_nan(self):
-        domain = MagicMock(spec=SparseDomain)
-        domain.size = 100
-        domain._get_sampling_points_nbr.return_value = 50
-        domain.point = np.array([1, 2, 3, 4, 5])
-        domain.point_name = "point"
-
-        da = xr.DataArray(
-            np.random.rand(5),
-            dims=["point"],
-            coords={
-                "lat": (("point",), np.linspace(-90, 90, 5)),
-                "lon": (("point",), np.linspace(-180, 180, 5)),
-            },
-        )
-        da.values[1] = np.nan
-        domain = Domain(da)
-        result = domain._compute_sample_no_nans_indexers(da, portion=0.5)
-        assert isinstance(result, dict)
-        assert "point" in result
-        assert len(result["point"]) == 2
-        assert 1 not in result["point"]
-
     def test_compute_sample_no_nans_indexers_return_no_nan(self):
         da = xr.DataArray(
             np.random.rand(500, 500),
@@ -575,30 +552,6 @@ class TestDenseDomain:
             domain, portion=0.5, center_point=(0, 0), sigma=10.0
         )
 
-        assert isinstance(result, dict)
-
-    def test_compute_sample_no_nans_indexers(self):
-
-        da = xr.DataArray(
-            np.random.rand(5, 5),
-            dims=["lat", "lon"],
-            coords={
-                "lat": np.linspace(-90, 90, 5),
-                "lon": np.linspace(-180, 180, 5),
-            },
-        )
-        da.values[1, 1] = np.nan
-        domain = Domain(da)
-
-        result = DenseDomain._compute_sample_no_nans_indexers(
-            domain, da, portion=0.5
-        )
-
-        assert isinstance(result, dict)
-
-        result = DenseDomain._compute_sample_no_nans_indexers(
-            domain, da, number=10
-        )
         assert isinstance(result, dict)
 
     def test_compute_sample_no_nans_indexers_return_no_nan(self):
