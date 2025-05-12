@@ -1,2 +1,3 @@
 recursive-include docs/diagrams *.d2
 recursive-include scripts *.py
+recursive-include resources *.ini
