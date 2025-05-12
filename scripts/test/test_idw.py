@@ -10,6 +10,6 @@ europe = (
 )
 sparse = europe.sample_uniform(number=1000, nan="resample")
 sparse.plot()
-recon = sparse.reconstruct(sparse.domain, method="idw", k=10)
+recon = sparse.reconstruct(europe.domain, method="idw", k=10)
 recon.plot()
 comp = cm.Comparison(europe, recon)

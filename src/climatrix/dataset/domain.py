@@ -19,7 +19,7 @@ _DEFAULT_LON_RESOLUTION = 0.1
 # Based on MetPy
 # (https://github.com/Unidata/MetPy/blob/main/src/metpy/xarray.py)
 _coords_name_regex: dict[Axis, str] = {
-    Axis.TIME: re.compile(r"^(x?)(valid_?)time(s?)([0-9]*)$"),
+    Axis.TIME: re.compile(r"^(x?)(valid_)?time(s?)([0-9]*)$"),
     Axis.VERTICAL: re.compile(
         r"^(z|lv_|bottom_top|sigma|h(ei)?ght|altitude|depth|"
         r"isobaric|pres|isotherm)"
@@ -137,7 +137,7 @@ class Domain:
         cls,
         lat: slice | np.ndarray = slice(-90, 90, _DEFAULT_LAT_RESOLUTION),
         lon: slice | np.ndarray = slice(-180, 180, _DEFAULT_LON_RESOLUTION),
-        kind: Literal["sparse", "dense"] = "sparse",
+        kind: Literal["sparse", "dense"] = "dense",
     ) -> Self:
         if isinstance(lat, slice):
             lat = np.arange(
@@ -188,7 +188,7 @@ class Domain:
             raise ValueError(
                 f"Latitude not found in coordinates {self.coords.keys()}"
             )
-        return self.coords[Axis.LATITUDE]
+        return self.coords[Axis.LATITUDE].astype(float)
 
     @property
     def longitude(self) -> np.ndarray:
@@ -196,7 +196,7 @@ class Domain:
             raise ValueError(
                 f"Longitude not found in coordinates {self.coords.keys()}"
             )
-        return self.coords[Axis.LONGITUDE]
+        return self.coords[Axis.LONGITUDE].astype(float)
 
     @property
     def time(self) -> np.ndarray:
@@ -295,6 +295,8 @@ class Domain:
                 "duplicates and excessive memory usage",
                 TooLargeSamplePortionWarning,
             )
+        if portion:
+            number = int(self.size * portion)
         return number
 
     @abstractmethod
@@ -316,7 +318,7 @@ class SparseDomain(Domain):
         south: float | None = None,
         west: float | None = None,
         east: float | None = None,
-    ) -> Self:
+    ) -> tuple[dict[str, Any], float, float]:
         if not (north or south or west or east):
             warnings.warn(
                 "Subset parameters not provided. Returning the source dataset"
@@ -539,12 +541,9 @@ class DenseDomain(Domain):
         n = self._get_sampling_points_nbr(portion=portion, number=number)
         stacked = da.stack(**{Axis.POINT: da.dims})
         notnan_da = stacked[stacked.notnull()]
-        selected_lats = np.random.choice(
-            notnan_da[self.latitude_name].values, n
-        )
-        selected_lons = np.random.choice(
-            notnan_da[self.longitude_name].values, n
-        )
+        selected_idx = np.random.choice(len(notnan_da), n)
+        selected_lats = notnan_da[self.latitude_name].values[selected_idx]
+        selected_lons = notnan_da[self.longitude_name].values[selected_idx]
         return {
             self.latitude_name: xr.DataArray(selected_lats, dims=[Axis.POINT]),
             self.longitude_name: xr.DataArray(

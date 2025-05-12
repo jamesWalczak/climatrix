@@ -5,7 +5,7 @@ from logging import config
 
 def _configure_logger():
     logging_conf_path = importlib.resources.files("climatrix").joinpath(
-        "..", "..", "resources", "logging.ini"
+        "resources", "logging.ini"
     )
     config.fileConfig(logging_conf_path)
 

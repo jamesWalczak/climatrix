@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 import numpy as np
-import xarray as xr
 from scipy.spatial import cKDTree
 
+from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.dataset.domain import Domain
 from climatrix.decorators.runtime import log_input
 from climatrix.reconstruct.base import BaseReconstructor
-
-if TYPE_CHECKING:
-    from climatrix.dataset.base import BaseClimatrixDataset
 
 log = logging.getLogger(__name__)
 
@@ -59,12 +55,18 @@ class IDWReconstructor(BaseReconstructor):
     ):
         super().__init__(dataset, target_domain)
         if dataset.domain.is_dynamic:
-            raise ValueError(
+            log.warning(
+                "Calling IDW on dynamic datasets, which are not yet "
+                "supported."
+            )
+            raise NotImplementedError(
                 "IDW reconstruction is not yet supported for dynamic datasets."
             )
         if k_min > k:
+            log.error("k_min must be <= k")
             raise ValueError("k_min must be <= k")
         if k < 1:
+            log.error("k must be >= 1")
             raise ValueError("k must be >= 1")
         self.k = k
         self.k_min = k_min
@@ -82,21 +84,15 @@ class IDWReconstructor(BaseReconstructor):
 
         Returns
         -------
-        DenseDataset
-            The reconstructed dense dataset, either StaticDenseDataset
-            or DynamicDenseDataset, depending on whether the input
-            dataset is dynamic.
+        BaseClimatrixDataset
+            The reconstructed dataset on the target domain.
 
         Notes
         -----
-        - For dynamic datasets, the reconstruction is performed for each
-        time step.
         - If fewer than `self.k_min` neighbors are available,
         NaN values are assigned to the corresponding points in the output.
         """
-        from climatrix.dataset.base import BaseClimatrixDataset
-
-        values = self.dataset.da.values.squeeze()
+        values = self.dataset.da.values.flatten().squeeze()
 
         log.debug("Building KDtree for efficient nearest neighbor queries...")
         spatial_points = self.dataset.domain.get_all_spatial_points()
@@ -105,14 +101,20 @@ class IDWReconstructor(BaseReconstructor):
             or spatial_points.ndim != 2
             or spatial_points.shape[1] != 2
         ):
+            log.error(
+                "Expected a 2D NumPy array with shape (N, 2) from "
+                "get_all_spatial_points(), but got %s with shape %s.",
+                type(spatial_points),
+                getattr(spatial_points, "shape", None),
+            )
             raise ValueError(
                 "Expected a 2D NumPy array with shape (N, 2) from "
                 f"get_all_spatial_points(), but got {type(spatial_points)} "
                 f"with shape {getattr(spatial_points, 'shape', None)}."
             )
         kdtree = cKDTree(spatial_points)
-        log.debug("Querying %d nearest neighbors...", self.k)
         query_points = self.target_domain.get_all_spatial_points()
+        log.debug("Querying %d nearest neighbors...", self.k)
         dists, idxs = kdtree.query(query_points, k=self.k, workers=-1)
 
         if self.k == 1:
@@ -132,9 +134,11 @@ class IDWReconstructor(BaseReconstructor):
             where=weights_sum != 0,
         )
 
+        log.debug("Invalidating points with insufficient neighbors...")
         valid_neighbor_counts = np.isfinite(knn_data).sum(axis=1)
         interp_vals[valid_neighbor_counts < self.k_min] = np.nan
 
+        log.debug("Reconstruction completed.")
         return BaseClimatrixDataset(
             self.target_domain.to_xarray(interp_vals, self.dataset.da.name)
         )

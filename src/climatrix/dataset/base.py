@@ -19,10 +19,10 @@ from climatrix.dataset.domain import (
 )
 from climatrix.decorators import cm_arithmetic_binary_operator
 from climatrix.exceptions import LongitudeConventionMismatch
-from climatrix.reconstruct.type import ReconstructionType
 from climatrix.types import Latitude, Longitude
 
-# if TYPE_CHECKING:
+if TYPE_CHECKING:
+    from climatrix.reconstruct.type import ReconstructionType
 
 
 def drop_scalar_coords_and_dims(da: xr.DataArray) -> xr.DataArray:
@@ -330,6 +330,34 @@ class BaseClimatrixDataset:
         method: ReconstructionType | str,
         **recon_kwargs,
     ) -> Self:
+        """
+        Reconstruct the dataset to a target domain.
+
+        If target domain is sparse, the reconstruction will be sparse
+        too. If target domain is dense, the reconstruction will be dense
+        too. The reconstruction will be done using the method specified
+        in the `method` argument. The method can be one of the following:
+        - 'idw': Nearest neighbor interpolation
+        - 'ok': ordinary kriging interpolation
+
+        Parameters
+        ----------
+        target : Domain
+            The target domain to reconstruct the dataset to.
+        method : ReconstructionType | str
+            The method to use for reconstruction. Can be one of the
+            following: 'idw', 'ok'.
+        recon_kwargs : dict
+            Additional keyword arguments to pass to the reconstruction
+            method.
+
+        Returns
+        -------
+        Self
+            The reconstructed dataset.
+        """
+        from climatrix.reconstruct.type import ReconstructionType
+
         method = ReconstructionType.get(method)
         return (
             ReconstructionType.get(method)
