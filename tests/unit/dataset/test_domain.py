@@ -491,6 +491,27 @@ class TestSparseDomain:
         assert len(result["point"]) == 2
         assert 1 not in result["point"]
 
+    def test_compute_sample_no_nans_indexers_return_no_nan(self):
+        da = xr.DataArray(
+            np.random.rand(500, 500),
+            dims=["lat", "lon"],
+            coords={
+                "lat": np.linspace(-90, 90, 500),
+                "lon": np.linspace(-180, 180, 500),
+            },
+        )
+        idx_lat = np.random.choice(len(da.lat), size=100, replace=True)
+        idx_lon = np.random.choice(len(da.lon), size=100, replace=True)
+
+        da.values[idx_lat, idx_lon] = np.nan
+        domain = Domain(da)
+
+        result = DenseDomain._compute_sample_no_nans_indexers(
+            domain, da, portion=0.5
+        )
+        values = da.sel(result).values
+        assert np.isnan(values).sum() == 0
+
 
 class TestDenseDomain:
 
@@ -579,3 +600,24 @@ class TestDenseDomain:
             domain, da, number=10
         )
         assert isinstance(result, dict)
+
+    def test_compute_sample_no_nans_indexers_return_no_nan(self):
+        da = xr.DataArray(
+            np.random.rand(500, 500),
+            dims=["lat", "lon"],
+            coords={
+                "lat": np.linspace(-90, 90, 500),
+                "lon": np.linspace(-180, 180, 500),
+            },
+        )
+        idx_lat = np.random.choice(len(da.lat), size=100, replace=True)
+        idx_lon = np.random.choice(len(da.lon), size=100, replace=True)
+
+        da.values[idx_lat, idx_lon] = np.nan
+        domain = Domain(da)
+
+        result = DenseDomain._compute_sample_no_nans_indexers(
+            domain, da, portion=0.5
+        )
+        values = da.sel(result).values
+        assert np.isnan(values).sum() == 0

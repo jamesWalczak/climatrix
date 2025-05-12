@@ -541,12 +541,9 @@ class DenseDomain(Domain):
         n = self._get_sampling_points_nbr(portion=portion, number=number)
         stacked = da.stack(**{Axis.POINT: da.dims})
         notnan_da = stacked[stacked.notnull()]
-        selected_lats = np.random.choice(
-            notnan_da[self.latitude_name].values, n
-        )
-        selected_lons = np.random.choice(
-            notnan_da[self.longitude_name].values, n
-        )
+        selected_idx = np.random.choice(len(notnan_da), n)
+        selected_lats = notnan_da[self.latitude_name].values[selected_idx]
+        selected_lons = notnan_da[self.longitude_name].values[selected_idx]
         return {
             self.latitude_name: xr.DataArray(selected_lats, dims=[Axis.POINT]),
             self.longitude_name: xr.DataArray(
