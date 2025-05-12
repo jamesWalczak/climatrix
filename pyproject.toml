@@ -53,11 +53,15 @@ ml = [
 optim = [
     "bayesian-optimization"
 ]
+ok = [
+    "pykrige",
+]
 all = [
     "climatrix[dev]", 
     "climatrix[plot]",
     "climatrix[ml]",
-    "climatrix[optim]"
+    "climatrix[optim]",
+    "climatrix[ok]",
 ]
 
 [tool.setuptools]
