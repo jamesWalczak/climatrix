@@ -11,7 +11,7 @@ class ReconstructionType(Enum):
 
     IDW = IDWReconstructor
     OK = OrdinaryKrigingReconstructor
-    SiNET = SiNETReconstructor
+    SINET = SiNETReconstructor
 
     def __missing__(self, value):
         raise ValueError(f"Unknown reconstruction method: {value}")
@@ -46,6 +46,11 @@ class ReconstructionType(Enum):
         """
         if isinstance(value, cls):
             return value
+        if not isinstance(value, str):
+            raise TypeError(
+                f"Invalid reconstruction type: {value!r}. "
+                "Expected a string or an instance of ReconstructionType."
+            )
         try:
             return cls[value.upper()]
         except KeyError:

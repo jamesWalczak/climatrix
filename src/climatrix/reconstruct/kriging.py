@@ -1,18 +1,15 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, ClassVar, Literal
+from typing import ClassVar, Literal
 
-import numpy as np
 import numpy.ma as ma
-import xarray as xr
 
+from climatrix.dataset.base import BaseClimatrixDataset
+from climatrix.dataset.domain import Domain
 from climatrix.decorators import raise_if_not_installed
 from climatrix.decorators.runtime import log_input
 from climatrix.reconstruct.base import BaseReconstructor
-
-if TYPE_CHECKING:
-    from climatrix.dataset.sparse import SparseDataset
 
 log = logging.getLogger(__name__)
 
@@ -25,10 +22,8 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
     ----------
     dataset : SparseDataset
         The sparse dataset to reconstruct.
-    query_lat : np.ndarray
-        The latitude grid points.
-    query_lon : np.ndarray
-        The longitude grid points.
+    domain : Domain
+        The target domain for reconstruction.
     pykrige_kwargs : dict
         Additional keyword arguments to pass to pykrige.
     backend : Literal["vectorized", "loop"] | None
@@ -38,10 +33,8 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
     ----------
     dataset : SparseDataset
         The sparse dataset to reconstruct.
-    lat : slice or np.ndarray, optional
-        The latitude range (default is slice(-90, 90, 0.1)).
-    lon : slice or np.ndarray, optional
-        The longitude range (default is slice(-180, 180, 0.1)).
+    target_domain : Domain
+        The target domain for reconstruction.
     backend : Literal["vectorized", "loop"] | None, optional
         The backend to use for kriging (default is None).
     pykrige_kwargs : dict, optional
@@ -53,28 +46,40 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
     @log_input(log, level=logging.DEBUG)
     def __init__(
         self,
-        dataset: SparseDataset,
-        lat: slice | np.ndarray = slice(-90, 90, 0.1),
-        lon: slice | np.ndarray = slice(-180, 180, 0.1),
+        dataset: BaseClimatrixDataset,
+        target_domain: Domain,
         backend: Literal["vectorized", "loop"] | None = None,
         **pykrige_kwargs,
     ):
-        super().__init__(dataset, lat, lon)
-        if self.dataset.is_dynamic:
-            log.error("Kriging is not yet supported for dynamic datasets.")
-            raise ValueError("Kriging is not supported for dynamic datasets.")
+        super().__init__(dataset, target_domain)
+        if self.dataset.domain.is_dynamic:
+            log.warning(
+                "Calling ordinary kriging on dynamic datasets, which "
+                "are not yet supported."
+            )
+            raise NotImplementedError(
+                "Kriging is not supported for " "dynamic datasets."
+            )
+        if not self.dataset.domain.is_sparse:
+            log.warning(
+                "Calling ordinary kriging on dense datasets, whcih "
+                "are not yet supported."
+            )
+            raise NotImplementedError(
+                "Cannot carry out kriging for " "dense dataset."
+            )
         self.pykrige_kwargs = pykrige_kwargs
         self.backend = backend
 
     @raise_if_not_installed("pykrige")
-    def reconstruct(self):
+    def reconstruct(self) -> BaseClimatrixDataset:
         """
         Perform Ordinary Kriging reconstruction of the dataset.
 
         Returns
         -------
-        StaticDenseDataset
-            The reconstructed dense dataset.
+        BaseClimatrixDataset
+            The dataset reconstructed on the target domain.
 
         Notes
         -----
@@ -84,39 +89,36 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         """
         from pykrige.ok import OrdinaryKriging
 
-        from climatrix.dataset.dense import StaticDenseDataset
-
         if self.backend is None:
             log.info("Choosing backend based on dataset size...")
             self.backend = (
                 "vectorized"
-                if (len(self.query_lat) * len(self.query_lon))
+                if (
+                    len(self.target_domain.latitude)
+                    * len(self.target_domain.longitude)
+                )
                 < self._MAX_VECTORIZED_SIZE
                 else "loop"
             )
-            log.info("Using backend: %s", self.backend)
+            log.debug("Using backend: %s", self.backend)
         kriging = OrdinaryKriging(
-            x=self.dataset.longitude.values,
-            y=self.dataset.latitude.values,
-            z=self.dataset.da.values,
+            x=self.dataset.domain.longitude,
+            y=self.dataset.domain.latitude,
+            z=self.dataset.da.values.astype(float).squeeze(),
             **self.pykrige_kwargs,
         )
-        log.info("Performing Ordinary Kriging reconstruction...")
-        masked_values, variance = kriging.execute(
-            "grid", self.query_lon, self.query_lat, backend=self.backend
+        log.debug("Performing Ordinary Kriging reconstruction...")
+        recon_type = "points" if self.target_domain.is_sparse else "grid"
+        log.debug("Reconstruction type: %s", recon_type)
+        masked_values, _ = kriging.execute(
+            recon_type,
+            self.target_domain.longitude,
+            self.target_domain.latitude,
+            backend=self.backend,
         )
         values = ma.getdata(masked_values)
 
-        coords = {
-            self.dataset.latitude_name: self.query_lat,
-            self.dataset.longitude_name: self.query_lon,
-        }
-
-        return StaticDenseDataset(
-            xr.DataArray(
-                values,
-                coords=coords,
-                dims=(self.dataset.latitude_name, self.dataset.longitude_name),
-                name=self.dataset.da.name,
-            ),
+        log.debug("Reconstruction completed.")
+        return BaseClimatrixDataset(
+            self.target_domain.to_xarray(values, self.dataset.da.name)
         )

@@ -19,10 +19,10 @@ from climatrix.dataset.domain import (
 )
 from climatrix.decorators import cm_arithmetic_binary_operator
 from climatrix.exceptions import LongitudeConventionMismatch
-from climatrix.reconstruct.type import ReconstructionType
 from climatrix.types import Latitude, Longitude
 
-# if TYPE_CHECKING:
+if TYPE_CHECKING:
+    from climatrix.reconstruct.type import ReconstructionType
 
 
 def drop_scalar_coords_and_dims(da: xr.DataArray) -> xr.DataArray:
@@ -356,6 +356,8 @@ class BaseClimatrixDataset:
         Self
             The reconstructed dataset.
         """
+        from climatrix.reconstruct.type import ReconstructionType
+
         method = ReconstructionType.get(method)
         return (
             ReconstructionType.get(method)

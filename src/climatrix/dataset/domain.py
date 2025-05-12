@@ -188,7 +188,7 @@ class Domain:
             raise ValueError(
                 f"Latitude not found in coordinates {self.coords.keys()}"
             )
-        return self.coords[Axis.LATITUDE]
+        return self.coords[Axis.LATITUDE].astype(float)
 
     @property
     def longitude(self) -> np.ndarray:
@@ -196,7 +196,7 @@ class Domain:
             raise ValueError(
                 f"Longitude not found in coordinates {self.coords.keys()}"
             )
-        return self.coords[Axis.LONGITUDE]
+        return self.coords[Axis.LONGITUDE].astype(float)
 
     @property
     def time(self) -> np.ndarray:
