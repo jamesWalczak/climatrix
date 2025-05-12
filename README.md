@@ -92,7 +92,7 @@ ______________________________________________________________________
 - 🔁 Reconstruction via:
   - **IDW** (Inverse Distance Weighting)
   - **Ordinary Kriging**
-  - **SIREN** (Sinusoidal Representation Networks)
+  - **SiNET** (Sinusoidal reconstruction)
 - 🧪 Tools to compare reconstruction results
 - 📈 Plotting utilities for visualizing inputs and outputs
 
