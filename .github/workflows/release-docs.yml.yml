@@ -23,8 +23,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: 3.x
-      - name: Copy README to docs
-        run: cp README.md docs/index.md       
       - name: Copy CONTRIBUTING to docs
         run: cp CONTRIBUTING.md docs/CONTRIBUTING.md              
       - name: Copy LICENSE do docs

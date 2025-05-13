@@ -27,7 +27,7 @@ ______________________________________________________________________
 
 **Climatrix** is a flexible toolbox for sampling and reconstructing climate datasets.
 
-It provides utilities and an [xarray](https://docs.xarray.dev/en/latest/index.html) accessor that simplifies the workflow of working with climate data arrays — from preprocessing to statistical sampling
+It provides utilities and an [xarray](https://docs.xarray.dev/en/latest/index.html) accessor that simplifies the workflow of working with climate data arrays — from preprocessing to statistical sampling.
 
 ______________________________________________________________________
 
