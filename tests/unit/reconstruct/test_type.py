@@ -6,7 +6,7 @@ import pytest
 from climatrix.reconstruct.idw import IDWReconstructor
 from climatrix.reconstruct.kriging import OrdinaryKrigingReconstructor
 from climatrix.reconstruct.sinet.sinet import SiNETReconstructor
-from climatrix.reconstruct.type import ReconstructionType
+from climatrix.reconstruct.type import ReconstructionType, SIRENReconstructor
 
 
 class TestReconstructionType:
@@ -15,6 +15,7 @@ class TestReconstructionType:
         assert ReconstructionType.IDW.value == IDWReconstructor
         assert ReconstructionType.OK.value == OrdinaryKrigingReconstructor
         assert ReconstructionType.SINET.value == SiNETReconstructor
+        assert ReconstructionType.SIREN.value == SIRENReconstructor
 
     def test_missing_method(self):
         with pytest.raises(
