@@ -137,7 +137,8 @@ class BaseClimatrixDataset:
             raise ValueError(
                 "Masking NaN values is only supported for dense domain."
             )
-        da = xr.where(source.da.isnull(), np.nan, self.da)
+
+        da = xr.where(source.da.isnull(), np.nan, self.da).squeeze()
         return type(self)(da)
 
     # ###############################

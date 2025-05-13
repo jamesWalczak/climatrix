@@ -61,18 +61,6 @@ class SIRENDataset(Dataset):
             f"Created 3D points from coordinates and values: {points_3d.shape}"
         )
 
-        # TODO I'v added it because even though I specify nan="resample"
-        # TODO a lot of values were nans
-        nan_mask = np.isnan(points_3d[:, 2])
-        if np.any(nan_mask):
-            nan_count = np.sum(nan_mask)
-            log.info(
-                f"Found {nan_count} NaN values"
-                f" in Z. Removing {nan_count} points."
-            )
-            points_3d = points_3d[~nan_mask]
-            log.info(f"Points after NaN removal: {points_3d.shape}")
-
         self.coord_min = np.min(points_3d, axis=0)
         self.coord_max = np.max(points_3d, axis=0)
 

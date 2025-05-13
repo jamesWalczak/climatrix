@@ -18,3 +18,10 @@ dense = sparse.reconstruct(
     method="siren",
 )
 dense.plot()
+
+without_nans = dense.mask_nan(europe)
+without_nans.plot()
+
+comp = cm.Comparison(dense, europe)
+
+comp.save_report("./results/")

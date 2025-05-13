@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import numpy as np
 import torch
@@ -27,6 +27,11 @@ log = logging.getLogger(__name__)
 
 
 class SIRENReconstructor(BaseReconstructor):
+    """
+    A reconstructor that uses Sinusoidal Representation Networks
+        (SIREN) to reconstruct fields.
+    """
+
     @log_input(log, level=logging.DEBUG)
     def __init__(
         self,
@@ -45,6 +50,29 @@ class SIRENReconstructor(BaseReconstructor):
         gradient_clipping_value: float | None = None,
         checkpoint: str | os.PathLike | Path | None = None,
     ) -> None:
+        """
+        Initialize the SIREN reconstructor.
+
+        Args:
+            dataset: Source dataset to reconstruct from.
+            target_domain: Domain to reconstruct onto.
+            on_surface_points: Number of points to sample
+                on the surface for training.
+            hidden_features: Number of features in each hidden layer.
+            hidden_layers: Number of hidden layers in the SIREN model.
+            omega_0: Frequency multiplier for the first layer.
+            omega_hidden: Frequency multiplier for hidden layers.
+            lr: Learning rate for the optimizer.
+            num_epochs: Number of epochs to train for.
+            num_workers: Number of worker processes for the dataloader.
+            device: Device to run the model on ("cuda" or "cpu").
+            gradient_clipping_value: Value for gradient
+                clipping (None to disable).
+            checkpoint: Path to save/load model checkpoint from.
+
+        Raises:
+            ValueError: If trying to use SIREN with a dynamic dataset.
+        """
         super().__init__(dataset, target_domain)
 
         if dataset.domain.is_dynamic:
@@ -68,7 +96,7 @@ class SIRENReconstructor(BaseReconstructor):
         self.num_workers = num_workers
         self.gradient_clipping_value = gradient_clipping_value
         self.is_model_loaded = False
-        self.checkpoint = checkpoint
+        self.checkpoint: Path | None = None
 
         input_coordinates_2d = dataset.domain.get_all_spatial_points()
         input_values_z = dataset.da.values.squeeze()
@@ -84,6 +112,12 @@ class SIRENReconstructor(BaseReconstructor):
             log.info("Using checkpoint path: %s", self.checkpoint)
 
     def _init_model(self) -> nn.Module:
+        """
+        Initialize the 3D SIREN model.
+
+        Returns:
+            nn.Module: Initialized SIREN model on the appropriate device.
+        """
         log.info("Initializing 3D SIREN model")
         return SIREN(
             in_features=3,
@@ -95,7 +129,16 @@ class SIRENReconstructor(BaseReconstructor):
             omega_hidden=self.omega_hidden,
         ).to(self.device)
 
-    def _configure_optimizer(self, model: nn.Module):
+    def _configure_optimizer(self, model: nn.Module) -> torch.optim.Optimizer:
+        """
+        Configure the optimizer for the model.
+
+        Args:
+            model: The model to optimize.
+
+        Returns:
+            torch.optim.Optimizer: Configured Adam optimizer.
+        """
         log.info(
             "Configuring Adam optimizer" " with learning rate: %0.6f", self.lr
         )
@@ -103,6 +146,12 @@ class SIRENReconstructor(BaseReconstructor):
         return optimizer
 
     def _maybe_clip_grads(self, model: nn.Module) -> None:
+        """
+        Apply gradient clipping to model parameters if configured.
+
+        Args:
+            model: The model whose gradients may need clipping.
+        """
         if self.gradient_clipping_value:
             nn.utils.clip_grad_norm_(
                 model.parameters(), self.gradient_clipping_value
@@ -111,7 +160,16 @@ class SIRENReconstructor(BaseReconstructor):
     def _maybe_load_checkpoint(
         self, model: nn.Module, checkpoint: Path | None
     ) -> nn.Module:
-        """Load model weights from checkpoint if available."""
+        """
+        Load model weights from checkpoint if available.
+
+        Args:
+            model: The model to load weights into.
+            checkpoint: Path to the checkpoint file.
+
+        Returns:
+            nn.Module: The model, potentially with loaded weights.
+        """
         if checkpoint and checkpoint.exists():
             log.info("Loading checkpoint from %s...", checkpoint)
             try:
@@ -133,7 +191,13 @@ class SIRENReconstructor(BaseReconstructor):
     def _maybe_save_checkpoint(
         self, model: nn.Module, checkpoint: Path | None
     ) -> None:
-        """Save model weights to checkpoint."""
+        """
+        Save model weights to checkpoint.
+
+        Args:
+            model: The model to save weights from.
+            checkpoint: Path to save the checkpoint to.
+        """
         if checkpoint:
             if not checkpoint.parent.exists():
                 log.info(
@@ -151,22 +215,66 @@ class SIRENReconstructor(BaseReconstructor):
                 "Checkpoint saving skipped as no checkpoint path is provided."
             )
 
-    # TODO add types
-    def _normalize_coords(self, coords, coord_min, coord_max):
+    def _normalize_coords(
+        self, coords: np.ndarray, coord_min: np.ndarray, coord_max: np.ndarray
+    ) -> np.ndarray:
+        """
+        Normalize coordinates to the range [-1, 1].
+
+        Args:
+            coords: Coordinates to normalize.
+            coord_min: Minimum coordinate values.
+            coord_max: Maximum coordinate values.
+
+        Returns:
+            np.ndarray: Normalized coordinates in range [-1, 1].
+        """
         normalized = (coords - coord_min) / (coord_max - coord_min)
         normalized = normalized * 2.0 - 1.0
         return normalized
 
-    # TODO add types
-    def _denormalize_height(self, values, min_value, max_value):
+    def _denormalize_values(
+        self, values: float | np.ndarray, min_value: float, max_value: float
+    ) -> float | np.ndarray:
+        """
+        Denormalize values from [-1, 1] to original range.
+
+        Args:
+            values: Normalized values to denormalize.
+            min_value: Minimum value in original range.
+            max_value: Maximum value in original range.
+
+        Returns:
+            float or np.ndarray: Denormalized values in original range.
+        """
         denormalized = (values + 1.0) / 2.0
         denormalized = denormalized * (max_value - min_value) + min_value
         return denormalized
 
-    # TODO add types - change in the future
     def _find_closest_value(
-        self, decoder, x, y, z_min, z_max, num_samples=1000
-    ):
+        self,
+        decoder: nn.Module,
+        x: float,
+        y: float,
+        z_min: float,
+        z_max: float,
+        num_samples: int = 1000,
+    ) -> float:
+        """
+        Find the z value where the SDF is closest
+        to zero for given x, y coordinates.
+
+        Args:
+            decoder: The SIREN model to query.
+            x: Normalized x coordinate.
+            y: Normalized y coordinate.
+            z_min: Minimum normalized z value to sample.
+            z_max: Maximum normalized z value to sample.
+            num_samples: Number of z values to sample.
+
+        Returns:
+            float: The z value where SDF is closest to zero.
+        """
         z_values = torch.linspace(
             z_min, z_max, num_samples, device=self.device
         )
@@ -187,6 +295,17 @@ class SIRENReconstructor(BaseReconstructor):
     def _reconstruct_field(
         self, model: nn.Module, target_domain: Domain
     ) -> np.ndarray:
+        """
+        Reconstruct the field on the target domain
+        using the trained SIREN model.
+
+        Args:
+            model: Trained SIREN model.
+            target_domain: Domain to reconstruct onto.
+
+        Returns:
+            np.ndarray: Reconstructed field values.
+        """
         log.info("Querying 3D SIREN model on target domain...")
 
         target_lat_lon_2d = (
@@ -201,7 +320,6 @@ class SIRENReconstructor(BaseReconstructor):
         coord_min = self.train_dataset.coord_min
         coord_max = self.train_dataset.coord_max
 
-        # TODO come up with better solution
         height_min = coord_min[2].item()
         height_max = coord_max[2].item()
         height_margin = (height_max - height_min) * 0.2
@@ -212,7 +330,7 @@ class SIRENReconstructor(BaseReconstructor):
             target_lat_lon_2d, xy_min, xy_max
         )
 
-        z_values = []
+        z_values: list[float] = []
         for i in range(num_spatial_points):
             x_norm, y_norm = normalized_xy[i]
 
@@ -220,7 +338,7 @@ class SIRENReconstructor(BaseReconstructor):
                 model, x_norm.item(), y_norm.item(), -1, 1
             )
 
-            best_z_real = self._denormalize_height(
+            best_z_real = self._denormalize_values(
                 best_z_norm, query_z_min, query_z_max
             )
             z_values.append(best_z_real)
@@ -234,6 +352,19 @@ class SIRENReconstructor(BaseReconstructor):
     @raise_if_not_installed("torch")
     @raise_if_not_installed("open3d")
     def reconstruct(self) -> BaseClimatrixDataset:
+        """
+        Train (if necessary) and use a SIREN model to reconstruct the field.
+
+        This method is the main entry point for using the SIREN reconstructor.
+        It will train a new model if no checkpoint was loaded, and then use the
+        model to reconstruct the field on the target domain.
+
+        Returns:
+            BaseClimatrixDataset: A dataset containing the reconstructed field.
+
+        Raises:
+            ImportError: If required dependencies are not installed.
+        """
         from climatrix.dataset.base import BaseClimatrixDataset
 
         siren_model = self._init_model()
@@ -254,7 +385,7 @@ class SIRENReconstructor(BaseReconstructor):
             for epoch in range(1, self.num_epochs + 1):
                 siren_model.train()
                 epoch_loss = 0.0
-                epoch_loss_components = {
+                epoch_loss_components: dict[str, float] = {
                     "sdf": 0.0,
                     "inter": 0.0,
                     "normal_constraint": 0.0,
@@ -270,11 +401,14 @@ class SIRENReconstructor(BaseReconstructor):
 
                     pred_sdf = siren_model(coords_3d_normalized)
 
-                    model_output = {
+                    model_output: dict[str, torch.Tensor] = {
                         "model_in": coords_3d_normalized,
                         "model_out": pred_sdf,
                     }
-                    gt_data = {"sdf": gt_sdf, "normals": gt_normals}
+                    gt_data: dict[str, torch.Tensor] = {
+                        "sdf": gt_sdf,
+                        "normals": gt_normals,
+                    }
                     loss_dict = sdf_loss(model_output, gt_data)
 
                     total_loss = loss_dict["total_loss"]
@@ -306,12 +440,12 @@ class SIRENReconstructor(BaseReconstructor):
 
         siren_model.eval()
 
-        reconstructed_heights = self._reconstruct_field(
+        reconstructed_values = self._reconstruct_field(
             siren_model, self.target_domain
         )
 
         return BaseClimatrixDataset(
             self.target_domain.to_xarray(
-                reconstructed_heights, self.dataset.da.name
+                reconstructed_values, self.dataset.da.name
             )
         )

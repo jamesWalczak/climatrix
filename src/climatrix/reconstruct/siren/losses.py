@@ -1,8 +1,11 @@
+from typing import Dict
+
 import torch
 import torch.nn.functional as F
 
 
-def gradient(y, x):
+def gradient(y: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+    """Computes the gradient of a scalar function y with respect to input x."""
     y = y.squeeze()
     dydx = torch.autograd.grad(
         y,
@@ -14,7 +17,10 @@ def gradient(y, x):
     return dydx
 
 
-def sdf_loss(model_output, gt):
+def sdf_loss(
+    model_output: Dict[str, torch.Tensor], gt: Dict[str, torch.Tensor]
+) -> Dict[str, torch.Tensor]:
+    """Computes the compound loss."""
     gt_sdf = gt["sdf"]
     gt_normals = gt["normals"]
 
