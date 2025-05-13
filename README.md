@@ -1,5 +1,21 @@
 # 🌍 Project climatrix
 
+<div align="center">
+<img src="https://github.com/jamesWalczak/climatrix/blob/0e2a3ab98836642140e50f2e59e314134c61137f/docs/assets/logo.svg" width="20%" height="20%">
+
+# A quick way to start with machine and deep learning
+
+[![python](https://img.shields.io/badge/-Python_3.12%7C3.13-blue?logo=python&logoColor=white)](https://www.python.org/downloads)
+
+[![black](https://img.shields.io/badge/Code%20Style-Black-black.svg?labelColor=gray)](https://black.readthedocs.io/en/stable/)
+[![isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
+
+[![license](https://img.shields.io/badge/License-MIT-green.svg?labelColor=gray)](https://github.com/jamesWalczak/climatrix/blob/main/LICENSE)
+
+[![PyPI version](https://badge.fury.io/py/climatrix.svg)](https://badge.fury.io/py/climatrix)
+
+</div>
+
 This repository toolbox for sampling and reconstructing climate datasets.
 In particular, it contains [xarray](https://docs.xarray.dev/en/latest/index.html) accessor to
 facilitate usage.

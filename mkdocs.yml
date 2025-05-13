@@ -1,0 +1,73 @@
+site_name: Climatrix documentation
+site_description: Climatrix is a Python package for climate data managing, sampling, and reconstructing
+site_url: https://jameswalczak.github.io/climatrix
+
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+    - search.highlight
+    - search.suggest
+    - content.code.annotate
+    - content.code.copy
+    - content.tabs.link
+    - versioning
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+  icon:
+    repo: fontawesome/brands/github
+  font:
+    text: Roboto
+    code: Roboto Mono
+  logo: assets/logo-white.svg 
+  favicon: assets/favicon.png
+
+repo_url: https://github.com/jamesWalczak/climatrix
+repo_name: jamesWalczak/climatrix
+repo_badge: true 
+
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - pymdownx.highlight
+  - pymdownx.details
+  - pymdownx.emoji
+  - pymdownx.tasklist
+  - pymdownx.keys
+  - pymdownx.snippets
+  - pymdownx.inlinehilite
+  - pymdownx.magiclink
+
+plugins:
+  - search
+  - awesome-pages
+  - git-revision-date-localized
+  - mike:
+      alias_type: redirect
+      default_version: latest
+  - glightbox
+  - tags  
+
+extra:
+  version:
+    provider: mike
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/yourusername/myproject
+
+nav:
+  - Climatrix: index.md
+  - Overview: README.md
+  - Contributing: CONTRIBUTING.md
+  - License: license.md
