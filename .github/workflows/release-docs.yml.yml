@@ -16,7 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -36,6 +38,8 @@ jobs:
           TAG=${GITHUB_REF##*/}
           VERSION=${TAG#v}  # remove leading 'v'
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - name: Fetch gh-pages
+        run: git fetch origin gh-pages          
       - name: Copy site to versioned directory
         run: |
           mkdir -p versioned_docs/${{ steps.extract_version.outputs.version }}
