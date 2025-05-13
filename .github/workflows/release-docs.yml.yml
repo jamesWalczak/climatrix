@@ -3,6 +3,9 @@ name: Build and Deploy Release Docs
 on:
   release:
     types: [published]
+  pull_request:
+    types:
+      - synchronize    
   workflow_dispatch:
 
 jobs:
