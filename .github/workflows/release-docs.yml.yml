@@ -51,4 +51,5 @@ jobs:
           VERSION=${{ steps.extract_version.outputs.version }}
           mike deploy --push --update-aliases $VERSION latest
           git push --force origin gh-pages
+          mike set-default latest --push
 

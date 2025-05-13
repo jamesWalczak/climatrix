@@ -68,6 +68,5 @@ extra:
 
 nav:
   - Climatrix: index.md
-  - Overview: README.md
   - Contributing: CONTRIBUTING.md
   - License: license.md
