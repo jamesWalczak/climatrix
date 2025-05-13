@@ -1,0 +1,42 @@
+name: Build and Deploy Release Docs
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+      - name: Copy README to docs
+        run: cp README.md docs/index.md       
+      - name: Copy CONTRIBUTING to docs
+        run: cp CONTRIBUTING.md docs/CONTRIBUTING.md              
+        run: cp LICENSE docs/license.md                   
+      - name: Install MkDocs and Material theme
+        run: |
+          pip install .[docs]
+      - name: Extract release version from tag
+        id: extract_version
+        run: |
+          TAG=${GITHUB_REF##*/}
+          VERSION=${TAG#v}  # remove leading 'v'
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - name: Copy site to versioned directory
+        run: |
+          mkdir -p versioned_docs/${{ steps.extract_version.outputs.version }}
+          mkdocs build -d versioned_docs/${{ steps.extract_version.outputs.version }}
+      - name: Deploy docs using mike
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          VERSION=${{ steps.extract_version.outputs.version }}
+          mike deploy --push --update-aliases $VERSION latest
+
