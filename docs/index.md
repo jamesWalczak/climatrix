@@ -43,8 +43,9 @@ ______________________________________________________________________
 
 **Current Version:** `0.1a0` 🧪
 
-??? warning "Alpha release"
-This is an alpha release – features are still evolving, and breaking changes may occur.
+???+ warning "Alpha release"
+
+    This is an alpha release – features are still evolving, and breaking changes may occur.
 
 ______________________________________________________________________
 
@@ -69,14 +70,15 @@ git clone https://github.com/jamesWalczak/climatrix/
 cd climatrix
 ```
 
-??? info "Coming soon on PyPI"
-The project will soon be available via PyPI (`pip install ...`)
+???+ info "Coming soon on PyPI"
+
+    The project will soon be available via PyPI (`pip install ...`)
 
 ______________________________________________________________________
 
 ## ⚙️ Usage
 
-Here is a basic example of how to use this project:
+Here is a basic example of how to use this project. For more details, refer to [API reference](api.md) or [Getting started](getting_started.md) section.
 
 ```python
 # TODO

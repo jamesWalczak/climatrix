@@ -14,6 +14,7 @@ theme:
     - search.suggest
     - content.code.annotate
     - content.code.copy
+    - content.code.select    
     - content.tabs.link
     - versioning
   palette:
@@ -50,6 +51,11 @@ markdown_extensions:
   - pymdownx.magiclink
 
 plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
   - search
   - awesome-pages
   - git-revision-date-localized
@@ -68,5 +74,7 @@ extra:
 
 nav:
   - Climatrix: index.md
+  - API Reference: api.md
+  - Getting started: getting_started.md
   - Contributing: CONTRIBUTING.md
   - License: license.md
