@@ -84,7 +84,7 @@ ______________________________________________________________________
 import climatrix as cm
 import xarray as xr
 
-my_dataset = "/file/to/netcdf.nc
+my_dataset = "/file/to/netcdf.nc"
 cm_dset = xr.open_dataset(my_dataset).cm
 ```
 

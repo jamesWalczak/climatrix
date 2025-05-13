@@ -3,6 +3,8 @@
 <div align="center">
 <img src="https://github.com/jamesWalczak/climatrix/blob/0e2a3ab98836642140e50f2e59e314134c61137f/docs/assets/logo.svg" width="20%" height="20%">
 
+# A quick way to start with machine and deep learning
+
 [![python](https://img.shields.io/badge/-Python_3.12%7C3.13-blue?logo=python&logoColor=white)](https://www.python.org/downloads)
 
 [![black](https://img.shields.io/badge/Code%20Style-Black-black.svg?labelColor=gray)](https://black.readthedocs.io/en/stable/)
@@ -82,7 +84,7 @@ ______________________________________________________________________
 import climatrix as cm
 import xarray as xr
 
-my_dataset = "/file/to/netcdf.nc
+my_dataset = "/file/to/netcdf.nc"
 cm_dset = xr.open_dataset(my_dataset).cm
 ```
 
