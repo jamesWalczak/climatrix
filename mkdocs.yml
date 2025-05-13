@@ -54,7 +54,7 @@ plugins:
   - awesome-pages
   - git-revision-date-localized
   - mike:
-      alias_type: redirect
+      alias_type: symlink
       default_version: latest
   - glightbox
   - tags  
