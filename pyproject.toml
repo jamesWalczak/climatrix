@@ -13,7 +13,6 @@ license = {file = "./LICENSE"}
 
 keywords = [
     "climate data",
-
 ]
 
 requires-python = ">=3.12"
@@ -28,8 +27,6 @@ dependencies = [
     "rich",
     "setuptools",
     "scipy",
-    "dask",
-    "jupyterlab"
 ]
 
 [project.optional-dependencies]
@@ -61,7 +58,7 @@ all = [
     "climatrix[plot]",
     "climatrix[ml]",
     "climatrix[optim]",
-    "climatrix[ok]",
+    "climatrix[ok]"
 ]
 
 [tool.setuptools]
@@ -73,6 +70,8 @@ version = {attr = "climatrix._version.__version__"}
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"*" = ["resources/*.ini", "resources/**/*.sh", "resources/**/*.toml"]
 
 [tool.isort]
 profile = "black"
