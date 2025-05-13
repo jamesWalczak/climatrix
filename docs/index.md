@@ -43,8 +43,8 @@ ______________________________________________________________________
 
 **Current Version:** `0.1a0` 🧪
 
-> [!CAUTION]\
-> This is an alpha release – features are still evolving, and breaking changes may occur.
+??? warning "Alpha release"
+This is an alpha release – features are still evolving, and breaking changes may occur.
 
 ______________________________________________________________________
 
