@@ -12,7 +12,7 @@ class ReconstructionType(Enum):
 
     IDW = IDWReconstructor
     OK = OrdinaryKrigingReconstructor
-    SiNET = SiNETReconstructor
+    SINET = SiNETReconstructor
     SIREN = SIRENReconstructor
 
     def __missing__(self, value):

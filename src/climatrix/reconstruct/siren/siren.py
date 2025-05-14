@@ -350,7 +350,6 @@ class SIRENReconstructor(BaseReconstructor):
         return z_array
 
     @raise_if_not_installed("torch")
-    @raise_if_not_installed("open3d")
     def reconstruct(self) -> BaseClimatrixDataset:
         """
         Train (if necessary) and use a SIREN model to reconstruct the field.
