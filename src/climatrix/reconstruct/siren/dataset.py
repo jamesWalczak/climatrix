@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Tuple
 
 import numpy as np
-import open3d as o3d
 import torch
+from sklearn.decomposition import PCA
+from sklearn.neighbors import NearestNeighbors
 from torch.utils.data import Dataset
 
 log = logging.getLogger(__name__)
@@ -41,8 +41,6 @@ class SIRENDataset(Dataset):
            ValueError: If the number of coordinates doesn't match
            the number of values
         """
-        print(values.shape)
-        print(coordinates.shape)
         if len(values.shape) == 1:
             values = values.reshape(-1, 1)
         if coordinates.shape[0] != values.shape[0]:
@@ -95,7 +93,7 @@ class SIRENDataset(Dataset):
 
     def _calculate_normals(self, points: np.ndarray) -> np.ndarray:
         """
-        Calculate surface normals from point cloud data using Open3D.
+        Calculate surface normals from point cloud data.
 
         Args:
             points: Numpy array of shape [N, 3] containing 3D points
@@ -103,11 +101,28 @@ class SIRENDataset(Dataset):
         Returns:
             Numpy array of shape [N, 3] containing the normal vectors
         """
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(points)
-        pcd.estimate_normals()
+        k_neighbors = min(30, points.shape[0] - 1)
 
-        return np.asarray(pcd.normals)
+        nnbrs = NearestNeighbors(
+            n_neighbors=k_neighbors + 1, algorithm="auto"
+        ).fit(points)
+        distances, indices = nnbrs.kneighbors(points)
+
+        normals = np.zeros_like(points)
+        for i in range(points.shape[0]):
+            neighbors = points[indices[i, 1:]]
+
+            neighbors = neighbors - np.mean(neighbors, axis=0)
+
+            pca = PCA(n_components=3)
+            pca.fit(neighbors)
+
+            normals[i] = pca.components_[2]
+
+        norms = np.linalg.norm(normals, axis=1, keepdims=True)
+        normals = normals / np.maximum(norms, 1e-10)
+
+        return normals
 
     def _normalize_coords(self, coords_3d: torch.Tensor) -> torch.Tensor:
         """

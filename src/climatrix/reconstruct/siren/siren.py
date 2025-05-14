@@ -44,7 +44,7 @@ class SIRENReconstructor(BaseReconstructor):
         omega_0: float = 30.0,
         omega_hidden: float = 30.0,
         lr: float = 1e-4,
-        num_epochs: int = 100,
+        num_epochs: int = 1000,
         num_workers: int = 0,
         device: str = "cuda",
         gradient_clipping_value: float | None = None,

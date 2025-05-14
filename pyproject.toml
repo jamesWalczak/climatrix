@@ -46,7 +46,6 @@ plot = [
 ml = [
     "torch", 
     "scikit-learn",
-    "open3d"
 ]
 optim = [
     "bayesian-optimization"
