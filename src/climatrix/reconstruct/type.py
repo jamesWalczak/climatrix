@@ -48,6 +48,11 @@ class ReconstructionType(Enum):
         """
         if isinstance(value, cls):
             return value
+        if not isinstance(value, str):
+            raise TypeError(
+                f"Invalid reconstruction type: {value!r}. "
+                "Expected a string or an instance of ReconstructionType."
+            )
         try:
             return cls[value.upper()]
         except KeyError:
