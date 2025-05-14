@@ -27,7 +27,6 @@ dependencies = [
     "rich",
     "setuptools",
     "scipy",
-    "open3d",
 ]
 
 [project.optional-dependencies]
@@ -46,7 +45,8 @@ plot = [
 ]
 ml = [
     "torch", 
-    "scikit-learn"
+    "scikit-learn",
+    "open3d"
 ]
 optim = [
     "bayesian-optimization"
