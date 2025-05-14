@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
@@ -44,7 +44,7 @@ class SIRENReconstructor(BaseReconstructor):
         omega_0: float = 30.0,
         omega_hidden: float = 30.0,
         lr: float = 1e-4,
-        num_epochs: int = 1000,
+        num_epochs: int = 100,
         num_workers: int = 0,
         device: str = "cuda",
         gradient_clipping_value: float | None = None,
@@ -71,13 +71,13 @@ class SIRENReconstructor(BaseReconstructor):
             checkpoint: Path to save/load model checkpoint from.
 
         Raises:
-            ValueError: If trying to use SIREN with a dynamic dataset.
+            NotImplementedError: If trying to use SIREN with a dynamic dataset.
         """
         super().__init__(dataset, target_domain)
 
         if dataset.domain.is_dynamic:
             log.error("SIREN is not yet supported for dynamic datasets.")
-            raise ValueError(
+            raise NotImplementedError(
                 "SIREN is not yet supported for dynamic datasets."
             )
 
@@ -99,7 +99,7 @@ class SIRENReconstructor(BaseReconstructor):
         self.checkpoint: Path | None = None
 
         input_coordinates_2d = dataset.domain.get_all_spatial_points()
-        input_values_z = dataset.da.values.squeeze()
+        input_values_z = dataset.da.values.flatten().squeeze()
 
         self.train_dataset = SIRENDataset(
             input_coordinates_2d,

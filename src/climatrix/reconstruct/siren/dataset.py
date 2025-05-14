@@ -25,7 +25,7 @@ class SIRENDataset(Dataset):
         self,
         coordinates: np.ndarray,
         values: np.ndarray,
-        on_surface_points: int = 1024,
+        on_surface_points: int,
     ) -> None:
         """
         Initialize the SIREN dataset with coordinates and corresponding values.
@@ -33,30 +33,35 @@ class SIRENDataset(Dataset):
         Args:
            coordinates: Numpy array of shape [N, 2]
            containing the coordinate points
-           values: Numpy array of shape [N] or [N, 1]
+           values: Numpy array of shape [N]
            containing the values at each coordinate
            on_surface_points: Number of on-surface points to sample per batch
 
         Raises:
-           ValueError: If the shape of values is not [N] or [N, 1] or if the
-           number of coordinates doesn't match the number of values
+           ValueError: If the number of coordinates doesn't match
+           the number of values
         """
+        print(values.shape)
+        print(coordinates.shape)
         if len(values.shape) == 1:
             values = values.reshape(-1, 1)
-        if values.shape[1] != 1:
-            raise ValueError(
-                f"Values must be shape [N] or [N, 1], got {values.shape}"
-            )
-
         if coordinates.shape[0] != values.shape[0]:
             raise ValueError(
                 f"Mismatch between coordinates ({coordinates.shape[0]})"
                 f" and values ({values.shape[0]}) count"
             )
 
-        points_3d = np.concatenate(
-            [coordinates, values], axis=1
-        )  # Shape [N, 3]
+        if coordinates.shape[0] < on_surface_points:
+            log.warning(
+                f"Only {coordinates.shape[0]} points available, "
+                f"but requested {on_surface_points} on-surface points. "
+                f"Reducing on_surface_points to match available data."
+            )
+            self.on_surface_points = coordinates.shape[0]
+        else:
+            self.on_surface_points = on_surface_points
+
+        points_3d = np.concatenate([coordinates, values], axis=1)
         log.info(
             f"Created 3D points from coordinates and values: {points_3d.shape}"
         )
@@ -81,11 +86,10 @@ class SIRENDataset(Dataset):
         self.points_3d = torch.tensor(self.points_3d, dtype=torch.float32)
         log.info("Normalized 3D on-surface points.")
 
-        self.on_surface_points = on_surface_points
         self.total_points = self.points_3d.shape[0]
 
         log.info(
-            f"Created dataset with {self.total_points}"
+            f"Created dataset with {self.on_surface_points}"
             f" total on-surface points"
         )
 

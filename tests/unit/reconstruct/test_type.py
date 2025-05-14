@@ -6,7 +6,8 @@ import pytest
 from climatrix.reconstruct.idw import IDWReconstructor
 from climatrix.reconstruct.kriging import OrdinaryKrigingReconstructor
 from climatrix.reconstruct.sinet.sinet import SiNETReconstructor
-from climatrix.reconstruct.type import ReconstructionType, SIRENReconstructor
+from climatrix.reconstruct.siren.siren import SIRENReconstructor
+from climatrix.reconstruct.type import ReconstructionType
 
 
 class TestReconstructionType:
