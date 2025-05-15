@@ -49,6 +49,8 @@ The library contains a few public classes:
       show_source: false
 
 
+## 🌍 Domain 
+
 ::: climatrix.dataset.domain.Domain
     handler: python
     options:
@@ -86,7 +88,9 @@ The library contains a few public classes:
         - to_xarray    
       scoped_crossrefs: true
       show_root_heading: true
-      show_source: false                  
+      show_source: false            
+
+## 🌐 Reconstructors
 
 ::: climatrix.reconstruct.idw.IDWReconstructor
     handler: python

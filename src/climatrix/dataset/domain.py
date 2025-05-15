@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import re
+import logging
 import warnings
 from abc import abstractmethod
 from enum import StrEnum
@@ -15,6 +15,8 @@ from climatrix.types import Latitude, Longitude
 
 _DEFAULT_LAT_RESOLUTION = 0.1
 _DEFAULT_LON_RESOLUTION = 0.1
+
+log = logging.getLogger(__name__)
 
 
 def validate_input(da: xr.Dataset | xr.DataArray):
@@ -489,17 +491,25 @@ class SparseDomain(Domain):
         time_nbr = self.get_size(Axis.TIME)
 
         if values.shape == (point_nbr, time_nbr):
-            pass
-        elif values.shape == (time_nbr, point_nbr):
-            values = values.T
-        elif values.shape == (point_nbr,) or values.shape == (1, point_nbr):
-            values = values.squeeze()
+            log.debug(
+                "Values shape matches expected shape (point, time) "
+                f"({point_nbr}, {time_nbr})"
+            )
         elif values.shape == (point_nbr * time_nbr,):
-            values = values.reshape(point_nbr, time_nbr)
+            log.debug(
+                "Values shape matches expected shape (point * time,) "
+                f"({point_nbr * time_nbr},)"
+            )
+            values = values.reshape((point_nbr, time_nbr))
         else:
+            log.error(
+                "Values shape does not match expected shape (point, time) "
+                f"({point_nbr}, {time_nbr})"
+            )
             raise ValueError(
                 f"Values shape {values.shape} does not match "
-                f"expected shape ({len(self.point)}, 1)"
+                "expected shape (point, time) "
+                f"({point_nbr}, {time_nbr})"
             )
         coords = {
             self.latitude_name: (
@@ -516,7 +526,7 @@ class SparseDomain(Domain):
             coords[self.time_name] = self.time
             dims = (self.point_name, self.time_name)
         dset = xr.DataArray(
-            values,
+            values.squeeze(),
             coords=coords,
             dims=dims,
             name=name,
@@ -686,26 +696,28 @@ class DenseDomain(Domain):
         lon_nbr = self.get_size(Axis.LONGITUDE)
         time_nbr = self.get_size(Axis.TIME)
         if values.shape == (lat_nbr, lon_nbr, time_nbr):
-            pass
-        elif values.shape == (lat_nbr, lon_nbr) and time_nbr == 1:
-            pass
-        elif values.shape == (lon_nbr, lat_nbr):
-            values = values.T
-        elif values.shape == (lat_nbr * lon_nbr, time_nbr):
-            values = values.reshape(
-                lat_nbr,
-                lon_nbr,
-                time_nbr,
+            log.debug(
+                "Values shape matches expected shape "
+                f"(latitude, longitude, time) ({lat_nbr}, {lon_nbr}, "
+                f"{time_nbr})"
             )
-        elif values.shape == (lat_nbr * lon_nbr,):
-            values = values.reshape(
-                lat_nbr,
-                lon_nbr,
+        elif values.shape == (lat_nbr * lon_nbr * time_nbr,):
+            log.debug(
+                "Values shape matches expected shape "
+                f"(latitude * longitude * time,) "
+                f"({lat_nbr * lon_nbr * time_nbr},)"
             )
+            values = values.reshape((lat_nbr, lon_nbr, time_nbr))
         else:
+            log.error(
+                "Values shape does not match expected shape "
+                f"(latitude, longitude, time) ({lat_nbr}, {lon_nbr}, "
+                f"{time_nbr})"
+            )
             raise ValueError(
                 f"Values shape {values.shape} does not match "
-                f"expected shape ({len(self.latitude)}, {len(self.longitude)})"
+                "expected shape (latitude, longitude, time) "
+                f"({lat_nbr}, {lon_nbr}, {time_nbr})"
             )
         coords = {
             self.latitude_name: self.latitude,
@@ -720,7 +732,7 @@ class DenseDomain(Domain):
             dims = (self.latitude_name, self.longitude_name, self.time_name)
 
         return xr.DataArray(
-            values,
+            values.squeeze(),
             coords=coords,
             dims=dims,
             name=name,

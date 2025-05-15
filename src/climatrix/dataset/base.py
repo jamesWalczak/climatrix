@@ -645,7 +645,17 @@ class BaseClimatrixDataset:
         -------
         Axes
             The axes object containing the plot.
+
+        Raises
+        ------
+        NotImplementedError
+            If the dataset is dynamic (contains time dimension
+            with more than one value).
         """
+        if self.domain.is_dynamic:
+            raise NotImplementedError(
+                "Plotting is not yet supported for dynamic datasets."
+            )
         figsize = kwargs.pop("figsize", (12, 6))
         vmin = kwargs.pop("vmin", None)
         vmax = kwargs.pop("vmax", None)
