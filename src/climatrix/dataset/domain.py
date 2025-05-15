@@ -495,6 +495,12 @@ class SparseDomain(Domain):
                 "Values shape matches expected shape (point, time) "
                 f"({point_nbr}, {time_nbr})"
             )
+        elif values.shape == (point_nbr,):
+            log.debug(
+                "Values shape matches expected shape (point,) "
+                f"({point_nbr},)"
+            )
+            values = values.reshape((point_nbr, 1))
         elif values.shape == (point_nbr * time_nbr,):
             log.debug(
                 "Values shape matches expected shape (point * time,) "
@@ -701,6 +707,12 @@ class DenseDomain(Domain):
                 f"(latitude, longitude, time) ({lat_nbr}, {lon_nbr}, "
                 f"{time_nbr})"
             )
+        elif values.shape == (lat_nbr, lon_nbr):
+            log.debug(
+                "Values shape matches expected shape "
+                f"(latitude, longitude) ({lat_nbr}, {lon_nbr})"
+            )
+            values = values.reshape((lat_nbr, lon_nbr, 1))
         elif values.shape == (lat_nbr * lon_nbr * time_nbr,):
             log.debug(
                 "Values shape matches expected shape "
