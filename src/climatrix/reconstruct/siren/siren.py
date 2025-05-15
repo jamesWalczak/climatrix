@@ -30,6 +30,48 @@ log = logging.getLogger(__name__)
 class SIRENReconstructor(BaseReconstructor):
     """
     A reconstructor that uses SIREN to reconstruct fields.
+
+    Parameters
+    ----------
+    dataset : BaseClimatrixDataset
+        Source dataset to reconstruct from.
+    target_domain : Domain
+        Target domain to reconstruct onto.
+    on_surface_points : int, default=1024
+        Number of points to sample on the surface for training.
+    hidden_features : int, default=256
+        Number of features in each hidden layer.
+    hidden_layers : int, default=4
+        Number of hidden layers in the SIREN model.
+    omega_0 : float, default=30.0
+        Frequency multiplier for the first layer.
+    omega_hidden : float, default=30.0
+        Frequency multiplier for hidden layers.
+    lr : float, default=1e-4
+        Learning rate for the optimizer.
+    num_epochs : int, default=1000
+        Number of epochs to train for.
+    num_workers : int, default=0
+        Number of worker processes for the dataloader.
+    device : str, default="cuda"
+        Device to run the model on ("cuda" or "cpu").
+    gradient_clipping_value : float or None, default=None
+        Value for gradient clipping (None to disable).
+    checkpoint : str or os.PathLike or Path or None, default=None
+        Path to save/load model checkpoint from.
+    sdf_loss_weight : float, default=3000.0
+        Weight for the SDF constraint loss.
+    inter_loss_weight : float, default=100.0
+        Weight for the interpolation consistency loss.
+    normal_loss_weight : float, default=100.0
+        Weight for the surface normal loss.
+    grad_loss_weight : float, default=50.0
+        Weight for the gradient regularization loss.
+
+    Raises
+    ------
+    NotImplementedError
+        If trying to use SIREN with a dynamic dataset.
     """
 
     @log_input(log, level=logging.DEBUG)
@@ -54,52 +96,6 @@ class SIRENReconstructor(BaseReconstructor):
         normal_loss_weight: float = 1e2,
         grad_loss_weight: float = 5e1,
     ) -> None:
-        """
-        Initialize the SIREN reconstructor.
-
-        Parameters
-        ----------
-        dataset : BaseClimatrixDataset
-            Source dataset to reconstruct from.
-        target_domain : Domain
-            Target domain to reconstruct onto.
-        on_surface_points : int, default=1024
-            Number of points to sample on the surface for training.
-        hidden_features : int, default=256
-            Number of features in each hidden layer.
-        hidden_layers : int, default=4
-            Number of hidden layers in the SIREN model.
-        omega_0 : float, default=30.0
-            Frequency multiplier for the first layer.
-        omega_hidden : float, default=30.0
-            Frequency multiplier for hidden layers.
-        lr : float, default=1e-4
-            Learning rate for the optimizer.
-        num_epochs : int, default=1000
-            Number of epochs to train for.
-        num_workers : int, default=0
-            Number of worker processes for the dataloader.
-        device : str, default="cuda"
-            Device to run the model on ("cuda" or "cpu").
-        gradient_clipping_value : float or None, default=None
-            Value for gradient clipping (None to disable).
-        checkpoint : str or os.PathLike or Path or None, default=None
-            Path to save/load model checkpoint from.
-        sdf_loss_weight : float, default=3000.0
-            Weight for the SDF constraint loss.
-        inter_loss_weight : float, default=100.0
-            Weight for the interpolation consistency loss.
-        normal_loss_weight : float, default=100.0
-            Weight for the surface normal loss.
-        grad_loss_weight : float, default=50.0
-            Weight for the gradient regularization loss.
-
-        Raises
-        ------
-        NotImplementedError
-            If trying to use SIREN with a dynamic dataset.
-        """
-
         super().__init__(dataset, target_domain)
 
         if dataset.domain.is_dynamic:

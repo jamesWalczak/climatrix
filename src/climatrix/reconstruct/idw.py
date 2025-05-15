@@ -29,12 +29,10 @@ class IDWReconstructor(BaseReconstructor):
 
     Parameters
     ----------
-    dataset : SparseDataset
-        The input dataset.
-    lat : slice or np.ndarray, optional
-        The latitude range (default is slice(-90, 90, 0.1)).
-    lon : slice or np.ndarray, optional
-        The longitude range (default is slice(-180, 180, 0.1)).
+    dataset : BaseClimatrixDataset
+        The input dataset to reconstruct.
+    target_domain : Domain
+        The target domain for reconstruction.
     power : int, optional
         The power to raise the distance to (default is 2).
     k : int, optional
@@ -42,6 +40,14 @@ class IDWReconstructor(BaseReconstructor):
     k_min : int, optional
         The minimum number of nearest neighbors to consider (if k < k_min)
         NaN values will be put (default is 2).
+
+    Raises
+    ------
+    NotImplementedError
+        If the input dataset is dynamic, as IDW reconstruction is not yet
+        supported for dynamic datasets.
+    ValueError
+        If k_min is greater than k or if k is less than 1.
     """
 
     @log_input(log, level=logging.DEBUG)

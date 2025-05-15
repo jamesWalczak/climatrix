@@ -1,10 +1,14 @@
-__all__ = [
-    "IDWReconstructor",
-    "OrdinaryKrigingReconstructor",
-    "SiNETReconstructor",
-]
-from .idw import IDWReconstructor as IDWReconstructor
-from .kriging import (
-    OrdinaryKrigingReconstructor as OrdinaryKrigingReconstructor,
-)
-from .sinet import SiNETReconstructor as SiNETReconstructor
+try:
+    from .idw import IDWReconstructor as IDWReconstructor
+except ImportError:
+    pass
+try:
+    from .kriging import (
+        OrdinaryKrigingReconstructor as OrdinaryKrigingReconstructor,
+    )
+except ImportError:
+    pass
+try:
+    from .sinet import SiNETReconstructor as SiNETReconstructor
+except ImportError:
+    pass

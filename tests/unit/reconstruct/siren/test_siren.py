@@ -1,7 +1,15 @@
 import pytest
-import torch
 
-from climatrix.reconstruct.siren.siren import SIRENReconstructor
+try:
+    import torch
+
+    from climatrix.reconstruct.siren.siren import SIRENReconstructor
+except ImportError:
+    pytest.skip(
+        "SIRENReconstructor is not available. "
+        "Please install the required dependencies.",
+        allow_module_level=True,
+    )
 from tests.unit.utils import skip_on_error
 
 from ..test_base_interface import TestBaseReconstructor, parametrize_all

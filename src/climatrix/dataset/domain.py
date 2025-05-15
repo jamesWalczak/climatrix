@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import re
+import logging
 import warnings
 from abc import abstractmethod
 from enum import StrEnum
@@ -16,19 +16,7 @@ from climatrix.types import Latitude, Longitude
 _DEFAULT_LAT_RESOLUTION = 0.1
 _DEFAULT_LON_RESOLUTION = 0.1
 
-# Based on MetPy
-# (https://github.com/Unidata/MetPy/blob/main/src/metpy/xarray.py)
-_coords_name_regex: dict[Axis, str] = {
-    Axis.TIME: re.compile(r"^(x?)(valid_)?time(s?)([0-9]*)$"),
-    Axis.VERTICAL: re.compile(
-        r"^(z|lv_|bottom_top|sigma|h(ei)?ght|altitude|depth|"
-        r"isobaric|pres|isotherm)"
-        r"[a-z_]*[0-9]*$"
-    ),
-    Axis.LATITUDE: re.compile(r"^(x?)lat[a-z0-9_]*$"),
-    Axis.LONGITUDE: re.compile(r"^(x?)lon[a-z0-9_]*$"),
-    Axis.POINT: re.compile(r"^(point.*|values|nstation.*)$"),
-}
+log = logging.getLogger(__name__)
 
 
 def validate_input(da: xr.Dataset | xr.DataArray):
@@ -58,8 +46,8 @@ def match_axis_names(da: xr.DataArray) -> dict[Axis, str]:
     axis_names = {}
     coords_and_dims = {*da.dims, *da.coords.keys()}
     for coord in coords_and_dims:
-        for axis, regex in _coords_name_regex.items():
-            if regex.match(coord):
+        for axis in Axis:
+            if axis.regex.match(coord):
                 axis_names[axis] = coord
                 break
     return axis_names
@@ -104,6 +92,18 @@ class SamplingNaNPolicy(StrEnum):
 
 
 class Domain:
+    """
+    Base class for domain objects.
+
+    Attributes
+    ----------
+    is_sparse : ClassVar[bool]
+        Indicates if the domain is sparse or dense.
+    coords : dict[str, np.ndarray]
+        Dictionary of coordinates for the domain.
+    _axis_mapping : dict[Axis, str]
+        Mapping of axis names to their corresponding coordinates.
+    """
 
     __slots__ = ("coords", "_axis_mapping")
     is_sparse: ClassVar[bool]
@@ -139,6 +139,27 @@ class Domain:
         lon: slice | np.ndarray = slice(-180, 180, _DEFAULT_LON_RESOLUTION),
         kind: Literal["sparse", "dense"] = "dense",
     ) -> Self:
+        """
+        Create a domain from latitude and longitude coordinates.
+
+        Parameters
+        ----------
+        lat : slice or np.ndarray
+            Latitude coordinates. If a slice is provided, it will be
+            converted to a numpy array using the specified step.
+        lon : slice or np.ndarray
+            Longitude coordinates. If a slice is provided, it will be
+            converted to a numpy array using the specified step.
+        kind : str
+            Type of domain to create. Can be either "dense" or "sparse".
+            Default is "dense".
+
+        Returns
+        -------
+        Domain
+            An instance of the Domain class with the specified latitude
+            and longitude coordinates.
+        """
         if isinstance(lat, slice):
             lat = np.arange(
                 lat.start,
@@ -168,22 +189,27 @@ class Domain:
 
     @property
     def latitude_name(self) -> str:
+        """Latitude axis name"""
         return self._axis_mapping[Axis.LATITUDE]
 
     @property
     def longitude_name(self) -> str:
+        """Longitude axis name"""
         return self._axis_mapping[Axis.LONGITUDE]
 
     @property
     def point_name(self) -> str | None:
+        """Point axis name"""
         return self._axis_mapping.get(Axis.POINT)
 
     @property
     def time_name(self) -> str | None:
+        """Time axis name"""
         return self._axis_mapping.get(Axis.TIME)
 
     @property
     def latitude(self) -> np.ndarray:
+        """Latitude coordinates values"""
         if Axis.LATITUDE not in self.coords:
             raise ValueError(
                 f"Latitude not found in coordinates {self.coords.keys()}"
@@ -192,6 +218,7 @@ class Domain:
 
     @property
     def longitude(self) -> np.ndarray:
+        """Longitude coordinates values"""
         if Axis.LONGITUDE not in self.coords:
             raise ValueError(
                 f"Longitude not found in coordinates {self.coords.keys()}"
@@ -200,6 +227,7 @@ class Domain:
 
     @property
     def time(self) -> np.ndarray:
+        """Time coordinates values"""
         if Axis.TIME not in self.coords:
             raise ValueError(
                 f"Time not found in coordinates {self.coords.keys()}"
@@ -208,21 +236,35 @@ class Domain:
 
     @property
     def point(self) -> np.ndarray:
+        """Point coordinates values"""
         if Axis.POINT not in self.coords:
             raise ValueError(
                 f"Point not found in coordinates {self.coords.keys()}"
             )
         return self.coords[Axis.POINT]
 
-    def get_size(self, axis: Axis) -> int:
-        if not isinstance(axis, Axis):
-            raise TypeError(f"Axis {axis} is not an instance of Axis")
+    def get_size(self, axis: Axis | str) -> int:
+        """
+        Get the size of the specified axis.
+
+        Parameters
+        ----------
+        axis : Axis
+            The axis for which to get the size.
+
+        Returns
+        -------
+        int
+            The size of the specified axis.
+        """
+        axis = Axis.get(axis)
         if axis not in self.coords:
             return 1
         return self.coords[axis].size
 
     @property
     def size(self) -> int:
+        """Domain size."""
         if Axis.POINT in self.coords:
             lat_lon = self.get_size(Axis.POINT)
         else:
@@ -235,6 +277,7 @@ class Domain:
 
     @property
     def is_dynamic(self) -> bool:
+        """If the domain is dynamic."""
         return self.time_name and self.get_size(Axis.TIME) > 1
 
     def __eq__(self, value: Any) -> bool:
@@ -278,6 +321,15 @@ class Domain:
 
     @abstractmethod
     def get_all_spatial_points(self) -> np.ndarray:
+        """
+        Get all spatial points in the domain.
+
+        Returns
+        -------
+        np.ndarray
+            An array of shape (n_points, 2) containing the latitude and
+            longitude coordinates of all points in the domain.
+        """
         raise NotImplementedError
 
     def _get_sampling_points_nbr(
@@ -307,6 +359,12 @@ class Domain:
 
 
 class SparseDomain(Domain):
+    """
+    Sparse domain class.
+
+    Supports operations on sparse spatial domain.
+    """
+
     is_sparse: ClassVar[bool] = True
 
     def get_all_spatial_points(self) -> np.ndarray:
@@ -396,21 +454,68 @@ class SparseDomain(Domain):
     def to_xarray(
         self, values: np.ndarray, name: str | None = None
     ) -> xr.DataArray:
+        """
+        Convert domain to sparse xarray.DataArray.
+
+        The method applies `values` and (optionally) `name` to
+        create a new xarray.DataArray object based on the domain.
+
+        Parameters
+        ----------
+        values : np.ndarray
+            The values to be assigned to the DataArray variable.
+        name : str, optional
+            The name of the DataArray variable.
+
+        Returns
+        -------
+        xr.DataArray
+            The xarray.DataArray single variable object.
+
+        Raises
+        ------
+        ValueError
+            If the shape of `values` does not match the expected shape.
+
+        Examples
+        --------
+        >>> domain = Domain.from_lat_lon()
+        >>> values = np.random.rand(5, 5)
+        >>> da = domain.to_xarray(values, name="example")
+        >>> isinstance(da, xr.DataArray)
+        True
+        >>> da.name
+        'example'
+        """
         point_nbr = self.get_size(Axis.POINT)
         time_nbr = self.get_size(Axis.TIME)
 
         if values.shape == (point_nbr, time_nbr):
-            pass
-        elif values.shape == (time_nbr, point_nbr):
-            values = values.T
-        elif values.shape == (point_nbr,) or values.shape == (1, point_nbr):
-            values = values.squeeze()
+            log.debug(
+                "Values shape matches expected shape (point, time) "
+                f"({point_nbr}, {time_nbr})"
+            )
+        elif values.shape == (point_nbr,):
+            log.debug(
+                "Values shape matches expected shape (point,) "
+                f"({point_nbr},)"
+            )
+            values = values.reshape((point_nbr, 1))
         elif values.shape == (point_nbr * time_nbr,):
-            values = values.reshape(point_nbr, time_nbr)
+            log.debug(
+                "Values shape matches expected shape (point * time,) "
+                f"({point_nbr * time_nbr},)"
+            )
+            values = values.reshape((point_nbr, time_nbr))
         else:
+            log.error(
+                "Values shape does not match expected shape (point, time) "
+                f"({point_nbr}, {time_nbr})"
+            )
             raise ValueError(
                 f"Values shape {values.shape} does not match "
-                f"expected shape ({len(self.point)}, 1)"
+                "expected shape (point, time) "
+                f"({point_nbr}, {time_nbr})"
             )
         coords = {
             self.latitude_name: (
@@ -427,7 +532,7 @@ class SparseDomain(Domain):
             coords[self.time_name] = self.time
             dims = (self.point_name, self.time_name)
         dset = xr.DataArray(
-            values,
+            values.squeeze(),
             coords=coords,
             dims=dims,
             name=name,
@@ -436,6 +541,12 @@ class SparseDomain(Domain):
 
 
 class DenseDomain(Domain):
+    """
+    Dense domain class.
+
+    Supports operations on dense spatial domain.
+    """
+
     is_sparse: ClassVar[bool] = False
 
     def get_all_spatial_points(self) -> np.ndarray:
@@ -554,30 +665,71 @@ class DenseDomain(Domain):
     def to_xarray(
         self, values: np.ndarray, name: str | None = None
     ) -> xr.DataArray:
+        """
+        Convert domain to dense xarray.DataArray.
+
+        The method applies `values` and (optionally) `name` to
+        create a new xarray.DataArray object based on the domain.
+
+        Parameters
+        ----------
+        values : np.ndarray
+            The values to be assigned to the DataArray variable.
+        name : str, optional
+            The name of the DataArray variable.
+
+        Returns
+        -------
+        xr.DataArray
+            The xarray.DataArray single variable object.
+
+        Raises
+        ------
+        ValueError
+            If the shape of `values` does not match the expected shape.
+
+        Examples
+        --------
+        >>> domain = Domain.from_lat_lon()
+        >>> values = np.random.rand(5, 5)
+        >>> da = domain.to_xarray(values, name="example")
+        >>> isinstance(da, xr.DataArray)
+        True
+        >>> da.name
+        'example'
+        """
         lat_nbr = self.get_size(Axis.LATITUDE)
         lon_nbr = self.get_size(Axis.LONGITUDE)
         time_nbr = self.get_size(Axis.TIME)
         if values.shape == (lat_nbr, lon_nbr, time_nbr):
-            pass
-        elif values.shape == (lat_nbr, lon_nbr) and time_nbr == 1:
-            pass
-        elif values.shape == (lon_nbr, lat_nbr):
-            values = values.T
-        elif values.shape == (lat_nbr * lon_nbr, time_nbr):
-            values = values.reshape(
-                lat_nbr,
-                lon_nbr,
-                time_nbr,
+            log.debug(
+                "Values shape matches expected shape "
+                f"(latitude, longitude, time) ({lat_nbr}, {lon_nbr}, "
+                f"{time_nbr})"
             )
-        elif values.shape == (lat_nbr * lon_nbr,):
-            values = values.reshape(
-                lat_nbr,
-                lon_nbr,
+        elif values.shape == (lat_nbr, lon_nbr):
+            log.debug(
+                "Values shape matches expected shape "
+                f"(latitude, longitude) ({lat_nbr}, {lon_nbr})"
             )
+            values = values.reshape((lat_nbr, lon_nbr, 1))
+        elif values.shape == (lat_nbr * lon_nbr * time_nbr,):
+            log.debug(
+                "Values shape matches expected shape "
+                f"(latitude * longitude * time,) "
+                f"({lat_nbr * lon_nbr * time_nbr},)"
+            )
+            values = values.reshape((lat_nbr, lon_nbr, time_nbr))
         else:
+            log.error(
+                "Values shape does not match expected shape "
+                f"(latitude, longitude, time) ({lat_nbr}, {lon_nbr}, "
+                f"{time_nbr})"
+            )
             raise ValueError(
                 f"Values shape {values.shape} does not match "
-                f"expected shape ({len(self.latitude)}, {len(self.longitude)})"
+                "expected shape (latitude, longitude, time) "
+                f"({lat_nbr}, {lon_nbr}, {time_nbr})"
             )
         coords = {
             self.latitude_name: self.latitude,
@@ -592,7 +744,7 @@ class DenseDomain(Domain):
             dims = (self.latitude_name, self.longitude_name, self.time_name)
 
         return xr.DataArray(
-            values,
+            values.squeeze(),
             coords=coords,
             dims=dims,
             name=name,

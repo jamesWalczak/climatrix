@@ -4,18 +4,39 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from climatrix.reconstruct.idw import IDWReconstructor
-from climatrix.reconstruct.kriging import OrdinaryKrigingReconstructor
-from climatrix.reconstruct.sinet.sinet import SiNETReconstructor
-from climatrix.reconstruct.siren.siren import SIRENReconstructor
 from climatrix.reconstruct.type import ReconstructionType
 
 
 class TestReconstructionType:
 
-    def test_enum_values(self):
+    def test_enum_idw_value(self):
         assert ReconstructionType.IDW.value == IDWReconstructor
+
+    @pytest.mark.skipif(
+        not hasattr(ReconstructionType, "OK"),
+        reason="OrdinaryKrigingReconstructor is not available",
+    )
+    def test_enum_ok_value(self):
+        from climatrix.reconstruct.kriging import OrdinaryKrigingReconstructor
+
         assert ReconstructionType.OK.value == OrdinaryKrigingReconstructor
+
+    @pytest.mark.skipif(
+        not hasattr(ReconstructionType, "SINET"),
+        reason="SiNETReconstructor is not available",
+    )
+    def test_enum_sinet_value(self):
+        from climatrix.reconstruct.sinet.sinet import SiNETReconstructor
+
         assert ReconstructionType.SINET.value == SiNETReconstructor
+
+    @pytest.mark.skipif(
+        not hasattr(ReconstructionType, "SIREN"),
+        reason="SIRENReconstructor is not available",
+    )
+    def test_enum_siren_value(self):
+        from climatrix.reconstruct.siren.siren import SIRENReconstructor
+
         assert ReconstructionType.SIREN.value == SIRENReconstructor
 
     def test_missing_method(self):
@@ -61,14 +82,17 @@ class TestReconstructionType:
             assert ReconstructionType.get(rt.name) == rt
 
     def test_enum_lifecycle(self):
-        rt = ReconstructionType.get("OK")
-        assert rt == ReconstructionType.OK
+        rt = ReconstructionType.get("idw")
+        assert rt == ReconstructionType.IDW
 
         reconstructor_class = rt.value
-        assert reconstructor_class == OrdinaryKrigingReconstructor
+        assert reconstructor_class == IDWReconstructor
 
-        with patch.object(
-            OrdinaryKrigingReconstructor, "__init__", return_value=None
-        ):
+        with patch.object(IDWReconstructor, "__init__", return_value=None):
             instance = reconstructor_class()
-            assert isinstance(instance, OrdinaryKrigingReconstructor)
+            assert isinstance(instance, IDWReconstructor)
+
+    def test_list_method(self):
+        available_types = ReconstructionType.list()
+        assert isinstance(available_types, list)
+        "IDW" in available_types

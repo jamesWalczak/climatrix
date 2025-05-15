@@ -41,6 +41,16 @@ dev = [
     "autoflake",
     "pytest"
 ]
+docs = [
+    "mkdocs",
+    "mkdocs-material",
+    "mike",
+    "mkdocs-awesome-pages-plugin",
+    "mkdocs-git-revision-date-localized-plugin",
+    "mkdocs-glightbox",
+    "pymdown-extensions",   
+    "mkdocstrings[python]"
+]
 plot = [
     "hvplot",
     "panel",

@@ -35,6 +35,31 @@ def drop_scalar_coords_and_dims(da: xr.DataArray) -> xr.DataArray:
 
 @xr.register_dataset_accessor("cm")
 class BaseClimatrixDataset:
+    """
+    Base class for Climatrix workflows.
+
+    This class provides a set of methods for manipulating
+    xarray datasets. It is designed to be used as an
+    xarray accessor, allowing you to call its methods
+    directly on xarray datasets.
+
+    The class supports basic arithmetic operations, including:
+    addition, subtraction, multiplication, and division.
+
+    Attributes
+    ----------
+    da : xarray.DataArray
+        The underlying `xarray.DataArray` object (if
+        single-variable `xarray.Dataset` was passed, it is squeezed
+        to `xarray.DataArray`).
+    domain : Domain
+        The domain object representing the spatial
+        and temporal dimensions of the dataset.
+        See [`SparseDomain`][climatrix.dataset.domain.SparseDomain] and
+        [`DenseDomain`][climatrix.dataset.domain.DenseDomain]
+        for more details.
+    """
+
     __slots__ = (
         "da",
         "domain",
@@ -75,8 +100,38 @@ class BaseClimatrixDataset:
 
         The longitude values are converted to be in
         the range (-180 to 180 degrees).
+
+        Examples
+        --------
+        >>> import climatrix as cm
+        >>> dset = xr.open_dataset("path/to/dataset.nc").cm
+        >>> dset.da
+        <xarray.DataArray 'temperature' (time: 1, latitude: 180, longitude: 360)>
+        ...
+        Dimensions:  (time: 1, latitude: 180, longitude: 360)
+        Coordinates:
+          * time     (time) datetime64[ns] 2020-01-01
+          * latitude (latitude) float64 -90.0 -89.0 -88.0 ... 88.0 89.0
+          * longitude (longitude) float64 0.0 1.0 2.0 ... 357.0 358.0 359.0
+        Data variables:
+            temperature (time, latitude, longitude) float64 ...
+        >>> dset2 = cm.to_signed_longitude()
+        >>> dset2.da
+        <xarray.DataArray 'temperature' (time: 1, latitude: 180, longitude: 360)>
+        ...
+        Dimensions:  (time: 1, latitude: 180, longitude: 360)
+        Coordinates:
+          * time     (time) datetime64[ns] 2020-01-01
+          * latitude (latitude) float64 -90.0 -89.0 -88.0 ... 88.0 89.0
+          * longitude (longitude) float64 -180.0 -179.0 -178.0 ... 177.0 178.0 179.0
+
+        References
+        ----------
+        [1] Mancini, M., Walczak, J. Stojiljkovic, M., geokube: A Python
+           library for geospatial data processing, 2024,
+           [https://doi.org/10.5281/zenodo.10597965](https://doi.org/10.5281/zenodo.10597965)
+           [https://github.com/CMCC-Foundation/geokube](https://github.com/CMCC-Foundation/geokube)
         """
-        # Code derived from https://github.com/CMCC-Foundation/geokube
         roll_value = (self.da[self.domain.longitude_name] >= 180).sum().item()
         res = self.da.assign_coords(
             {
@@ -96,8 +151,42 @@ class BaseClimatrixDataset:
 
         The longitude values are converted to be in
         the range (0 to 360 degrees).
+
+        Examples
+        --------
+        >>> import climatrix as cm
+        >>> dset = xr.open_dataset("path/to/dataset.nc").cm
+        >>> dset.da
+        <xarray.DataArray 'temperature' (time: 1, latitude: 180,
+        longitude: 360)>
+        ...
+        Dimensions:  (time: 1, latitude: 180, longitude: 360)
+        Coordinates:
+          * time     (time) datetime64[ns] 2020-01-01
+          * latitude (latitude) float64 -90.0 -89.0 -88.0 ... 88.0 89.0
+          * longitude (longitude) float64 -180.0 ... 178.0 179.0
+        Data variables:
+            temperature (time, latitude, longitude) float64 ...
+        >>> dset2 = dset.to_positive_longitude()
+        >>> dset2.da
+        <xarray.DataArray 'temperature' (time: 1, latitude: 180,
+          longitude: 360)>
+        ...
+        Dimensions:  (time: 1, latitude: 180, longitude: 360)
+        Coordinates:
+          * time     (time) datetime64[ns] 2020-01-01
+          * latitude (latitude) float64 -90.0 -89.0 -88.0 ... 88.0 89.0
+          * longitude (longitude) float64 0.0 1.0 ... 357.0 358.0 359.0
+        Data variables:
+            temperature (time, latitude, longitude) float64 ...
+
+        References
+        ----------
+        [1] Mancini, M., Walczak, J. Stojiljkovic, M., geokube: A Python
+           library for geospatial data processing, 2024,
+           [https://doi.org/10.5281/zenodo.10597965](https://doi.org/10.5281/zenodo.10597965)
+           [https://github.com/CMCC-Foundation/geokube](https://github.com/CMCC-Foundation/geokube)
         """
-        # Code derived from https://github.com/CMCC-Foundation/geokube
         roll_value = (self.da[self.domain.longitude_name] <= 0).sum().item()
         res = (
             self.da.assign_coords(
@@ -128,8 +217,22 @@ class BaseClimatrixDataset:
 
         Returns
         -------
-        DenseDataset
+        BaseClimatrixDataset
             A new dataset with NaN values applied.
+
+        Raises
+        ------
+        TypeError
+            If the `source` argument is not a BaseClimatrixDataset.
+        ValueError
+            If the domain of the `source` or the current dataset is sparse.
+
+        Examples
+        --------
+        >>> import climatrix as cm
+        >>> dset1 = xr.open_dataset("path/to/dataset1.nc").cm
+        >>> dset2 = xr.open_dataset("path/to/dataset2.nc").cm
+        >>> dset1.mask_nan(dset2)
         """
         if not isinstance(source, BaseClimatrixDataset):
             raise TypeError("Argument `source` must be a BaseClimatrixDataset")
@@ -151,7 +254,7 @@ class BaseClimatrixDataset:
         west: float | None = None,
         east: float | None = None,
     ) -> Self:
-        """
+        r"""
         Subset data with the specified bounding box.
 
         If an argument is not provided, it means no bounds set
@@ -175,6 +278,43 @@ class BaseClimatrixDataset:
         -------
         Self
             The subsetted dataset.
+
+        Raises
+        ------
+        LongitudeConventionMismatch
+            - If the dataset is in positive-only convention (longitude $\lambda \in [0, 360]$) and
+            negative values are requested, or vice versa.
+            - If the dataset is in signed-longitude convention (longitude $\lambda \in [-180, 180]$) and
+            positive values greater than 360 are requested.
+
+        Examples
+        --------
+        >>> import climatrix as cm
+        >>> globe_dset = xr.open_dataset("path/to/dataset.nc")
+        >>> globe_dset
+        <xarray.Dataset>
+        Dimensions:  (time: 1, latitude: 180, longitude: 360)
+        Coordinates:
+          * time     (time) datetime64[ns] 2020-01-01
+          * latitude (latitude) float64 -90.0 -89.0 -88.0 ... 88.0 89.0
+          * longitude (longitude) float64 0.0 1.0 2.0 ... 357.0 358.0 359.0
+        Data variables:
+            temperature (time, latitude, longitude) float64 ...
+        >>> dset2 = globe_dset.cm.subset(
+        ...     north=10.0,
+        ...     south=5.0,
+        ...     west=20.0,
+        ...     east=25.0,
+        ... )
+        >>> dset2 = globe_dset.cm.subset(
+        ...     north=10.0,
+        ...     south=5.0,
+        ...     west=-50.0,
+        ...     east=25.0,
+        ... )
+        LongitudeConventionMismatch: The dataset is in positive-only convention
+        (longitude goes from 0 to 360) while you are
+        requesting negative values (longitude goes from -180 to 180).
         """
         idx, start, stop = self.domain._compute_subset_indexers(
             north=north,
@@ -227,6 +367,26 @@ class BaseClimatrixDataset:
         -------
         Self
             The dataset with the selected time or times.
+
+        Examples
+        --------
+        >>> import climatrix as cm
+        >>> dset = xr.open_dataset("path/to/dataset.nc")
+
+        Selecting by `datetime` object:
+        >>> dset.cm.time(datetime(2020, 1, 1))
+
+        Selecting by `np.datetime64` object:
+        >>> dset.cm.time(np.datetime64("2020-01-01"))
+
+        Selecting by `str` object:
+        >>> dset.cm.time(slice("2020-01-01"))
+
+        Selecting by `list` of any of the above:
+        >>> dset.cm.time([datetime(2020, 1, 1), np.datetime64("2020-01-02")])
+
+        Selecting by `slice` object:
+        >>> dset.cm.time(slice(datetime(2020, 1, 1), datetime(2020, 1, 2)))
         """
         return type(self)(
             self.da.sel({self.domain.time_name: time}, method="nearest")
@@ -245,6 +405,20 @@ class BaseClimatrixDataset:
         -------
         Self
             The dataset with the selected time or times.
+
+        Examples
+        --------
+        >>> import climatrix as cm
+        >>> dset = xr.open_dataset("path/to/dataset.nc")
+
+        Selecting by `int` object:
+        >>> dset.cm.itime(0)
+
+        Selecting by `list` of `int`s:
+        >>> dset.cm.itime([0, 1])
+
+        Selecting by `slice` object:
+        >>> dset.cm.itime(slice(0, 2))
         """
         if self.domain.is_dynamic:
             return type(self)(self.da.isel({self.domain.time_name: time}))
@@ -270,6 +444,29 @@ class BaseClimatrixDataset:
             Number of points to be sampled.
         nan : SamplingNaNPolicy | str, optional
             Policy for handling NaN values.
+
+        Notes
+        -----
+        At least one of `portion` or `number` must be provided.
+        Cannot be provided both at the same time.
+
+        Warns
+        -----
+        TooLargeSamplePortionWarning
+            If the portion exceeds 1.0 or number of points exceeds
+            the number of spatial points in the Domain
+
+        Raises
+        ------
+        ValueError
+            If the dataset contains NaN values and `nan` parameter
+             (NaN handling policy) is set to `SamplingNaNPolicy.RAISE`.
+
+        Examples
+        --------
+        >>> import climatrix as cm
+        >>> dset = xr.open_dataset("path/to/dataset.nc")
+        >>> sparse_dset = dset.cm.sample_uniform(portion=0.1)
         """
         nan = SamplingNaNPolicy.get(nan)
         if nan in (SamplingNaNPolicy.RAISE, SamplingNaNPolicy.IGNORE):
@@ -308,6 +505,33 @@ class BaseClimatrixDataset:
             Standard deviation for the normal distribution.
         nan : SamplingNaNPolicy | str, optional
             Policy for handling NaN values.
+
+        Notes
+        -----
+        At least one of `portion` or `number` must be provided.
+        Cannot be provided both at the same time.
+
+        Warns
+        -----
+        TooLargeSamplePortionWarning
+            If the portion exceeds 1.0 or number of points exceeds
+            the number of spatial points in the Domain
+
+        Raises
+        ------
+        ValueError
+            If the dataset contains NaN values and `nan` parameter
+             (NaN handling policy) is set to `SamplingNaNPolicy.RAISE`.
+
+        Examples
+        --------
+        >>> import climatrix as cm
+        >>> dset = xr.open_dataset("path/to/dataset.nc")
+        >>> sparse_dset = dset.cm.sample_normal(
+        ...     number=1_000,
+        ...     center_point=(10.0, 20.0),
+        ...     sigma=5.0,
+        ... )
         """
         nan = SamplingNaNPolicy.get(nan)
         idx = self.domain._compute_sample_normal_indexers(
@@ -337,9 +561,11 @@ class BaseClimatrixDataset:
         If target domain is sparse, the reconstruction will be sparse
         too. If target domain is dense, the reconstruction will be dense
         too. The reconstruction will be done using the method specified
-        in the `method` argument. The method can be one of the following:
-        - 'idw': Nearest neighbor interpolation
-        - 'ok': ordinary kriging interpolation
+        in the `method` argument.
+
+        The method can be one of the following:
+            Inverse Distance Weightining (`idw`),
+            Ordinary Kriging (`ok`).
 
         Parameters
         ----------
@@ -351,6 +577,12 @@ class BaseClimatrixDataset:
         recon_kwargs : dict
             Additional keyword arguments to pass to the reconstruction
             method.
+
+        See Also
+        --------
+        [`climatrix.reconstruct.type.ReconstructionType`](/climatrix/api/#climatrix.reconstruct.type.ReconstructionType)
+        [`climatrix.reconstruct.idw.IDWReconstructor`](/climatrix/api/#climatrix.reconstruct.idw.IDWReconstructor)
+        [`climatrix.reconstruct.kriging.OrdinaryKrigingReconstructor`](/climatrix/api/#climatrix.reconstruct.kriging.OrdinaryKrigingReconstructor)
 
         Returns
         -------
@@ -376,6 +608,54 @@ class BaseClimatrixDataset:
         show: bool = True,
         **kwargs,
     ) -> Axes:
+        """
+        Plot the dataset on a map.
+
+        The dataset is plotted using Cartopy and Matplotlib.
+
+        Parameters
+        ----------
+        title : str, optional
+            Title of the plot. If not provided, the name of the dataset
+            will be used. If the dataset has no name, "Climatrix Dataset" will be used.
+        target : str, os.PathLike, Path, or None, optional
+            Path to save the plot. If not provided, the plot will be shown
+            on the screen.
+        show : bool, optional
+            Whether to show the plot. If `target` is provided, this
+            parameter is ignored. Default is True.
+        **kwargs : dict, optional
+            Additional keyword arguments to pass to the plotting function.
+
+            - `figsize`: tuple, optional
+                Size of the figure. Default is (12, 6).
+            - `vmin`: float, optional
+                Minimum value for the color scale. Default is None.
+            - `vmax`: float, optional
+                Maximum value for the color scale. Default is None.
+            - `cmap`: str, optional
+                Colormap to use for the plot. Default is "seismic".
+            - `ax`: Axes, optional
+                Axes to plot on. If not provided, a new figure and axes
+                will be created.
+            - `size`: int, optional
+                Size of the points for sparse datasets. Default is 10.
+
+        Returns
+        -------
+        Axes
+            The axes object containing the plot.
+
+        Raises
+        ------
+        NotImplementedError
+            If the dataset is dynamic (contains time dimension
+            with more than one value).
+        """
+        if self.domain.is_dynamic:
+            raise NotImplementedError(
+                "Plotting is not yet supported for dynamic datasets."
+            )
         figsize = kwargs.pop("figsize", (12, 6))
         vmin = kwargs.pop("vmin", None)
         vmax = kwargs.pop("vmax", None)

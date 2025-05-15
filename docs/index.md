@@ -51,8 +51,9 @@ ______________________________________________________________________
 
 **Current Version:** `0.1a0` 🧪
 
-> [!CAUTION]\
-> This is an alpha release – features are still evolving, and breaking changes may occur.
+???+ warning "Alpha release"
+
+    This is an alpha release – features are still evolving, and breaking changes may occur.
 
 ______________________________________________________________________
 
@@ -77,14 +78,15 @@ git clone https://github.com/jamesWalczak/climatrix/
 cd climatrix
 ```
 
-> [!IMPORTANT]\
-> The project soon will be available via PyPI (`pip install climatrix`)
+???+ info "Coming soon on PyPI"
+
+    The project will soon be available via PyPI (`pip install ...`)
 
 ______________________________________________________________________
 
 ## ⚙️ Usage
 
-Getting started and API reference are available in the official [documentation](https://jameswalczak.github.io/climatrix/latest/).
+Here is a basic example of how to use this project. For more details, refer to [API reference](api.md) or [Getting started](getting_started.md) section.
 
 ______________________________________________________________________
 
@@ -97,7 +99,7 @@ ______________________________________________________________________
 import climatrix as cm
 import xarray as xr
 
-my_dataset = "/file/to/netcdf.nc
+my_dataset = "/file/to/netcdf.nc"
 cm_dset = xr.open_dataset(my_dataset).cm
 ```
 
@@ -107,27 +109,7 @@ cm_dset = xr.open_dataset(my_dataset).cm
 <summary>📊 Click to expand example: Getting values of coordinate</summary>
 
 ```python
-import climatrix as cm
-import xarray as xr
-
-my_dataset = "/file/to/netcdf.nc"
-cm_dset = xr.open_dataset(my_dataset).cm
-print("Latitude values: ", cm_dset.latitude)
-print("Time values: ", cm_dset.time)
-```
-
-</details>
-
-<details>
-<summary>📊 Subsetting by bounding box</summary>
-
-```python
-import climatrix as cm
-import xarray as xr
-
-my_dataset = "/file/to/netcdf.nc"
-cm_dset = xr.open_dataset(my_dataset).cm
-europe = cm_dset.cm.subset(north=71, south=36, west=-24, east=35)
+# TODO
 ```
 
 </details>
@@ -141,7 +123,7 @@ ______________________________________________________________________
 - 🔁 Reconstruction via:
   - **IDW** (Inverse Distance Weighting)
   - **Ordinary Kriging**
-  - **SIREN** (Sinusoidal INR)
+  - **SiNET** (Sinusoidal reconstruction)
 - 🧪 Tools to compare reconstruction results
 - 📈 Plotting utilities for visualizing inputs and outputs
 
@@ -162,7 +144,7 @@ ______________________________________________________________________
 If you are using this software in scientific work, cite us:
 
 ```bibtex
-@misc{cliamtrix,
+@misc{climatrix,
   author       = {Walczak, J., Żyndul, W.},
   title        = {climatrix: Climate data reconstruction made simple },
   year         = {2025},
