@@ -65,7 +65,7 @@ ______________________________________________________________________
 - [🧪 Examples](#-examples)
 - [🛠️ Features](#%EF%B8%8F-features)
 - [📄 License](#-license)
-- [🙏 Acknowledgements](#-acknowledgements)
+- [🙏 Citation](#-citation)
 
 ______________________________________________________________________
 
@@ -87,10 +87,6 @@ ______________________________________________________________________
 ## ⚙️ Usage
 
 Here is a basic example of how to use this project. For more details, refer to [API reference](api.md) or [Getting started](getting_started.md) section.
-
-```python
-# TODO
-```
 
 ______________________________________________________________________
 
@@ -143,8 +139,16 @@ The rules for contributing on the project are described in [CONTRIBUTING](CONTRI
 
 ______________________________________________________________________
 
-## 🙏 Acknowledgements
+## 🙏 Citation
 
-to be done.
+If you are using this software in scientific work, cite us:
 
-______________________________________________________________________
+```bibtex
+@misc{climatrix,
+  author       = {Walczak, J., Żyndul, W.},
+  title        = {climatrix: Climate data reconstruction made simple },
+  year         = {2025},
+  publisher    = {GitHub},
+  journal      = {GitHub repository},
+  howpublished = {\url{https://github.com/jamesWalczak/climatrix}},
+}
