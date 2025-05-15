@@ -452,6 +452,39 @@ class SparseDomain(Domain):
     def to_xarray(
         self, values: np.ndarray, name: str | None = None
     ) -> xr.DataArray:
+        """
+        Convert domain to sparse xarray.DataArray.
+
+        The method applies `values` and (optionally) `name` to
+        create a new xarray.DataArray object based on the domain.
+
+        Parameters
+        ----------
+        values : np.ndarray
+            The values to be assigned to the DataArray variable.
+        name : str, optional
+            The name of the DataArray variable.
+
+        Returns
+        -------
+        xr.DataArray
+            The xarray.DataArray single variable object.
+
+        Raises
+        ------
+        ValueError
+            If the shape of `values` does not match the expected shape.
+
+        Examples
+        --------
+        >>> domain = Domain.from_lat_lon()
+        >>> values = np.random.rand(5, 5)
+        >>> da = domain.to_xarray(values, name="example")
+        >>> isinstance(da, xr.DataArray)
+        True
+        >>> da.name
+        'example'
+        """
         point_nbr = self.get_size(Axis.POINT)
         time_nbr = self.get_size(Axis.TIME)
 
@@ -616,6 +649,39 @@ class DenseDomain(Domain):
     def to_xarray(
         self, values: np.ndarray, name: str | None = None
     ) -> xr.DataArray:
+        """
+        Convert domain to dense xarray.DataArray.
+
+        The method applies `values` and (optionally) `name` to
+        create a new xarray.DataArray object based on the domain.
+
+        Parameters
+        ----------
+        values : np.ndarray
+            The values to be assigned to the DataArray variable.
+        name : str, optional
+            The name of the DataArray variable.
+
+        Returns
+        -------
+        xr.DataArray
+            The xarray.DataArray single variable object.
+
+        Raises
+        ------
+        ValueError
+            If the shape of `values` does not match the expected shape.
+
+        Examples
+        --------
+        >>> domain = Domain.from_lat_lon()
+        >>> values = np.random.rand(5, 5)
+        >>> da = domain.to_xarray(values, name="example")
+        >>> isinstance(da, xr.DataArray)
+        True
+        >>> da.name
+        'example'
+        """
         lat_nbr = self.get_size(Axis.LATITUDE)
         lon_nbr = self.get_size(Axis.LONGITUDE)
         time_nbr = self.get_size(Axis.TIME)

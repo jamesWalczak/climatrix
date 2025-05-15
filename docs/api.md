@@ -73,6 +73,8 @@ The library contains a few public classes:
 ::: climatrix.dataset.domain.SparseDomain
     handler: python
     options:    
+      members:
+        - to_xarray
       scoped_crossrefs: true
       show_root_heading: true
       show_source: false      
@@ -80,6 +82,8 @@ The library contains a few public classes:
 ::: climatrix.dataset.domain.DenseDomain
     handler: python
     options:    
+      members:
+        - to_xarray    
       scoped_crossrefs: true
       show_root_heading: true
       show_source: false                  
@@ -97,3 +101,10 @@ The library contains a few public classes:
       scoped_crossrefs: true
       show_root_heading: true
       show_source: false          
+
+::: climatrix.reconstruct.siren.siren.SIRENReconstructor
+    handler: python
+    options:    
+      scoped_crossrefs: true
+      show_root_heading: true
+      show_source: false         

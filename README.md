@@ -64,7 +64,7 @@ ______________________________________________________________________
 - [🧪 Examples](#-examples)
 - [🛠️ Features](#%EF%B8%8F-features)
 - [📄 License](#-license)
-- [🙏 Acknowledgements](#-acknowledgements)
+- [🙏 Citation](#-citation)
 
 ______________________________________________________________________
 
@@ -78,17 +78,13 @@ cd climatrix
 ```
 
 > [!IMPORTANT]\
-> The project soon will be available via PyPI (`pip install ...`)
+> The project soon will be available via PyPI (`pip install climatrix`)
 
 ______________________________________________________________________
 
 ## ⚙️ Usage
 
-Here is a basic example of how to use this project:
-
-```python
-# TODO
-```
+Getting started and API reference are available in the official [documentation](https://jameswalczak.github.io/climatrix/latest/).
 
 ______________________________________________________________________
 
@@ -101,7 +97,7 @@ ______________________________________________________________________
 import climatrix as cm
 import xarray as xr
 
-my_dataset = "/file/to/netcdf.nc"
+my_dataset = "/file/to/netcdf.nc
 cm_dset = xr.open_dataset(my_dataset).cm
 ```
 
@@ -111,7 +107,27 @@ cm_dset = xr.open_dataset(my_dataset).cm
 <summary>📊 Click to expand example: Getting values of coordinate</summary>
 
 ```python
-# TODO
+import climatrix as cm
+import xarray as xr
+
+my_dataset = "/file/to/netcdf.nc
+cm_dset = xr.open_dataset(my_dataset).cm
+print("Latitude values: ", cm_dset.latitude)
+print("Time values: ", cm_dset.time)
+```
+
+</details>
+
+<details>
+<summary>📊 Subsetting by bounding box</summary>
+
+```python
+import climatrix as cm
+import xarray as xr
+
+my_dataset = "/file/to/netcdf.nc
+cm_dset = xr.open_dataset(my_dataset).cm
+europe = cm_dset.cm.subset(north=71, south=36, west=-24, east=35)
 ```
 
 </details>
@@ -125,7 +141,7 @@ ______________________________________________________________________
 - 🔁 Reconstruction via:
   - **IDW** (Inverse Distance Weighting)
   - **Ordinary Kriging**
-  - **SiNET** (Sinusoidal reconstruction)
+  - **SIREN** (Sinusoidal INR)
 - 🧪 Tools to compare reconstruction results
 - 📈 Plotting utilities for visualizing inputs and outputs
 
@@ -141,8 +157,16 @@ The rules for contributing on the project are described in [CONTRIBUTING](CONTRI
 
 ______________________________________________________________________
 
-## 🙏 Acknowledgements
+## 🙏 Citation
 
-to be done.
+If you are using this software in scientific work, cite us:
 
-______________________________________________________________________
+```bibtex
+@misc{cliamtrix,
+  author       = {Walczak, J., Żyndul, W.},
+  title        = {climatrix: Climate data reconstruction made simple },
+  year         = {2025},
+  publisher    = {GitHub},
+  journal      = {GitHub repository},
+  howpublished = {\url{https://github.com/jamesWalczak/climatrix}},
+}
