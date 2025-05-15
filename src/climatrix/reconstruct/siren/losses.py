@@ -1,11 +1,21 @@
+from collections import namedtuple
+from dataclasses import dataclass
 from typing import Dict
 
 import torch
 import torch.nn.functional as F
 
 
-def gradient(y: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
-    """Computes the gradient of a scalar function y with respect to input x."""
+@dataclass
+class LossEntity:
+    sdf: torch.Tensor
+    inter: torch.Tensor
+    normal: torch.Tensor
+    grad: torch.Tensor
+
+
+def gradient(y: torch.Tensor, x: torch.Tensor) -> LossEntity:
+    """Compute the gradient of a scalar function y with respect to input x."""
     y = y.squeeze()
     dydx = torch.autograd.grad(
         y,
@@ -19,8 +29,8 @@ def gradient(y: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
 
 def sdf_loss(
     model_output: Dict[str, torch.Tensor], gt: Dict[str, torch.Tensor]
-) -> Dict[str, torch.Tensor]:
-    """Computes the compound loss."""
+) -> LossEntity:
+    """Compute the compound loss."""
     gt_sdf = gt["sdf"]
     gt_normals = gt["normals"]
 
@@ -53,22 +63,9 @@ def sdf_loss(
 
     grad_constraint_val = torch.abs(pred_gradient.norm(dim=-1) - 1).mean()
 
-    weighted_sdf_loss = sdf_loss_val * 3e3
-    weighted_inter_loss = inter_loss_val * 1e2
-    weighted_normal_loss = normal_constraint_val * 1e2
-    weighted_grad_loss = grad_constraint_val * 5e1
-
-    loss = (
-        weighted_sdf_loss
-        + weighted_inter_loss
-        + weighted_normal_loss
-        + weighted_grad_loss
+    return LossEntity(
+        sdf=sdf_loss_val,
+        inter=inter_loss_val,
+        normal=normal_constraint_val,
+        grad=grad_constraint_val,
     )
-
-    return {
-        "total_loss": loss,
-        "sdf": weighted_sdf_loss,
-        "inter": weighted_inter_loss,
-        "normal_constraint": weighted_normal_loss,
-        "grad_constraint": weighted_grad_loss,
-    }

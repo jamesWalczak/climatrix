@@ -30,20 +30,27 @@ class SIRENDataset(Dataset):
         """
         Initialize the SIREN dataset with coordinates and corresponding values.
 
-        Args:
-           coordinates: Numpy array of shape [N, 2]
-           containing the coordinate points
-           values: Numpy array of shape [N]
-           containing the values at each coordinate
-           on_surface_points: Number of on-surface points to sample per batch
+        Parameters
+        ----------
+        coordinates : np.ndarray
+            Array of shape [N, 2] containing the coordinate points
+        values : np.ndarray
+            Array of shape [N] containing the values at each coordinate
+        on_surface_points : int
+            Number of on-surface points to sample per batch
 
-        Raises:
-           ValueError: If the number of coordinates doesn't match
-           the number of values
+        Raises
+        ------
+        ValueError
+            If the number of coordinates doesn't match the number of values
         """
         if len(values.shape) == 1:
             values = values.reshape(-1, 1)
         if coordinates.shape[0] != values.shape[0]:
+            log.error(
+                f"Mismatch between coordinates ({coordinates.shape[0]})"
+                f" and values ({values.shape[0]}) count"
+            )
             raise ValueError(
                 f"Mismatch between coordinates ({coordinates.shape[0]})"
                 f" and values ({values.shape[0]}) count"
@@ -95,11 +102,15 @@ class SIRENDataset(Dataset):
         """
         Calculate surface normals from point cloud data.
 
-        Args:
-            points: Numpy array of shape [N, 3] containing 3D points
+        Parameters
+        ----------
+        points : np.ndarray
+            Array of shape [N, 3] containing 3D points
 
-        Returns:
-            Numpy array of shape [N, 3] containing the normal vectors
+        Returns
+        -------
+        np.ndarray
+            Array of shape [N, 3] containing the normal vectors
         """
         k_neighbors = min(30, points.shape[0] - 1)
 
@@ -128,11 +139,15 @@ class SIRENDataset(Dataset):
         """
         Normalize coordinates to the range [-1, 1].
 
-        Args:
-            coords_3d: Tensor of shape [N, 3] containing 3D coordinates
+        Parameters
+        ----------
+        coords_3d : torch.Tensor
+            Containing 3D coordinates
 
-        Returns:
-            Tensor of shape [N, 3] containing normalized coordinates.
+        Returns
+        -------
+        torch.Tensor
+            Containing normalized coordinates
         """
         normalized = (coords_3d - self.coord_min) / (
             self.coord_max - self.coord_min
@@ -144,7 +159,9 @@ class SIRENDataset(Dataset):
         """
         Return the number of batches in the dataset.
 
-        Returns:
+        Returns
+        -------
+        int
             Number of available batches
         """
         return self.total_points // self.on_surface_points
@@ -154,20 +171,23 @@ class SIRENDataset(Dataset):
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Return a batch of mixed on-surface and off-surface points.
-        The off-surface points are generated on-the-fly in this method.
 
-        Args:
-            idx: Index of the batch to retrieve (not used in this
+        Parameters
+        ----------
+        idx : int
+            Index of the batch to retrieve (not used in this
             implementation as points are randomly sampled)
 
-        Returns:
-            Tuple containing:
-                - coords: Tensor of shape [2*on_surface_points, 3]
-                    containing coordinates
-                - sdf: Tensor of shape [2*on_surface_points, 1]
-                    containing signed distance values
-                - normals: Tensor of shape [2*on_surface_points, 3]
-                    containing normal vectors
+        Returns
+        -------
+        tuple
+            Contains:
+            - coords : torch.Tensor
+                Containing coordinates
+            - sdf : torch.Tensor
+                Containing signed distance values
+            - normals : torch.Tensor
+                Containing normal vectors
         """
         on_surface_samples = self.on_surface_points
         off_surface_samples = self.on_surface_points

@@ -6,6 +6,7 @@ import torch.nn as nn
 class SineLayer(nn.Module):
     """
     Sine activation layer with custom frequency and initialization.
+
     Based on https://github.com/vsitzmann/siren
     """
 
@@ -20,12 +21,18 @@ class SineLayer(nn.Module):
         """
         Initialize sine activation layer with frequency omega_0.
 
-        Args:
-            in_features: Number of input features
-            out_features: Number of output features
-            bias: Whether to use bias in the linear layer
-            is_first: Whether this is the first layer
-            omega_0: Frequency of the sine activation
+        Parameters
+        ----------
+        in_features : int
+            Number of input features
+        out_features : int
+            Number of output features
+        bias : bool, default=True
+            Whether to use bias in the linear layer
+        is_first : bool, default=False
+            Whether this is the first layer
+        omega_0 : float, default=30
+            Frequency of the sine activation
         """
         super().__init__()
         self.omega_0 = omega_0
@@ -65,14 +72,22 @@ class SIREN(nn.Module):
         """
         Initialize SIREN network with specified architecture.
 
-        Args:
-            in_features: Number of input features
-            out_features: Number of output features
-            hidden_features: Width of hidden layers
-            hidden_layers: Number of hidden layers
-            outermost_linear: Whether to use linear activation in final layer
-            omega_0: Frequency for first sine layer
-            omega_hidden: Frequency for subsequent sine layers
+        Parameters
+        ----------
+        in_features : int, default=3
+            Number of input features
+        out_features : int, default=1
+            Number of output features
+        hidden_features : int, default=256
+            Width of hidden layers
+        hidden_layers : int, default=3
+            Number of hidden layers
+        outermost_linear : bool, default=True
+            Whether to use linear activation in final layer
+        omega_0 : float, default=30
+            Frequency for first sine layer
+        omega_hidden : float, default=30
+            Frequency for subsequent sine layers
         """
         super().__init__()
 
@@ -115,10 +130,14 @@ class SIREN(nn.Module):
         """
         Forward pass through the SIREN network.
 
-        Args:
-            x: Input tensor of shape (..., in_features)
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor of shape (..., in_features)
 
-        Returns:
+        Returns
+        -------
+        torch.Tensor
             Output tensor of shape (..., out_features)
         """
         return self.net(x)
