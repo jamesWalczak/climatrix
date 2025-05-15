@@ -36,7 +36,6 @@ def __missing__(cls, value):
     raise ValueError(f"Unknown reconstruction method: {value}")
 
 
-@classmethod
 def get(cls, value: str | ReconstructionType):
     """
     Get the reconstruction type given by `value`.
@@ -77,7 +76,6 @@ def get(cls, value: str | ReconstructionType):
         raise ValueError(f"Unknown reconstruction type: {value}")
 
 
-@classmethod
 def list(cls) -> list[str]:
     """
     List all available reconstruction types.
@@ -91,5 +89,5 @@ def list(cls) -> list[str]:
 
 
 setattr(ReconstructionType, "__missing__", classmethod(__missing__))
-setattr(ReconstructionType, "get", get)
+setattr(ReconstructionType, "get", classmethod(get))
 setattr(ReconstructionType, "list", classmethod(list))
