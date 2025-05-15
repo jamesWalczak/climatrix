@@ -10,13 +10,10 @@ from climatrix.dataset.axis import Axis
 
 # Import the classes and functions to be tested
 from climatrix.dataset.domain import (
-    _DEFAULT_LAT_RESOLUTION,
-    _DEFAULT_LON_RESOLUTION,
     DenseDomain,
     Domain,
     SamplingNaNPolicy,
     SparseDomain,
-    _coords_name_regex,
     check_is_dense,
     ensure_all_numpy_arrays,
     ensure_single_var,
@@ -26,7 +23,6 @@ from climatrix.dataset.domain import (
     validate_spatial_axes,
 )
 from climatrix.exceptions import TooLargeSamplePortionWarning
-from climatrix.types import Latitude, Longitude
 
 
 class TestSamplingNaNPolicy:

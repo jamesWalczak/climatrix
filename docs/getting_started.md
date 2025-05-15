@@ -67,11 +67,13 @@ dset = cm.BaseClimatrixDataset(xarray_dataset)
 
 but `climatrix` was implemented as `xarray` accessor, so there is more convenient way to create [`BaseClimatrixDataset`](api.md#climatrix.dataset.base.BaseClimatrixDataset):
 
-```python
-import climatrix as cm
+``` { .python .annotate }
+import climatrix as cm # (1)!
 
 dset = xarray_dataset.cm
 ```
+
+1.  Even though, we don't use `climatrix` explicitly, we need to import climatrix to make `xarray` accessor visible.
 
 ???+ warning
     When using `climatrix` as accessor, remember to import `climatrix` first!

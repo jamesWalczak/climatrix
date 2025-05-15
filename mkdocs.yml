@@ -49,6 +49,8 @@ markdown_extensions:
   - pymdownx.snippets
   - pymdownx.inlinehilite
   - pymdownx.magiclink
+  - pymdownx.arithmatex:
+      generic: true  
 
 plugins:
   - mkdocstrings:
@@ -56,6 +58,7 @@ plugins:
         python:
           options:
             docstring_style: numpy
+            warn_unknown_params: true
   - search
   - awesome-pages
   - git-revision-date-localized
@@ -64,6 +67,7 @@ plugins:
       default_version: latest
   - glightbox
   - tags  
+  - autorefs
 
 extra:
   version:
@@ -78,3 +82,7 @@ nav:
   - Getting started: getting_started.md
   - Contributing: CONTRIBUTING.md
   - License: license.md
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js  

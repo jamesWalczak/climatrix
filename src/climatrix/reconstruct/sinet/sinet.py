@@ -11,6 +11,7 @@ import torch.nn as nn
 import xarray as xr
 from torch.utils.data import DataLoader
 
+from climatrix import BaseClimatrixDataset, Domain
 from climatrix.decorators.runtime import log_input, raise_if_not_installed
 from climatrix.reconstruct.base import BaseReconstructor
 from climatrix.reconstruct.sinet.dataset import (
@@ -18,10 +19,6 @@ from climatrix.reconstruct.sinet.dataset import (
 )
 from climatrix.reconstruct.sinet.losses import LossEntity, compute_sdf_losses
 from climatrix.reconstruct.sinet.model import SiNET
-
-if TYPE_CHECKING:
-    from climatrix.dataset.dense import DenseDataset
-    from climatrix.dataset.sparse import SparseDataset
 
 log = logging.getLogger(__name__)
 
@@ -31,13 +28,8 @@ class SiNETReconstructor(BaseReconstructor):
     @log_input(log, level=logging.DEBUG)
     def __init__(
         self,
-        dataset: SparseDataset,
-        lat: slice | np.ndarray = slice(
-            -90, 90, BaseReconstructor._DEFAULT_LAT_RESOLUTION
-        ),
-        lon: slice | np.ndarray = slice(
-            -180, 180, BaseReconstructor._DEFAULT_LON_RESOLUTION
-        ),
+        dataset: BaseClimatrixDataset,
+        target_domain: Domain,
         *,
         lr: float = 3e-4,
         batch_size: int = 512,
@@ -50,7 +42,7 @@ class SiNETReconstructor(BaseReconstructor):
         eikonal_loss_weight: float = 5e1,
         laplace_loss_weight: float = 1e2,
     ) -> None:
-        super().__init__(dataset, lat, lon)
+        super().__init__(dataset, target_domain)
         if dataset.is_dynamic:
             log.error("SiNET is not yet supported for dynamic datasets.")
             raise ValueError(
@@ -193,10 +185,8 @@ class SiNETReconstructor(BaseReconstructor):
         return lat_grid.reshape(-1), lon_grid.reshape(-1)
 
     @raise_if_not_installed("torch")
-    def reconstruct(self) -> DenseDataset:
+    def reconstruct(self) -> BaseClimatrixDataset:
         """Reconstruct the sparse dataset using INR."""
-        from climatrix.dataset.dense import StaticDenseDataset
-
         siren_model = self._init_model()
         siren_model = self._maybe_load_checkpoint(siren_model, self.checkpoint)
         if not self.is_model_loaded:
@@ -246,110 +236,19 @@ class SiNETReconstructor(BaseReconstructor):
                 siren_model=siren_model, checkpoint=self.checkpoint
             )
         siren_model.eval()
-        values = self._find_surface(siren_model, self.datasets.target_dataset)
+        # values = self._find_surface(siren_model, self.datasets.target_dataset)
         # unscaled_values = values
-        unscaled_values = self.datasets.field_transformer.inverse_transform(
-            values
-        )
+        # unscaled_values = self.datasets.field_transformer.inverse_transform(
+        #     values
+        # )
 
-        coordinates = {
-            self.dataset.latitude_name: self.query_lat,
-            self.dataset.longitude_name: self.query_lon,
-        }
-        dims = (
-            self.dataset.latitude_name,
-            self.dataset.longitude_name,
-        )
+        # coordinates = {
+        #     self.dataset.latitude_name: self.query_lat,
+        #     self.dataset.longitude_name: self.query_lon,
+        # }
+        # dims = (
+        #     self.dataset.latitude_name,
+        #     self.dataset.longitude_name,
+        # )
         log.info("Preparing StaticDenseDataset...")
-        dd = StaticDenseDataset(
-            xr.DataArray(
-                unscaled_values.reshape(
-                    len(self.query_lon), len(self.query_lat)
-                ).transpose(),
-                coords=coordinates,
-                dims=dims,
-                name=self.dataset.da.name,
-            )
-        )
-        return dd
-        # ax = dd.plot(show=False)
-        # self.dataset.plot(ax=ax)
-        pass
-
-        # NOTE: plot here unscaled values and sparse points
-        import matplotlib.pyplot as plt
-
-        fig, ax = plt.subplots()
-
-        xr.DataArray(
-            unscaled_values.reshape(len(self.query_lon), len(self.query_lat))
-        ).plot(ax=ax)
-        ax.scatter(
-            self.dataset.latitude,
-            self.dataset.longitude,
-            c=self.dataset.da.values,
-        )
-        # td = self.datasets.train_dataset
-        ax.scatter(
-            self.datasets.train_coordinates[:, 0],
-            self.datasets.train_coordinates[:, 1],
-            c=self.datasets.train_field,
-        )
-        temp = siren_model(
-            torch.from_numpy(self.datasets.train_coordinates)
-            .float()
-            .to(self.device)
-        )
-        ttemp = siren_model(
-            torch.from_numpy(self.datasets.target_coordinates)
-            .float()
-            .to(self.device)
-        )
-        (
-            (
-                temp
-                - torch.from_numpy(self.datasets.train_field).to(self.device)
-            )
-            ** 2
-        ).mean()
-        plt.scatter(
-            self.datasets.target_coordinates[:, 1],
-            self.datasets.target_coordinates[:, 0],
-            c=ttemp.detach().cpu().numpy(),
-        )
-        plt.scatter(
-            self.datasets.train_coordinates[:, 1],
-            self.datasets.train_coordinates[:, 0],
-            c=temp.detach().cpu().numpy(),
-        )
-        plt.scatter(
-            self.datasets.train_coordinates[:, 0],
-            self.datasets.train_coordinates[:, 1],
-            c=self.datasets.train_field,
-        )
-        plt.scatter(
-            self.dataset.longitude,
-            self.dataset.latitude,
-            c=self.dataset.da.values,
-        )
-        self.datasets.target_coordinates.max()
-
-        values = values.reshape(len(self.query_lon), len(self.query_lat))
-
-        coordinates = {
-            self.dataset.latitude_name: self.query_lat,
-            self.dataset.longitude_name: self.query_lon,
-        }
-        dims = (
-            self.dataset.latitude_name,
-            self.dataset.longitude_name,
-        )
-        log.info("Preparing StaticDenseDataset...")
-        return StaticDenseDataset(
-            xr.DataArray(
-                unscaled_values.transpose(),
-                coords=coordinates,
-                dims=dims,
-                name=self.dataset.da.name,
-            )
-        )
+        raise NotImplementedError()
