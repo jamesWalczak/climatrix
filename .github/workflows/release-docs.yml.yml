@@ -30,12 +30,6 @@ jobs:
       - name: Install MkDocs and Material theme
         run: |
           pip install .[docs]
-      - name: Extract release version from tag
-        id: extract_version
-        run: |
-          TAG=${GITHUB_REF##*/}
-          VERSION=${TAG#v}  # remove leading 'v'
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
       - name: Fetch gh-pages
         run: git fetch origin gh-pages          
       - name: Copy site to versioned directory
@@ -47,7 +41,7 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           VERSION=${{ steps.extract_version.outputs.version }}
-          mike deploy --push --update-aliases $VERSION latest
+          mike deploy --push --update-aliases ${{ github.event.release.tag_name }} latest
           git push --force origin gh-pages
           mike set-default latest --push
 
