@@ -11,7 +11,7 @@ authors = [
 ]
 
 description = "Tool for climate data research"
-readme = "./README.md"
+readme = "./README-pypi.md"
 license = {file = "./LICENSE"}
 
 keywords = [
