@@ -1,13 +1,10 @@
 from enum import Enum
 
-reconstructors = {}
+from climatrix.reconstruct.idw import IDWReconstructor
 
-try:
-    from climatrix.reconstruct.idw import IDWReconstructor
-
-    reconstructors["IDW"] = IDWReconstructor
-except ImportError:
-    pass
+reconstructors = {
+    "IDW": IDWReconstructor,
+}
 
 try:
     from climatrix.reconstruct.kriging import OrdinaryKrigingReconstructor
@@ -20,6 +17,12 @@ try:
     from climatrix.reconstruct.sinet.sinet import SiNETReconstructor
 
     reconstructors["SINET"] = SiNETReconstructor
+except ImportError:
+    pass
+try:
+    from climatrix.reconstruct.siren.siren import SIRENReconstructor
+
+    reconstructors["SIREN"] = SIRENReconstructor
 except ImportError:
     pass
 
@@ -74,30 +77,19 @@ def get(cls, value: str | ReconstructionType):
         raise ValueError(f"Unknown reconstruction type: {value}")
 
 
+@classmethod
+def list(cls) -> list[str]:
+    """
+    List all available reconstruction types.
+
+    Returns
+    -------
+    list[str]
+        A list of all available reconstruction types.
+    """
+    return [name for name in cls.__members__.keys()]
+
+
 setattr(ReconstructionType, "__missing__", classmethod(__missing__))
 setattr(ReconstructionType, "get", get)
-
-# class ReconstructionType(Enum):
-#     """The available reconstruction types."""
-
-#     IDW = IDWReconstructor
-#     OK = OrdinaryKrigingReconstructor
-#     SINET = SiNETReconstructor
-
-#     def __missing__(self, value):
-#         raise ValueError(f"Unknown reconstruction method: {value}")
-
-#     @classmethod
-#     def get(cls, value: str | Self):
-
-#         if isinstance(value, cls):
-#             return value
-#         if not isinstance(value, str):
-#             raise TypeError(
-#                 f"Invalid reconstruction type: {value!r}. "
-#                 "Expected a string or an instance of ReconstructionType."
-#             )
-#         try:
-#             return cls[value.upper()]
-#         except KeyError:
-#             raise ValueError(f"Unknown reconstruction type: {value}")
+setattr(ReconstructionType, "list", classmethod(list))

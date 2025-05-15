@@ -1,33 +1,8 @@
-# 🌍 climatrix
+# 🌍 Project climatrix
 
-<div align="center">
-
-<img src="https://raw.githubusercontent.com/jamesWalczak/climatrix/0e2a3ab98836642140e50f2e59e314134c61137f/docs/assets/logo.svg" width="200" alt="Climatrix Logo">
-
-<br>
-
-<!-- Badges -->
-
-<a href="https://www.python.org/downloads">
-  <img src="https://img.shields.io/badge/-Python_3.12%7C3.13-blue?logo=python&logoColor=white" alt="Python Versions">
-</a>
-<a href="https://black.readthedocs.io/en/stable/">
-  <img src="https://img.shields.io/badge/Code%20Style-Black-black.svg?labelColor=gray" alt="Code Style: Black">
-</a>
-<a href="https://pycqa.github.io/isort/">
-  <img src="https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336" alt="Import Sort: isort">
-</a>
-<a href="https://github.com/jamesWalczak/climatrix/blob/main/LICENSE">
-  <img src="https://img.shields.io/badge/License-MIT-green.svg?labelColor=gray" alt="License: MIT">
-</a>
-
-</div>
-
-______________________________________________________________________
-
-**Climatrix** is a flexible toolbox for sampling and reconstructing climate datasets.
-
-It provides utilities and an [xarray](https://docs.xarray.dev/en/latest/index.html) accessor that simplifies the workflow of working with climate data arrays — from preprocessing to statistical sampling.
+This repository toolbox for sampling and reconstructing climate datasets.
+In particular, it contains [xarray](https://docs.xarray.dev/en/latest/index.html) accessor to
+facilitate usage.
 
 ______________________________________________________________________
 
@@ -51,7 +26,7 @@ ______________________________________________________________________
 
 **Current Version:** `0.1a0` 🧪
 
-> [!CAUTION]\
+> **Important**
 > This is an alpha release – features are still evolving, and breaking changes may occur.
 
 ______________________________________________________________________
@@ -65,20 +40,6 @@ ______________________________________________________________________
 - [🛠️ Features](#%EF%B8%8F-features)
 - [📄 License](#-license)
 - [🙏 Acknowledgements](#-acknowledgements)
-
-______________________________________________________________________
-
-## 🚀 Getting Started
-
-These instructions will get you a copy of the project up and running on your local machine.
-
-```bash
-git clone https://github.com/jamesWalczak/climatrix/
-cd climatrix
-```
-
-> [!IMPORTANT]\
-> The project soon will be available via PyPI (`pip install ...`)
 
 ______________________________________________________________________
 
@@ -101,7 +62,7 @@ ______________________________________________________________________
 import climatrix as cm
 import xarray as xr
 
-my_dataset = "/file/to/netcdf.nc"
+my_dataset = "/file/to/netcdf.nc
 cm_dset = xr.open_dataset(my_dataset).cm
 ```
 
@@ -133,7 +94,7 @@ ______________________________________________________________________
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/jamesWalczak/climatrix/blob/main/LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 👥 Contributing
 

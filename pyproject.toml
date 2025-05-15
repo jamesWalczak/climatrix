@@ -5,15 +5,17 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "climatrix"
 dynamic = ["version"]
-authors = [{name = "Jakub Walczak", email = "jakub.walczak@p.lodz.pl"}]
+authors = [
+    {name = "Jakub Walczak", email = "jakub.walczak@p.lodz.pl"},
+    {name = "Wojciech Żyndul", email = "242575@edu.p.lodz.pl"}
+]
 
 description = "Tool for climate data research"
-readme = "./README.md"
+readme = "./README-pypi.md"
 license = {file = "./LICENSE"}
 
 keywords = [
     "climate data",
-
 ]
 
 requires-python = ">=3.12"
@@ -28,8 +30,6 @@ dependencies = [
     "rich",
     "setuptools",
     "scipy",
-    "dask",
-    "jupyterlab"
 ]
 
 [project.optional-dependencies]
@@ -58,7 +58,7 @@ plot = [
 ]
 ml = [
     "torch", 
-    "scikit-learn"
+    "scikit-learn",
 ]
 optim = [
     "bayesian-optimization"
@@ -71,7 +71,7 @@ all = [
     "climatrix[plot]",
     "climatrix[ml]",
     "climatrix[optim]",
-    "climatrix[ok]",
+    "climatrix[ok]"
 ]
 
 [tool.setuptools]
@@ -83,6 +83,8 @@ version = {attr = "climatrix._version.__version__"}
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"*" = ["resources/*.ini", "resources/**/*.sh", "resources/**/*.toml"]
 
 [tool.isort]
 profile = "black"
