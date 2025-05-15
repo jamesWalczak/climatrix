@@ -629,7 +629,7 @@ class BaseClimatrixDataset:
 
             - `figsize`: tuple, optional
                 Size of the figure. Default is (12, 6).
-            - `vmin`: float, optional"
+            - `vmin`: float, optional
                 Minimum value for the color scale. Default is None.
             - `vmax`: float, optional
                 Maximum value for the color scale. Default is None.
