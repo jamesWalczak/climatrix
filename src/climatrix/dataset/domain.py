@@ -362,7 +362,7 @@ class SparseDomain(Domain):
     """
     Sparse domain class.
 
-    Supports opereations on sparse spatial domain.
+    Supports operations on sparse spatial domain.
     """
 
     is_sparse: ClassVar[bool] = True
