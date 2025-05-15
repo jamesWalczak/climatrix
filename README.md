@@ -125,7 +125,7 @@ print("Time values: ", cm_dset.time)
 import climatrix as cm
 import xarray as xr
 
-my_dataset = "/file/to/netcdf.nc
+my_dataset = "/file/to/netcdf.nc"
 cm_dset = xr.open_dataset(my_dataset).cm
 europe = cm_dset.cm.subset(north=71, south=36, west=-24, east=35)
 ```
