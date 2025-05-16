@@ -133,11 +133,11 @@ ______________________________________________________________________
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/jamesWalczak/climatrix/blob/main/LICENSE) file for details.
 
 ## 👥 Contributing
 
-The rules for contributing on the project are described in [CONTRIBUTING](CONTRIBUTING.md) file in details.
+The rules for contributing on the project are described in [CONTRIBUTING](https://github.com/jamesWalczak/climatrix/blob/main/CONTRIBUTING.md) file in details.
 
 ______________________________________________________________________
 
