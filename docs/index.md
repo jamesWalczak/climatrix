@@ -143,7 +143,7 @@ ______________________________________________________________________
 
 If you are using this software in scientific work, cite us:
 
-```bibtex
+```
 @misc{climatrix,
   author       = {Walczak, J., Żyndul, W.},
   title        = {climatrix: Climate data reconstruction made simple },
