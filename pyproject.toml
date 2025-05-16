@@ -84,7 +84,13 @@ version = {attr = "climatrix._version.__version__"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-"*" = ["resources/*.ini", "resources/**/*.sh", "resources/**/*.toml"]
+"*" = [
+    "resources/*.ini", 
+    "resources/**/*.sh", 
+    "resources/**/*.toml",
+    "LICENSE",
+    "CONTRIBUTING.md",
+]
 
 [tool.isort]
 profile = "black"
