@@ -131,3 +131,4 @@ If you are using this software in scientific work, cite us:
   journal      = {GitHub repository},
   howpublished = {\url{https://github.com/jamesWalczak/climatrix}},
 }
+```
