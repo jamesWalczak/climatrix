@@ -3,10 +3,6 @@ name: Build and Deploy Release Docs
 on:
   release:
     types: [published]
-  push:
-    branches:
-      - main
-  workflow_dispatch:
 
 permissions:
   contents: write
