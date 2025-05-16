@@ -49,8 +49,6 @@ ______________________________________________________________________
 
 ## 📌 Version
 
-**Current Version:** `0.1a0` 🧪
-
 > **Important**
 > This is an alpha release – features are still evolving, and breaking changes may occur.
 
