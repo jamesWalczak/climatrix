@@ -69,17 +69,16 @@ ______________________________________________________________________
 
 ## 🚀 Getting Started
 
+???+ info "Climatrix is now available on PyPI"
+
+    The project will soon be available via PyPI (`pip install climatrix`)
+
 These instructions will get you a copy of the project up and running on your local machine.
 
 ```bash
 git clone https://github.com/jamesWalczak/climatrix/
 cd climatrix
 ```
-
-???+ info "Coming soon on PyPI"
-
-    The project will soon be available via PyPI (`pip install ...`)
-
 ______________________________________________________________________
 
 ## ⚙️ Usage
