@@ -1,4 +1,3 @@
-import re
 from functools import partial
 from unittest.mock import MagicMock, patch
 
@@ -23,6 +22,7 @@ from climatrix.dataset.domain import (
     validate_spatial_axes,
 )
 from climatrix.exceptions import TooLargeSamplePortionWarning
+from climatrix.warnings import DomainMismatchWarning
 
 
 class TestSamplingNaNPolicy:
@@ -570,3 +570,86 @@ class TestDenseDomain:
         )
         values = da.sel(result).values
         assert np.isnan(values).sum() == 0
+
+    def test_equality_same_coordinates(self):
+        domain1 = MagicMock(spec=Domain)
+        domain1.coords = {
+            "lat": np.array([-90, 0, 90]),
+            "lon": np.array([-180, 0, 180]),
+        }
+        domain2 = MagicMock(spec=Domain)
+        domain2.coords = {
+            "lat": np.array([-90, 0, 90]),
+            "lon": np.array([-180, 0, 180]),
+        }
+        assert Domain.__eq__(domain1, domain2)
+
+    def test_equality_different_coordinates(self):
+        domain1 = MagicMock(spec=Domain)
+        domain1.coords = {
+            "lat": np.array([-90, 0, 90]),
+            "lon": np.array([-180, 0, 180]),
+        }
+        domain2 = MagicMock(spec=Domain)
+        domain2.coords = {
+            "lat": np.array([-45, 0, 45]),
+            "lon": np.array([-180, 0, 180]),
+        }
+        assert not Domain.__eq__(domain1, domain2)
+
+    def test_equality_missing_coordinates(self):
+        domain1 = MagicMock(spec=Domain)
+        domain1.coords = {
+            "lat": np.array([-90, 0, 90]),
+        }
+        domain2 = MagicMock(spec=Domain)
+        domain2.coords = {
+            "lat": np.array([-90, 0, 90]),
+            "lon": np.array([-180, 0, 180]),
+        }
+        with pytest.warns(DomainMismatchWarning, match="Domain mismatch:"):
+            assert not Domain.__eq__(domain1, domain2)
+
+    def test_equality_extra_coordinates(self):
+        domain1 = MagicMock(spec=Domain)
+        domain1.coords = {
+            "lat": np.array([-90, 0, 90]),
+            "lon": np.array([-180, 0, 180]),
+        }
+        domain2 = MagicMock(spec=Domain)
+        domain2.coords = {
+            "lat": np.array([-90, 0, 90]),
+        }
+        with pytest.warns(DomainMismatchWarning, match="Domain mismatch:"):
+            assert not Domain.__eq__(domain1, domain2)
+
+    def test_equality_non_domain_object(self):
+        domain1 = MagicMock(spec=Domain)
+        non_domain_object = "not_a_domain"
+        assert not Domain.__eq__(domain1, non_domain_object)
+
+    def test_equality_nan_values(self):
+        domain1 = MagicMock(spec=Domain)
+        domain1.coords = {
+            "lat": np.array([-90, np.nan, 90]),
+            "lon": np.array([-180, 0, 180]),
+        }
+        domain2 = MagicMock(spec=Domain)
+        domain2.coords = {
+            "lat": np.array([-90, np.nan, 90]),
+            "lon": np.array([-180, 0, 180]),
+        }
+        assert Domain.__eq__(domain1, domain2)
+
+    def test_equality_nan_values_different(self):
+        domain1 = MagicMock(spec=Domain)
+        domain1.coords = {
+            "lat": np.array([-90, np.nan, 90]),
+            "lon": np.array([-180, 0, 180]),
+        }
+        domain2 = MagicMock(spec=Domain)
+        domain2.coords = {
+            "lat": np.array([-90, 0, 90]),
+            "lon": np.array([-180, 0, 180]),
+        }
+        assert not Domain.__eq__(domain1, domain2)
