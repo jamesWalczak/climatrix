@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import os
+import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
@@ -12,11 +14,13 @@ import xarray as xr
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 
+from climatrix.dataset.axis import Axis
 from climatrix.dataset.domain import (
     Domain,
     SamplingNaNPolicy,
     ensure_single_var,
 )
+from climatrix.dataset.utils import ensure_list_or_slice
 from climatrix.decorators import cm_arithmetic_binary_operator
 from climatrix.exceptions import LongitudeConventionMismatch
 from climatrix.types import Latitude, Longitude
@@ -31,6 +35,9 @@ def drop_scalar_coords_and_dims(da: xr.DataArray) -> xr.DataArray:
         if len(da[coord].shape) == 0:
             da = da.drop(coord)
     return da
+
+
+log = logging.getLogger(__name__)
 
 
 @xr.register_dataset_accessor("cm")
@@ -73,6 +80,10 @@ class BaseClimatrixDataset:
         # Dataset with a single variable
         xarray_obj = ensure_single_var(xarray_obj)
         xarray_obj = drop_scalar_coords_and_dims(xarray_obj)
+        dims_to_squeeze = [
+            dim for dim in xarray_obj.dims if xarray_obj.sizes[dim] == 1
+        ]
+        xarray_obj = xarray_obj.squeeze(dim=dims_to_squeeze)
         self.domain = Domain(xarray_obj)
         self.da = xarray_obj
 
@@ -206,6 +217,10 @@ class BaseClimatrixDataset:
         )
         return type(self)(res)
 
+    # ###############################
+    # Utility methods
+    # ###############################
+
     def mask_nan(self, source: Self) -> Self:
         """
         Apply NaN values from another dataset to the current one.
@@ -242,6 +257,86 @@ class BaseClimatrixDataset:
             )
 
         da = xr.where(source.da.isnull(), np.nan, self.da).squeeze()
+        return type(self)(da)
+
+    def sel(self, query: dict[Axis | str, Any]) -> Self:
+        """
+        Select data along the specified axes.
+
+        Parameters
+        ----------
+        query : dict
+            Dictionary of axes and values to select.
+            The keys can be either `Axis` objects or strings
+            representing the names of the axes.
+            The values can be either single values or lists of values.
+
+        Returns
+        -------
+        Self
+            The selected dataset.
+
+        Examples
+        --------
+        >>> import climatrix as cm
+        >>> dset = xr.open_dataset("path/to/dataset.nc").cm
+        >>> dset2 = dset.sel({"latitude": 10.0, "longitude": 20.0})
+        >>> dset3 = dset.sel({Axis.TIME: [datetime(2020, 1, 1)]})
+        """
+        query_ = {}
+        for axis_name, value in query.items():
+            axis_name_resolved = self.domain.get_axis_name(axis_name)
+            if axis_name_resolved is None:
+                log.warning(
+                    "Axis name '%s' not found in the dataset", axis_name
+                )
+                warnings.warn(
+                    f"Axis name '{axis_name}' not found in the dataset."
+                    "Skipping."
+                )
+                continue
+            query_[axis_name_resolved] = ensure_list_or_slice(value)
+        da = self.da.sel(query_)
+        return type(self)(da)
+
+    def isel(self, query: dict[Axis | str, Any]) -> Self:
+        """
+        Select data along the specified axes by index.
+
+        Parameters
+        ----------
+        query : dict
+            Dictionary of axes and indices to select.
+            The keys can be either `Axis` objects or strings
+            representing the names of the axes.
+            The values must be integers, list of integers, or slices.
+
+        Returns
+        -------
+        Self
+            The selected dataset.
+
+        Examples
+        --------
+        >>> import climatrix as cm
+        >>> dset = xr.open_dataset("path/to/dataset.nc").cm
+        >>> dset2 = dset.isel({"latitude": 0, "longitude": 1})
+        >>> dset3 = dset.isel({Axis.TIME: slice(0, 2)})
+        """
+        query_ = {}
+        for axis_name, value in query.items():
+            axis_name_resolved = self.domain.get_axis_name(axis_name)
+            if axis_name_resolved is None:
+                log.warning(
+                    "Axis name '%s' not found in the dataset", axis_name
+                )
+                warnings.warn(
+                    f"Axis name '{axis_name}' not found in the dataset."
+                    "Skipping."
+                )
+                continue
+            query_[axis_name_resolved] = ensure_list_or_slice(value)
+        da = self.da.isel(query_)
         return type(self)(da)
 
     # ###############################
