@@ -71,7 +71,7 @@ ______________________________________________________________________
 
 ???+ info "Climatrix is now available on PyPI"
 
-    The project will soon be available via PyPI (`pip install climatrix`)
+    Run `pip install climatrix` to install.
 
 These instructions will get you a copy of the project up and running on your local machine.
 
