@@ -12,6 +12,7 @@ import xarray as xr
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 
+from climatrix.dataset.axis import Axis
 from climatrix.dataset.domain import (
     Domain,
     SamplingNaNPolicy,
@@ -206,6 +207,10 @@ class BaseClimatrixDataset:
         )
         return type(self)(res)
 
+    # ###############################
+    # Utility methods
+    # ###############################
+
     def mask_nan(self, source: Self) -> Self:
         """
         Apply NaN values from another dataset to the current one.
@@ -242,6 +247,39 @@ class BaseClimatrixDataset:
             )
 
         da = xr.where(source.da.isnull(), np.nan, self.da).squeeze()
+        return type(self)(da)
+
+    def drop(self, axis: Axis | str) -> Self:
+        """
+        Drop the specified axis from the dataset.
+
+        Parameters
+        ----------
+        axis : Axis | str
+            The axis to drop.
+
+        Returns
+        -------
+        BaseClimatrixDataset
+            A new dataset with the specified axis dropped.
+
+        Raises
+        ------
+        ValueError
+            If the specified axis is not valid.
+
+        Examples
+        --------
+        >>> import climatrix as cm
+        >>> dset = xr.open_dataset("path/to/dataset.nc").cm
+        >>> dset.drop("time")
+
+
+        >>> import climatrix as cm
+        >>> dset = xr.open_dataset("path/to/dataset.nc").cm
+        >>> dset.drop(cm.Axis.TIME)
+        """
+        da = self.da.drop(self.domain.get_axis(axis))
         return type(self)(da)
 
     # ###############################

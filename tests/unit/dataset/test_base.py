@@ -6,7 +6,7 @@ import xarray as xr
 
 from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.exceptions import LongitudeConventionMismatch
-from climatrix.types import Latitude, Longitude
+from climatrix.types import Axis, Latitude, Longitude
 
 
 @pytest.fixture
@@ -186,3 +186,25 @@ class TestBaseClimatrixDataset:
             sample_static_dataset.reconstruct(
                 target=sample_static_dataset.domain, method="cubic"
             )
+
+    def test_drop_valid_axis_by_name(self, sample_static_dataset):
+        result = sample_static_dataset.drop("time")
+        assert isinstance(result, BaseClimatrixDataset)
+        assert "time" not in result.da.dims
+        assert Axis.TIME not in result.domain.coords
+
+    def test_drop_valid_axis_by_enum(self, sample_static_dataset):
+        result = sample_static_dataset.drop(Axis.TIME)
+        assert isinstance(result, BaseClimatrixDataset)
+        assert "time" not in result.da.dims
+        assert Axis.TIME not in result.domain.coords
+
+    def test_drop_invalid_axis_raises_value_error(self, sample_static_dataset):
+        with pytest.raises(ValueError, match=".*not valid.*"):
+            sample_static_dataset.drop("invalid_axis")
+
+    def test_drop_nonexistent_axis_raises_value_error(
+        self, sample_static_dataset
+    ):
+        with pytest.raises(ValueError, match=".*not valid.*"):
+            sample_static_dataset.drop("depth")
