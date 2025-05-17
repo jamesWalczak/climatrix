@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import os
+import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
@@ -33,6 +35,9 @@ def drop_scalar_coords_and_dims(da: xr.DataArray) -> xr.DataArray:
         if len(da[coord].shape) == 0:
             da = da.drop(coord)
     return da
+
+
+log = logging.getLogger(__name__)
 
 
 @xr.register_dataset_accessor("cm")
@@ -75,7 +80,9 @@ class BaseClimatrixDataset:
         # Dataset with a single variable
         xarray_obj = ensure_single_var(xarray_obj)
         xarray_obj = drop_scalar_coords_and_dims(xarray_obj)
-        dims_to_squeeze = [dim for dim in xarray_obj.dims if xarray_obj.sizes[dim] == 1]
+        dims_to_squeeze = [
+            dim for dim in xarray_obj.dims if xarray_obj.sizes[dim] == 1
+        ]
         xarray_obj = xarray_obj.squeeze(dim=dims_to_squeeze)
         self.domain = Domain(xarray_obj)
         self.da = xarray_obj
@@ -276,13 +283,20 @@ class BaseClimatrixDataset:
         >>> dset2 = dset.sel({"latitude": 10.0, "longitude": 20.0})
         >>> dset3 = dset.sel({Axis.TIME: [datetime(2020, 1, 1)]})
         """
-        query = {}
+        query_ = {}
         for axis_name, value in query.items():
             axis_name_resolved = self.domain.get_axis_name(axis_name)
             if axis_name_resolved is None:
-                raise ValueError(f"Invalid axis name: {axis_name}")
-            query[axis_name_resolved] = ensure_list_or_slice(value)
-        da = self.da.sel(query)
+                log.warning(
+                    "Axis name '%s' not found in the dataset", axis_name
+                )
+                warnings.warn(
+                    f"Axis name '{axis_name}' not found in the dataset."
+                    "Skipping."
+                )
+                continue
+            query_[axis_name_resolved] = ensure_list_or_slice(value)
+        da = self.da.sel(query_)
         return type(self)(da)
 
     def isel(self, query: dict[Axis | str, Any]) -> Self:
@@ -295,7 +309,7 @@ class BaseClimatrixDataset:
             Dictionary of axes and indices to select.
             The keys can be either `Axis` objects or strings
             representing the names of the axes.
-            The values must be integers or slices.
+            The values must be integers, list of integers, or slices.
 
         Returns
         -------
@@ -309,11 +323,20 @@ class BaseClimatrixDataset:
         >>> dset2 = dset.isel({"latitude": 0, "longitude": 1})
         >>> dset3 = dset.isel({Axis.TIME: slice(0, 2)})
         """
-        query = {
-            self.domain.get_axis_name(axis_name): ensure_list_or_slice(value)
-            for axis_name, value in query.items()
-        }
-        da = self.da.isel(query)
+        query_ = {}
+        for axis_name, value in query.items():
+            axis_name_resolved = self.domain.get_axis_name(axis_name)
+            if axis_name_resolved is None:
+                log.warning(
+                    "Axis name '%s' not found in the dataset", axis_name
+                )
+                warnings.warn(
+                    f"Axis name '{axis_name}' not found in the dataset."
+                    "Skipping."
+                )
+                continue
+            query_[axis_name_resolved] = ensure_list_or_slice(value)
+        da = self.da.isel(query_)
         return type(self)(da)
 
     # ###############################
