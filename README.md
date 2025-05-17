@@ -76,7 +76,7 @@ cd climatrix
 ```
 
 > [!IMPORTANT]\
-> The project soon will be available via PyPI (`pip install climatrix`)
+> The project is now available via PyPI (`pip install climatrix`)
 
 ______________________________________________________________________
 
