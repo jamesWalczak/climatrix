@@ -120,7 +120,6 @@ class Domain:
             for axis, axis_name in axis_mapping.items()
         }
         coords = ensure_all_numpy_arrays(coords)
-        # coords = filter_out_single_value_coord(coords)
 
         if cls is not Domain:
             return super().__new__(cls)
