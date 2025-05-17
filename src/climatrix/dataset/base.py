@@ -276,10 +276,12 @@ class BaseClimatrixDataset:
         >>> dset2 = dset.sel({"latitude": 10.0, "longitude": 20.0})
         >>> dset3 = dset.sel({Axis.TIME: [datetime(2020, 1, 1)]})
         """
-        query = {
-            self.domain.get_axis_name(axis_name): ensure_list_or_slice(value)
-            for axis_name, value in query.items()
-        }
+        query = {}
+        for axis_name, value in query.items():
+            axis_name_resolved = self.domain.get_axis_name(axis_name)
+            if axis_name_resolved is None:
+                raise ValueError(f"Invalid axis name: {axis_name}")
+            query[axis_name_resolved] = ensure_list_or_slice(value)
         da = self.da.sel(query)
         return type(self)(da)
 
