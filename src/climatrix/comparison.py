@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import warnings
 from pathlib import Path
@@ -11,13 +12,14 @@ import pandas as pd
 import seaborn as sns
 from matplotlib.axes import Axes
 
-from climatrix.dataset import domain
 from climatrix.decorators import raise_if_not_installed
 
 if TYPE_CHECKING:
     from climatrix.dataset.base import BaseClimatrixDataset
 
 sns.set_style("darkgrid")
+
+log = logging.getLogger(__name__)
 
 
 class Comparison:
@@ -62,9 +64,19 @@ class Comparison:
         self.true_dataset = true_dataset
         self._assert_static()
         if map_nan_from_source:
-            self.predicted_dataset = self.predicted_dataset.mask_nan(
-                self.true_dataset
-            )
+            try:
+                self.predicted_dataset = self.predicted_dataset.mask_nan(
+                    self.true_dataset
+                )
+            except ValueError as err:
+                log.error(
+                    "Error while masking NaN values from source dataset. "
+                    "Set `map_nan_from_source` to False to skip this step."
+                )
+                raise ValueError(
+                    "Error while masking NaN values from source dataset. "
+                    "Set `map_nan_from_source` to False to skip this step."
+                ) from err
         self.diff = self.predicted_dataset - self.true_dataset
 
     def _assert_static(self):
