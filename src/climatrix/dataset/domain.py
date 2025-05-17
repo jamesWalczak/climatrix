@@ -116,11 +116,11 @@ class Domain:
         axis_mapping = match_axis_names(da)
         validate_spatial_axes(axis_mapping)
         coords = {
-            axis: da[axis_name].values
+            axis: np.atleast_1d(da[axis_name].values)
             for axis, axis_name in axis_mapping.items()
         }
         coords = ensure_all_numpy_arrays(coords)
-        coords = filter_out_single_value_coord(coords)
+        # coords = filter_out_single_value_coord(coords)
 
         if cls is not Domain:
             return super().__new__(cls)
@@ -212,7 +212,7 @@ class Domain:
         """Latitude coordinates values"""
         if Axis.LATITUDE not in self.coords:
             raise ValueError(
-                f"Latitude not found in coordinates {self.coords.keys()}"
+                f"Latitude not found in coordinates ({list(self.coords.keys())})"
             )
         return self.coords[Axis.LATITUDE].astype(float)
 
@@ -221,7 +221,7 @@ class Domain:
         """Longitude coordinates values"""
         if Axis.LONGITUDE not in self.coords:
             raise ValueError(
-                f"Longitude not found in coordinates {self.coords.keys()}"
+                f"Longitude not found in coordinates ({list(self.coords.keys())})"
             )
         return self.coords[Axis.LONGITUDE].astype(float)
 
@@ -230,7 +230,7 @@ class Domain:
         """Time coordinates values"""
         if Axis.TIME not in self.coords:
             raise ValueError(
-                f"Time not found in coordinates {self.coords.keys()}"
+                f"Time not found in coordinates ({list(self.coords.keys())})"
             )
         return self.coords[Axis.TIME]
 
@@ -239,7 +239,7 @@ class Domain:
         """Point coordinates values"""
         if Axis.POINT not in self.coords:
             raise ValueError(
-                f"Point not found in coordinates {self.coords.keys()}"
+                f"Point not found in coordinates ({list(self.coords.keys())})"
             )
         return self.coords[Axis.POINT]
 
@@ -261,6 +261,22 @@ class Domain:
         if axis not in self.coords:
             return 1
         return self.coords[axis].size
+
+    def get_axis_name(self, axis: Axis | str) -> str | None:
+        """
+        Get the name of the specified axis.
+
+        Parameters
+        ----------
+        axis : Axis
+            The axis for which to get the name.
+
+        Returns
+        -------
+        str | None
+            The name of the specified axis, or None if not found.
+        """
+        return self._axis_mapping.get(Axis.get(axis))
 
     @property
     def size(self) -> int:

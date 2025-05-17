@@ -4,9 +4,10 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from climatrix.dataset.axis import Axis
 from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.exceptions import LongitudeConventionMismatch
-from climatrix.types import Axis, Latitude, Longitude
+from climatrix.types import Latitude, Longitude
 
 
 @pytest.fixture
@@ -175,7 +176,7 @@ class TestBaseClimatrixDataset:
         assert non_nan_coords.lon.median() == pytest.approx(180.0, abs=15.0)
 
     def test_reconstruct_with_idw_returns_domain_shape(
-        self, sample_static_dataset
+        self, sample_static_dataset: BaseClimatrixDataset
     ):
         domain = sample_static_dataset.domain
         result = sample_static_dataset.reconstruct(target=domain, method="idw")
@@ -187,24 +188,43 @@ class TestBaseClimatrixDataset:
                 target=sample_static_dataset.domain, method="cubic"
             )
 
-    def test_drop_valid_axis_by_name(self, sample_static_dataset):
-        result = sample_static_dataset.drop("time")
+    def test_sel_with_axis_names(self, sample_static_dataset):
+        result = sample_static_dataset.sel(
+            {"latitude": 0.0, "longitude": 180.0}
+        )
         assert isinstance(result, BaseClimatrixDataset)
-        assert "time" not in result.da.dims
-        assert Axis.TIME not in result.domain.coords
+        assert result.domain.latitude.size == 1
+        assert result.domain.longitude.size == 1
+        assert result.domain.latitude[0] == 0.0
+        assert result.domain.longitude[0] == 180.0
 
-    def test_drop_valid_axis_by_enum(self, sample_static_dataset):
-        result = sample_static_dataset.drop(Axis.TIME)
+    def test_sel_with_axis_objects(self, sample_static_dataset):
+        result = sample_static_dataset.sel(
+            {Axis.LATITUDE: 0.0, Axis.LONGITUDE: 180.0}
+        )
         assert isinstance(result, BaseClimatrixDataset)
-        assert "time" not in result.da.dims
-        assert Axis.TIME not in result.domain.coords
+        assert result.domain.latitude.size == 1
+        assert result.domain.longitude.size == 1
+        assert result.domain.latitude[0] == 0.0
+        assert result.domain.longitude[0] == 180.0
 
-    def test_drop_invalid_axis_raises_value_error(self, sample_static_dataset):
-        with pytest.raises(ValueError, match=".*not valid.*"):
-            sample_static_dataset.drop("invalid_axis")
+    def test_isel_with_axis_names(self, sample_static_dataset):
+        result = sample_static_dataset.isel(
+            {"latitude": 1, "longitude": [1, 2]}
+        )
+        assert isinstance(result, BaseClimatrixDataset)
+        assert result.domain.latitude.size == 1
+        assert result.domain.longitude.size == 2
+        assert result.domain.latitude[0] == 0.0
+        assert result.domain.longitude[0] == 180.0
+        assert result.domain.longitude[1] == 360.0
 
-    def test_drop_nonexistent_axis_raises_value_error(
-        self, sample_static_dataset
-    ):
-        with pytest.raises(ValueError, match=".*not valid.*"):
-            sample_static_dataset.drop("depth")
+    def test_isel_with_axis_objects(self, sample_static_dataset):
+        result = sample_static_dataset.isel(
+            {Axis.LATITUDE: 1, Axis.LONGITUDE: 2}
+        )
+        assert isinstance(result, BaseClimatrixDataset)
+        assert result.domain.latitude.size == 1
+        assert result.domain.longitude.size == 1
+        assert result.domain.latitude[0] == 0.0
+        assert result.domain.longitude[0] == 360.0
