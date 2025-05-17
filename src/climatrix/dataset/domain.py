@@ -12,6 +12,7 @@ import xarray as xr
 from climatrix.dataset.axis import Axis
 from climatrix.exceptions import TooLargeSamplePortionWarning
 from climatrix.types import Latitude, Longitude
+from climatrix.warnings import DomainMismatchWarning
 
 _DEFAULT_LAT_RESOLUTION = 0.1
 _DEFAULT_LON_RESOLUTION = 0.1
@@ -283,8 +284,18 @@ class Domain:
     def __eq__(self, value: Any) -> bool:
         if not isinstance(value, Domain):
             return False
-        same_keys = set(self.coords.keys()) == set(value.coords.keys())
-        if not same_keys:
+        self_only = set(self.coords.keys()) - set(value.coords.keys())
+        value_only = set(value.coords.keys()) - set(self.coords.keys())
+        if len(self_only) > 0 or len(value_only) > 0:
+            log.warning(
+                f"Domain mismatch: {self_only} in self, {value_only} in value"
+            )
+            warnings.warn(
+                f"Domain mismatch: {self_only} (self), {value_only} (value). "
+                "To compare domains, they need to have the same axis. "
+                "Remember axis can be removed by using the `drop` method. ",
+                DomainMismatchWarning,
+            )
             return False
         for k in self.coords.keys():
             if not np.allclose(
