@@ -40,8 +40,11 @@ class Comparison:
     true_dataset : DenseDataset
         The target dataset.
     map_nan_from_source : bool, optional
-        Whether to map NaN values from the source dataset to the
-        target dataset. Default is True.
+        If True, the NaN values from the source dataset will be
+        mapped to the target dataset. If False, the NaN values
+        from the target dataset will be used. Default is None,
+        which means `False` for sparse datasets and `True`
+        for dense datasets.
     """
 
     def __init__(
