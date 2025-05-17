@@ -42,15 +42,18 @@ class Comparison:
     true_dataset : DenseDataset
         The target dataset.
     map_nan_from_source : bool, optional
-        Whether to map NaN values from the source dataset to the
-        target dataset. Default is True.
+        If True, the NaN values from the source dataset will be
+        mapped to the target dataset. If False, the NaN values
+        from the target dataset will be used. Default is None,
+        which means `False` for sparse datasets and `True`
+        for dense datasets.
     """
 
     def __init__(
         self,
         predicted_dataset: BaseClimatrixDataset,
         true_dataset: BaseClimatrixDataset,
-        map_nan_from_source: bool = True,
+        map_nan_from_source: bool | None = None,
     ):
         from climatrix.dataset.base import BaseClimatrixDataset
 
@@ -63,6 +66,8 @@ class Comparison:
         self.predicted_dataset = predicted_dataset
         self.true_dataset = true_dataset
         self._assert_static()
+        if map_nan_from_source is None:
+            map_nan_from_source = not predicted_dataset.domain.is_sparse
         if map_nan_from_source:
             try:
                 self.predicted_dataset = self.predicted_dataset.mask_nan(
