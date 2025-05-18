@@ -279,6 +279,7 @@ class BaseClimatrixDataset:
         Examples
         --------
         >>> import climatrix as cm
+        >>> from climatrix.dataset.axis import Axis
         >>> dset = xr.open_dataset("path/to/dataset.nc").cm
         >>> dset2 = dset.sel({"latitude": 10.0, "longitude": 20.0})
         >>> dset3 = dset.sel({Axis.TIME: [datetime(2020, 1, 1)]})
@@ -319,6 +320,7 @@ class BaseClimatrixDataset:
         Examples
         --------
         >>> import climatrix as cm
+        >>> from climatrix.dataset.axis import Axis
         >>> dset = xr.open_dataset("path/to/dataset.nc").cm
         >>> dset2 = dset.isel({"latitude": 0, "longitude": 1})
         >>> dset3 = dset.isel({Axis.TIME: slice(0, 2)})
