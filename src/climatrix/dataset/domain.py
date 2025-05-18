@@ -306,7 +306,8 @@ class Domain:
                 f"Domain mismatch: {self_only} in self, {value_only} in value"
             )
             warnings.warn(
-                f"Domain mismatch: {self_only} (self), {value_only} (value). "
+                f"Domain mismatch: {list(self_only)} (self), "
+                f"{list(value_only)} (value). "
                 "To compare domains, they need to have the same axis. "
                 "Remember axis can be removed by using the `drop` method. ",
                 DomainMismatchWarning,
