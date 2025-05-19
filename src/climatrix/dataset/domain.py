@@ -73,7 +73,7 @@ def validate_spatial_axes(axis_mapping: dict[AxisType, Axis]):
             raise ValueError(f"Dataset has no {axis.name} axis")
 
 
-def check_is_dense(axis_mapping: dict[AxisType, str]) -> bool:
+def check_is_dense(axis_mapping: dict[AxisType, Axis]) -> bool:
     return (
         axis_mapping[AxisType.LATITUDE].is_dimension
         and axis_mapping[AxisType.LONGITUDE].is_dimension
