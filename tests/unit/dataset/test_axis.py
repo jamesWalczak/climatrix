@@ -10,19 +10,31 @@ from climatrix.dataset.axis import (
     Time,
     Vertical,
 )
+from climatrix.exceptions import AxisMatchingError
 
 
 class TestAxis:
     def test_axis_initialization(self):
-        axis = Axis(name="test_axis", values=np.array([1]), is_dimension=True)
-        assert axis.name == "test_axis"
+        axis = Axis(name="lat", values=np.array([1]), is_dimension=True)
+        assert axis.name == "lat"
         assert axis.is_dimension is True
+
+    def test_axis_initialization_fail_on_unrecognized_name(self):
+        with pytest.raises(
+            AxisMatchingError,
+            match="No matching axis found for name: unrecognized_axis*",
+        ):
+            Axis(
+                name="unrecognized_axis",
+                values=np.array([1]),
+                is_dimension=True,
+            )
 
     def test_axis_initialization_empty_on_none(self):
         with pytest.warns(
             match="No values provided. Axis will contain no values"
         ):
-            Axis(name="test_axis", values=None, is_dimension=True)
+            Axis(name="lat", values=None, is_dimension=True)
 
     def test_axis_matches(self):
         assert Latitude.matches("latitude")

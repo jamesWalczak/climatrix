@@ -8,6 +8,8 @@ from typing import ClassVar, Type, final
 
 import numpy as np
 
+from climatrix.exceptions import AxisMatchingError
+
 log = logging.getLogger(__name__)
 
 
@@ -125,7 +127,17 @@ class Axis:
         for axis in cls.get_all_axes():
             if axis.matches(name):
                 return super().__new__(axis)
-        return super().__new__(cls)
+        log.error(
+            "No matching axis found for name: %s. "
+            "Create explicitly one of the predefined axes "
+            "(e.g. `Latitude(name='custom_name', values, True)`)",
+            name,
+        )
+        raise AxisMatchingError(
+            f"No matching axis found for name: {name}. "
+            "Create explicitly one of the predefined axes "
+            "(e.g. `Latitude(name='custom_name', values, True)`)",
+        )
 
     def __init__(
         self,

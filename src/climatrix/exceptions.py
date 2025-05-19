@@ -12,3 +12,11 @@ class LongitudeConventionMismatch(ValueError):
 
 class MissingAxisError(KeyError):
     pass
+
+
+class SubsettingByNonDimensionAxisError(ValueError):
+    pass
+
+
+class AxisMatchingError(ValueError):
+    pass
