@@ -117,6 +117,7 @@ The library contains a few public classes:
         - is_dynamic
         - is_sparse
         - size
+        - all_axes_types
         - get_all_spatial_points
         - to_xarray
       scoped_crossrefs: true

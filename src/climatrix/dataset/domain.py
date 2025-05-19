@@ -118,7 +118,7 @@ class Domain:
         Mapping of `AxisType` to the corresponding `Axis` object.
     """
 
-    __slots__ = ('_axes',)
+    __slots__ = ("_axes",)
     is_sparse: ClassVar[bool]
     _axes: dict[AxisType, Axis]
 
@@ -236,6 +236,11 @@ class Domain:
                 f"Vertical axis not found in axes ({list(self._axes.keys())})"
             )
         return self._axes.get(AxisType.VERTICAL)
+
+    @property
+    def all_axes_types(self) -> list[AxisType]:
+        """All axis types in the domain."""
+        return list(self._axes.keys())
 
     def get_size(self, axis: AxisType | str) -> int:
         """
@@ -420,7 +425,9 @@ class SparseDomain(Domain):
                ...
         """
         if self.latitude is None or self.longitude is None:
-            raise MissingAxisError("Latitude or Longitude axis is not initialized.")
+            raise MissingAxisError(
+                "Latitude or Longitude axis is not initialized."
+            )
         return np.stack((self.latitude.values, self.longitude.values), axis=1)
 
     def _compute_subset_indexers(
