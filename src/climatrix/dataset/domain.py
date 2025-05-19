@@ -67,7 +67,7 @@ def match_axes(da: xr.DataArray) -> dict[AxisType, str]:
     return axes
 
 
-def validate_spatial_axes(axis_mapping: dict[AxisType, str]):
+def validate_spatial_axes(axis_mapping: dict[AxisType, Axis]):
     for axis in [AxisType.LATITUDE, AxisType.LONGITUDE]:
         if axis not in axis_mapping:
             raise ValueError(f"Dataset has no {axis.name} axis")
