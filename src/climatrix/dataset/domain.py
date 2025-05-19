@@ -419,6 +419,8 @@ class SparseDomain(Domain):
                [ 0. ,  0.1],
                ...
         """
+        if self.latitude is None or self.longitude is None:
+            raise MissingAxisError("Latitude or Longitude axis is not initialized.")
         return np.stack((self.latitude.values, self.longitude.values), axis=1)
 
     def _compute_subset_indexers(
