@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from climatrix.dataset.axis import Axis
+from climatrix.dataset.axis import Axis, AxisType
 from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.exceptions import LongitudeConventionMismatch
 from climatrix.types import Latitude, Longitude
@@ -195,18 +195,18 @@ class TestBaseClimatrixDataset:
         assert isinstance(result, BaseClimatrixDataset)
         assert result.domain.latitude.size == 1
         assert result.domain.longitude.size == 1
-        assert result.domain.latitude[0] == 0.0
-        assert result.domain.longitude[0] == 180.0
+        assert result.domain.latitude.values[0] == 0.0
+        assert result.domain.longitude.values[0] == 180.0
 
     def test_sel_with_axis_objects(self, sample_static_dataset):
         result = sample_static_dataset.sel(
-            {Axis.LATITUDE: 0.0, Axis.LONGITUDE: 180.0}
+            {AxisType.LATITUDE: 0.0, AxisType.LONGITUDE: 180.0}
         )
         assert isinstance(result, BaseClimatrixDataset)
         assert result.domain.latitude.size == 1
         assert result.domain.longitude.size == 1
-        assert result.domain.latitude[0] == 0.0
-        assert result.domain.longitude[0] == 180.0
+        assert result.domain.latitude.values[0] == 0.0
+        assert result.domain.longitude.values[0] == 180.0
 
     def test_isel_with_axis_names(self, sample_static_dataset):
         result = sample_static_dataset.isel(
@@ -215,16 +215,65 @@ class TestBaseClimatrixDataset:
         assert isinstance(result, BaseClimatrixDataset)
         assert result.domain.latitude.size == 1
         assert result.domain.longitude.size == 2
-        assert result.domain.latitude[0] == 0.0
-        assert result.domain.longitude[0] == 180.0
-        assert result.domain.longitude[1] == 360.0
+        assert result.domain.latitude.values[0] == 0.0
+        assert result.domain.longitude.values[0] == 180.0
+        assert result.domain.longitude.values[1] == 360.0
 
     def test_isel_with_axis_objects(self, sample_static_dataset):
         result = sample_static_dataset.isel(
-            {Axis.LATITUDE: 1, Axis.LONGITUDE: 2}
+            {AxisType.LATITUDE: 1, AxisType.LONGITUDE: 2}
         )
         assert isinstance(result, BaseClimatrixDataset)
         assert result.domain.latitude.size == 1
         assert result.domain.longitude.size == 1
-        assert result.domain.latitude[0] == 0.0
-        assert result.domain.longitude[0] == 360.0
+        assert result.domain.latitude.values[0] == 0.0
+        assert result.domain.longitude.values[0] == 360.0
+
+    def test_profile_along_single_axis(self, sample_static_dataset):
+        profiles = list(sample_static_dataset.profile_along_axes("latitude"))
+        assert len(profiles) == sample_static_dataset.da.lat.size
+        for i, profile in enumerate(profiles):
+            assert isinstance(profile, BaseClimatrixDataset)
+            assert profile.domain.latitude.size == 1
+            assert (
+                profile.domain.latitude.values[0]
+                == sample_static_dataset.da.lat.values[i]
+            )
+
+    def test_profile_along_multiple_axes(self, sample_static_dataset):
+        profiles = list(
+            sample_static_dataset.profile_along_axes("latitude", "longitude")
+        )
+        expected_count = (
+            sample_static_dataset.da.lat.size
+            * sample_static_dataset.da.lon.size
+        )
+        assert len(profiles) == expected_count
+        for profile in profiles:
+            assert isinstance(profile, BaseClimatrixDataset)
+            assert profile.domain.latitude.size == 1
+            assert profile.domain.longitude.size == 1
+
+    def test_profile_along_no_axes(self, sample_static_dataset):
+        profiles = list(sample_static_dataset.profile_along_axes())
+        assert len(profiles) == 1
+        np.testing.assert_allclose(
+            profiles[0].da.values, sample_static_dataset.da.values
+        )
+
+    def test_profile_along_invalid_axis(self, sample_static_dataset):
+        with pytest.raises(
+            ValueError, match="Unknown axis type: invalid_axis"
+        ):
+            list(sample_static_dataset.profile_along_axes("invalid_axis"))
+
+    def test_profile_along_time_axis(self, sample_dynamic_dataset):
+        profiles = list(sample_dynamic_dataset.profile_along_axes("time"))
+        assert len(profiles) == sample_dynamic_dataset.da.time.size
+        for i, profile in enumerate(profiles):
+            assert isinstance(profile, BaseClimatrixDataset)
+            assert profile.domain.time.size == 1
+            assert (
+                profile.domain.time.values[0]
+                == sample_dynamic_dataset.da.time.values[i]
+            )

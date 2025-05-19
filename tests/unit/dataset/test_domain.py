@@ -1,11 +1,12 @@
 from functools import partial
-from unittest.mock import MagicMock, patch
+from tkinter import N
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import numpy as np
 import pytest
 import xarray as xr
 
-from climatrix.dataset.axis import Axis
+from climatrix.dataset.axis import Axis, AxisType
 
 # Import the classes and functions to be tested
 from climatrix.dataset.domain import (
@@ -17,12 +18,15 @@ from climatrix.dataset.domain import (
     ensure_all_numpy_arrays,
     ensure_single_var,
     filter_out_single_value_coord,
-    match_axis_names,
+    match_axes,
     validate_input,
     validate_spatial_axes,
 )
-from climatrix.exceptions import TooLargeSamplePortionWarning
-from climatrix.warnings import DomainMismatchWarning
+from climatrix.exceptions import MissingAxisError
+from climatrix.warnings import (
+    DomainMismatchWarning,
+    TooLargeSamplePortionWarning,
+)
 
 
 class TestSamplingNaNPolicy:
@@ -83,36 +87,47 @@ class TestDomainHelperFunctions:
                 "lon": np.linspace(-180, 180, 5),
             },
         )
-        result = match_axis_names(da)
-        assert Axis.TIME in result
-        assert Axis.LATITUDE in result
-        assert Axis.LONGITUDE in result
+        result = match_axes(da)
+        assert AxisType.TIME in result
+        assert AxisType.LATITUDE in result
+        assert AxisType.LONGITUDE in result
 
     def test_validate_spatial_axes_if_present(self):
-        axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
+        axis_mapping = {AxisType.LATITUDE: "lat", AxisType.LONGITUDE: "lon"}
         validate_spatial_axes(axis_mapping)
 
     def test_validate_spatial_axes_if_lat_missing(self):
-        axis_mapping = {Axis.POINT: "point", Axis.LONGITUDE: "lon"}
+        axis_mapping = {AxisType.POINT: "point", AxisType.LONGITUDE: "lon"}
         with pytest.raises(ValueError, match="Dataset has no LATITUDE axis"):
             validate_spatial_axes(axis_mapping)
 
     def test_validate_spatial_axes_if_lon_missing(self):
-        axis_mapping = {Axis.POINT: "point", Axis.LATITUDE: "lat"}
+        axis_mapping = {AxisType.POINT: "point", AxisType.LATITUDE: "lat"}
         with pytest.raises(ValueError, match="Dataset has no LONGITUDE axis"):
             validate_spatial_axes(axis_mapping)
 
-    def test_check_is_dense(self):
-        da = xr.DataArray(
-            np.random.rand(3, 3),
-            dims=["lat", "lon"],
-            coords={
-                "lat": np.linspace(-90, 90, 3),
-                "lon": np.linspace(-180, 180, 3),
-            },
-        )
-        axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
-        result = check_is_dense(da, axis_mapping)
+    def test_check_is_dense_on_dimension_lat_lon(self):
+        axis_mapping = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, 0, 90]), True),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), True),
+        }
+        result = check_is_dense(axis_mapping)
+        assert isinstance(result, bool)
+
+    def test_check_is_not_dense_on_dimension_only_lat(self):
+        axis_mapping = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, 0, 90]), True),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), False),
+        }
+        result = check_is_dense(axis_mapping)
+        assert isinstance(result, bool)
+
+    def test_check_is_not_dense_on_dimension_only_lon(self):
+        axis_mapping = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, 0, 90]), False),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), True),
+        }
+        result = check_is_dense(axis_mapping)
         assert isinstance(result, bool)
 
     def test_ensure_all_numpy_arrays_numpy_array_passed(self):
@@ -195,71 +210,83 @@ class TestDomain:
         lat = np.array([-90, 0, 90])
         lon = np.array([-180, 0, 180])
         domain = Domain.from_lat_lon(lat=lat, lon=lon)
-        np.testing.assert_array_equal(domain.latitude, lat)
-        np.testing.assert_array_equal(domain.longitude, lon)
+        np.testing.assert_array_equal(domain.latitude.values, lat)
+        np.testing.assert_array_equal(domain.longitude.values, lon)
 
     def test_coordinate_properties(self):
         domain = MagicMock(spec=Domain)
-        domain._axis_mapping = {
-            Axis.LATITUDE: "lat",
-            Axis.LONGITUDE: "lon",
-            Axis.TIME: "time",
-            Axis.POINT: "point",
-        }
-        domain.coords = {
-            Axis.LATITUDE: np.array([-90, 0, 90]),
-            Axis.LONGITUDE: np.array([-180, 0, 180]),
-            Axis.TIME: np.array(
-                ["2020-01-01", "2020-01-02"], dtype="datetime64"
+        domain._axes = {
+            AxisType.LATITUDE: Axis(
+                name="lat", is_dimension=True, values=np.array([-90, 0, 90])
             ),
-            Axis.POINT: np.array([1, 2, 3]),
+            AxisType.LONGITUDE: Axis(
+                name="lon", is_dimension=True, values=np.array([-180, 0, 180])
+            ),
+            AxisType.TIME: Axis(
+                name="time",
+                is_dimension=True,
+                values=np.array(
+                    ["2020-01-01", "2020-01-02"], dtype="datetime64"
+                ),
+            ),
+            AxisType.POINT: Axis(
+                name="point", is_dimension=True, values=np.array([1, 2, 3])
+            ),
         }
 
-        assert Domain.latitude_name.__get__(domain) == "lat"
-        assert Domain.longitude_name.__get__(domain) == "lon"
-        assert Domain.time_name.__get__(domain) == "time"
-        assert Domain.point_name.__get__(domain) == "point"
-
         np.testing.assert_array_equal(
-            Domain.latitude.__get__(domain), domain.coords[Axis.LATITUDE]
+            Domain.latitude.__get__(domain).values,
+            domain._axes[AxisType.LATITUDE].values,
         )
         np.testing.assert_array_equal(
-            Domain.longitude.__get__(domain), domain.coords[Axis.LONGITUDE]
+            Domain.longitude.__get__(domain).values,
+            domain._axes[AxisType.LONGITUDE].values,
         )
         np.testing.assert_array_equal(
-            Domain.time.__get__(domain), domain.coords[Axis.TIME]
+            Domain.time.__get__(domain).values,
+            domain._axes[AxisType.TIME].values,
         )
         np.testing.assert_array_equal(
-            Domain.point.__get__(domain), domain.coords[Axis.POINT]
+            Domain.point.__get__(domain).values,
+            domain._axes[AxisType.POINT].values,
         )
 
     def test_size_methods(self):
         domain = MagicMock(spec=Domain)
         domain.get_size = partial(Domain.get_size, domain)
-        domain._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
-        domain.coords = {
-            Axis.LATITUDE: np.array([-90, 0, 90]),
-            Axis.LONGITUDE: np.array([-180, 0, 180]),
+        domain._axes = {
+            AxisType.LATITUDE: Axis(
+                name="lat", is_dimension=True, values=np.array([-90, 0, 90])
+            ),
+            AxisType.LONGITUDE: Axis(
+                name="lon", is_dimension=True, values=np.array([-180, 0, 180])
+            ),
         }
+        assert domain.get_size(AxisType.LATITUDE) == 3
 
-        assert domain.get_size(Axis.LATITUDE) == 3
-
-        domain.get_size.side_effect = lambda axis: len(
-            domain.coords[domain._axis_mapping[axis]]
-        )
+        domain.get_size.side_effect = lambda axis: len(domain._axes[axis])
         assert Domain.size.__get__(domain) > 0
 
     def test_is_dynamic_false_on_missing_time_coordinate(self):
         domain = MagicMock(spec=Domain)
-        domain._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
-        domain.time_name = None
-
+        domain._axes = {
+            AxisType.LATITUDE: Axis(
+                name="lat", is_dimension=True, values=np.array([-90, 0, 90])
+            ),
+            AxisType.LONGITUDE: Axis(
+                name="lon", is_dimension=True, values=np.array([-180, 0, 180])
+            ),
+        }
+        type(domain).time = PropertyMock(side_effect=MissingAxisError)
         assert not Domain.is_dynamic.__get__(domain)
 
     def test_is_dynamic_false_on_single_time_coordinate(self):
         domain = MagicMock(spec=Domain)
-        domain._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
-        domain.time_name = "time"
+        domain._axis_mapping = {
+            AxisType.LATITUDE: "lat",
+            AxisType.LONGITUDE: "lon",
+        }
+        domain.time.name = "time"
         domain.time = np.array(["2020-01-01"], dtype="datetime64")
         domain.get_size = partial(Domain.get_size, domain)
 
@@ -268,64 +295,68 @@ class TestDomain:
     def test_is_dynamic_true_on_multiple_time_coordinates(self):
         domain = MagicMock(spec=Domain)
         domain._axis_mapping = {
-            Axis.LATITUDE: "lat",
-            Axis.LONGITUDE: "lon",
-            Axis.TIME: "time",
+            AxisType.LATITUDE: "lat",
+            AxisType.LONGITUDE: "lon",
+            AxisType.TIME: "time",
         }
         domain.get_size = partial(Domain.get_size, domain)
 
-        domain.coords = {
-            "time": np.array(["2020-01-01", "2020-01-02"], dtype="datetime64")
+        domain._axes = {
+            AxisType.TIME: Axis(
+                name="time",
+                is_dimension=True,
+                values=np.array(
+                    ["2020-01-01", "2020-01-02"], dtype="datetime64"
+                ),
+            ),
         }
+
         assert Domain.is_dynamic.__get__(domain)
 
     def test_equality_valid(self):
         domain1 = MagicMock(spec=Domain)
-        domain1.coords = {
-            "lat": np.array([-90, 0, 90]),
-            "lon": np.array([-180, 0, 180]),
+        domain1._axes = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, 0, 90]), True),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), True),
         }
-        domain1._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
 
         domain2 = MagicMock(spec=Domain)
-        domain2.coords = {
-            "lat": np.array([-90, 0, 90]),
-            "lon": np.array([-180, 0, 180]),
+        domain2._axes = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, 0, 90]), True),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), True),
         }
-        domain2._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
 
         assert Domain.__eq__(domain1, domain2)
 
     def test_equality_false_on_different_coord_values(self):
         domain1 = MagicMock(spec=Domain)
-        domain1.coords = {
-            "lat": np.array([-90, 0, 90]),
-            "lon": np.array([-180, 0, 180]),
+        domain1._axes = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, 0, 90]), True),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), True),
         }
-        domain1._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
+        domain1.latitude = domain1._axes[AxisType.LATITUDE]
+        domain1.longitude = domain1._axes[AxisType.LONGITUDE]
 
         domain2 = MagicMock(spec=Domain)
-        domain2.coords = {
-            "lat": np.array([-45, 0, 45]),
-            "lon": np.array([-180, 0, 180]),
+        domain2._axes = {
+            AxisType.LATITUDE: Axis("lat", np.array([-45, 0, 45]), True),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), True),
         }
-        domain2._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
-
+        domain2.latitude = domain2._axes[AxisType.LATITUDE]
+        domain2.longitude = domain2._axes[AxisType.LONGITUDE]
         assert not Domain.__eq__(domain1, domain2)
 
     def test_equality_false_on_different_coords(self):
         domain1 = MagicMock(spec=Domain)
-        domain1.coords = {
-            "lat": np.array([-90, 0, 90]),
-            "lon": np.array([-180, 0, 180]),
+        domain1._axes = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, 0, 90]), True),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), True),
         }
-        domain1._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
 
         domain2 = MagicMock(spec=Domain)
-        domain2.coords = {
-            "point": np.array([-45, 0, 45]),
+        domain2._axes = {
+            AxisType.POINT: Axis("point", np.array([-45, 0, 45]), True),
         }
-        domain2._axis_mapping = {Axis.POINT: "point"}
 
     def test_equality_false_on_non_domain_type(self):
         domain1 = MagicMock(spec=Domain)
@@ -389,12 +420,11 @@ class TestSparseDomain:
     def test_get_all_spatial_points(self):
         domain = MagicMock(spec=SparseDomain)
         domain.coords = {
-            "lat": np.array([-90, 0, 90]),
-            "lon": np.array([-180, 0, 180]),
+            AxisType.LATITUDE: Axis("lat", np.array([-90, 0, 90]), True),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), True),
         }
-        domain._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
-        domain.latitude = domain.coords["lat"]
-        domain.longitude = domain.coords["lon"]
+        domain.latitude = domain._axes[AxisType.LATITUDE]
+        domain.longitude = domain._axes[AxisType.LONGITUDE]
 
         result = SparseDomain.get_all_spatial_points(domain)
 
@@ -402,13 +432,16 @@ class TestSparseDomain:
 
     def test_compute_subset_indexers_valid_types(self):
         domain = MagicMock(spec=SparseDomain)
-        domain.coords = {
-            "lat": np.array([-90, -45, 0, 45, 90]),
-            "lon": np.array([-180, -90, 0, 90, 180]),
+        domain._axes = {
+            AxisType.LATITUDE: Axis(
+                "lat", np.array([-90, -45, 0, 45, 90]), True
+            ),
+            AxisType.LONGITUDE: Axis(
+                "lon", np.array([-180, -90, 0, 90, 180]), True
+            ),
         }
-        domain._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
-        domain.latitude = domain.coords["lat"]
-        domain.longitude = domain.coords["lon"]
+        domain.latitude = domain._axes[AxisType.LATITUDE]
+        domain.longitude = domain._axes[AxisType.LONGITUDE]
 
         result = SparseDomain._compute_subset_indexers(
             domain, north=45, south=-45, west=-90, east=90
@@ -418,13 +451,16 @@ class TestSparseDomain:
 
     def test_compute_subset_indexers_valid_points(self):
         domain = MagicMock(spec=SparseDomain)
-        domain.coords = {
-            "lat": np.array([-90, -45, 0, 45, 90]),
-            "lon": np.array([-180, -90, 0, 90, 180]),
+        domain._axes = {
+            AxisType.LATITUDE: Axis(
+                "lat", np.array([-90, -45, 0, 45, 90]), True
+            ),
+            AxisType.LONGITUDE: Axis(
+                "lon", np.array([-180, -90, 0, 90, 180]), True
+            ),
         }
-        domain._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
-        domain.latitude = domain.coords["lat"]
-        domain.longitude = domain.coords["lon"]
+        domain.latitude = domain._axes[AxisType.LATITUDE]
+        domain.longitude = domain._axes[AxisType.LONGITUDE]
 
         result = SparseDomain._compute_subset_indexers(
             domain, north=45, south=-45, west=-90, east=90
@@ -447,10 +483,10 @@ class TestSparseDomain:
     def test_compute_sample_normal_indexers(self):
         domain = MagicMock(spec=SparseDomain)
         domain.size = 100
-        domain.point = np.array([1, 2, 3, 4, 5])
+        domain.point = Axis("point", np.array([1, 2, 3, 4, 5]), True)
         domain._get_sampling_points_nbr.return_value = 50
-        domain.latitude = np.array([-90, -45, 0, 45, 90])
-        domain.longitude = np.array([-180, -90, 0, 90, 180])
+        domain.latitude = Axis("lat", np.array([-90, -45, 0, 45, 90]), True)
+        domain.longitude = Axis("lon", np.array([-180, -90, 0, 90, 180]), True)
 
         result = SparseDomain._compute_sample_normal_indexers(
             domain, portion=0.5, center_point=None, sigma=10.0
@@ -488,42 +524,12 @@ class TestSparseDomain:
 
 class TestDenseDomain:
 
-    def test_get_all_spatial_points(self):
-        domain = MagicMock(spec=DenseDomain)
-        domain.coords = {
-            "lat": np.array([-90, 0, 90]),
-            "lon": np.array([-180, 0, 180]),
-        }
-        domain._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
-        domain.latitude = domain.coords["lat"]
-        domain.longitude = domain.coords["lon"]
-
-        result = DenseDomain.get_all_spatial_points(domain)
-
-        assert isinstance(result, np.ndarray)
-
-    def test_compute_subset_indexers(self):
-        domain = MagicMock(spec=DenseDomain)
-        domain.coords = {
-            "lat": np.array([-90, -45, 0, 45, 90]),
-            "lon": np.array([-180, -90, 0, 90, 180]),
-        }
-        domain._axis_mapping = {Axis.LATITUDE: "lat", Axis.LONGITUDE: "lon"}
-        domain.latitude = domain.coords["lat"]
-        domain.longitude = domain.coords["lon"]
-
-        result, _, _ = DenseDomain._compute_subset_indexers(
-            domain, north=45, south=-45, west=-90, east=90
-        )
-
-        assert isinstance(result, dict)
-
     def test_compute_sample_uniform_indexers(self):
         domain = MagicMock(spec=DenseDomain)
         domain.size = 100
         domain._get_sampling_points_nbr.return_value = 50
-        domain.latitude = np.array([-90, -45, 0, 45, 90])
-        domain.longitude = np.array([-180, -90, 0, 90, 180])
+        domain.latitude = Axis("lat", np.array([-90, -45, 0, 45, 90]), True)
+        domain.longitude = Axis("lon", np.array([-180, -90, 0, 90, 180]), True)
 
         result = DenseDomain._compute_sample_uniform_indexers(
             domain, portion=0.5
@@ -535,8 +541,12 @@ class TestDenseDomain:
         domain = MagicMock(spec=DenseDomain)
         domain.size = 100
         domain._get_sampling_points_nbr.return_value = 50
-        domain.latitude = np.array([-90, -45, 0, 45, 90])
-        domain.longitude = np.array([-180, -90, 0, 90, 180])
+        domain.latitude = Axis(
+            "lat", is_dimension=True, values=np.array([-90, -45, 0, 45, 90])
+        )
+        domain.longitude = Axis(
+            "lon", is_dimension=True, values=np.array([-180, -90, 0, 90, 180])
+        )
 
         result = DenseDomain._compute_sample_normal_indexers(
             domain, portion=0.5, center_point=None, sigma=10.0
@@ -571,55 +581,35 @@ class TestDenseDomain:
         values = da.sel(result).values
         assert np.isnan(values).sum() == 0
 
-    def test_equality_same_coordinates(self):
-        domain1 = MagicMock(spec=Domain)
-        domain1.coords = {
-            "lat": np.array([-90, 0, 90]),
-            "lon": np.array([-180, 0, 180]),
-        }
-        domain2 = MagicMock(spec=Domain)
-        domain2.coords = {
-            "lat": np.array([-90, 0, 90]),
-            "lon": np.array([-180, 0, 180]),
-        }
-        assert Domain.__eq__(domain1, domain2)
-
-    def test_equality_different_coordinates(self):
-        domain1 = MagicMock(spec=Domain)
-        domain1.coords = {
-            "lat": np.array([-90, 0, 90]),
-            "lon": np.array([-180, 0, 180]),
-        }
-        domain2 = MagicMock(spec=Domain)
-        domain2.coords = {
-            "lat": np.array([-45, 0, 45]),
-            "lon": np.array([-180, 0, 180]),
-        }
-        assert not Domain.__eq__(domain1, domain2)
-
     def test_equality_missing_coordinates(self):
         domain1 = MagicMock(spec=Domain)
-        domain1.coords = {
-            "lat": np.array([-90, 0, 90]),
+        domain1._axes = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, 0, 90]), True),
         }
+        domain1.latitude = domain1._axes[AxisType.LATITUDE]
         domain2 = MagicMock(spec=Domain)
-        domain2.coords = {
-            "lat": np.array([-90, 0, 90]),
-            "lon": np.array([-180, 0, 180]),
+        domain2._axes = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, 0, 90]), True),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), True),
         }
+        domain2.latitude = domain2._axes[AxisType.LATITUDE]
+        domain2.longitude = domain2._axes[AxisType.LONGITUDE]
         with pytest.warns(DomainMismatchWarning, match="Domain mismatch:"):
             assert not Domain.__eq__(domain1, domain2)
 
     def test_equality_extra_coordinates(self):
         domain1 = MagicMock(spec=Domain)
-        domain1.coords = {
-            "lat": np.array([-90, 0, 90]),
-            "lon": np.array([-180, 0, 180]),
+        domain1._axes = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, 0, 90])),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180])),
         }
+        domain1.latitude = domain1._axes[AxisType.LATITUDE]
+        domain1.longitude = domain1._axes[AxisType.LONGITUDE]
         domain2 = MagicMock(spec=Domain)
-        domain2.coords = {
-            "lat": np.array([-90, 0, 90]),
+        domain2._axes = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, 0, 90]), True),
         }
+        domain2.latitude = domain2._axes[AxisType.LATITUDE]
         with pytest.warns(DomainMismatchWarning, match="Domain mismatch:"):
             assert not Domain.__eq__(domain1, domain2)
 
@@ -630,26 +620,36 @@ class TestDenseDomain:
 
     def test_equality_nan_values(self):
         domain1 = MagicMock(spec=Domain)
-        domain1.coords = {
-            "lat": np.array([-90, np.nan, 90]),
-            "lon": np.array([-180, 0, 180]),
+        domain1._axes = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, np.nan, 90]), True),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), True),
         }
+        domain1.latitude = domain1._axes[AxisType.LATITUDE]
+        domain1.longitude = domain1._axes[AxisType.LONGITUDE]
+
         domain2 = MagicMock(spec=Domain)
-        domain2.coords = {
-            "lat": np.array([-90, np.nan, 90]),
-            "lon": np.array([-180, 0, 180]),
+        domain2._axes = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, np.nan, 90]), True),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), True),
         }
+        domain2.latitude = domain2._axes[AxisType.LATITUDE]
+        domain2.longitude = domain2._axes[AxisType.LONGITUDE]
         assert Domain.__eq__(domain1, domain2)
 
     def test_equality_nan_values_different(self):
         domain1 = MagicMock(spec=Domain)
-        domain1.coords = {
-            "lat": np.array([-90, np.nan, 90]),
-            "lon": np.array([-180, 0, 180]),
+        domain1._axes = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, np.nan, 90]), True),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), True),
         }
+        domain1.latitude = domain1._axes[AxisType.LATITUDE]
+        domain1.longitude = domain1._axes[AxisType.LONGITUDE]
+
         domain2 = MagicMock(spec=Domain)
-        domain2.coords = {
-            "lat": np.array([-90, 0, 90]),
-            "lon": np.array([-180, 0, 180]),
+        domain2._axes = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, 0, 90]), True),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), True),
         }
+        domain2.latitude = domain2._axes[AxisType.LATITUDE]
+        domain2.longitude = domain2._axes[AxisType.LONGITUDE]
         assert not Domain.__eq__(domain1, domain2)

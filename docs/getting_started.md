@@ -21,9 +21,9 @@ You can install `climatrix` directly from GitHub:
 pip install git+https://github.com/jamesWalczak/climatrix.git
 ```
 
-???+ info "Coming soon on PyPI"
+???+ info "Climatrix is already available on PyPI"
 
-    The project will soon be available via PyPI (`pip install ...`)
+    The project can be downloaded with `pip install climatrix`.
 
 
 
@@ -91,23 +91,25 @@ All predefined axis are available via [`Axis`](/climatrix/api#climatrix.dataset.
 To access latitude name, just use:
 
 ``` { .python }
-xarray_dataset.cm.latitude_name
+xarray_dataset.cm.latitude.name
 ```
 
 and to access values, use:
 
 ``` { .python }
-xarray_dataset.cm.latitude
+xarray_dataset.cm.latitude.values
 ```
 
 Below, you can find available attributes:
 
 | Attribute | Meaning | 
 | --------- | ------- | 
-| `latitude`| Values of latitude as `numpy.ndarray` |
-| `longitude`| Values of longitude as `numpy.ndarray` |
-| `time`| Values of time as `numpy.ndarray` |
-| `point`| Values of point as `numpy.ndarray` (in case of sparse datasets) |
+| `latitude`| [`Axis`](/climatrix/api#climatrix.dataset.axis.Axis) corresponding to `AxisType.LATITUDE` for the dataset |
+| `longitude`| [`Axis`](/climatrix/api#climatrix.dataset.axis.Axis) corresponding to `AxisType.LATITUDE` for the dataset  |
+| `time`| | [`Axis`](/climatrix/api#climatrix.dataset.axis.Axis) corresponding to `AxisType.TIME` for the dataset  |
+| `point`| | [`Axis`](/climatrix/api#climatrix.dataset.axis.Axis) corresponding to `AxisType.POINT` for the dataset  |
+| `vertical`| | [`Axis`](/climatrix/api#climatrix.dataset.axis.Axis) corresponding to `AxisType.VERTICAL` for the dataset  |
+
 
 
 ### Subsetting dataset by geographical coordinates
@@ -153,8 +155,11 @@ or by date:
 xr_dset = xr.tutorial.open_dataset("air_temperature")
 single_time_instant = xr_dset.cm.time("2013-02-10")
 several_time_instants = xr_dset.cm.time(["2013-02-10", "2013-02-12"])
-several_time_instants = xr_dset.cm.itime(slice("2013-02-10", "2013-02-12"))
+several_time_instants = xr_dset.cm.time(slice("2013-02-10", "2013-02-12"))
 ```
+
+???+ tip
+    You can also use [`sel`](/climatrix/api#climatrix.dataset.BaseClimatrixDataset.sel) or [`isel`](/climatrix/api#climatrix.dataset.BaseClimatrixDataset.isel) method with `AxisType.TIME`.
 
 
 ### Sampling data

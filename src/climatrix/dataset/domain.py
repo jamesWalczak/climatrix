@@ -9,10 +9,13 @@ from typing import Any, ClassVar, Literal, Self
 import numpy as np
 import xarray as xr
 
-from climatrix.dataset.axis import Axis
-from climatrix.exceptions import TooLargeSamplePortionWarning
+from climatrix.dataset.axis import Axis, AxisType
+from climatrix.exceptions import MissingAxisError
 from climatrix.types import Latitude, Longitude
-from climatrix.warnings import DomainMismatchWarning
+from climatrix.warnings import (
+    DomainMismatchWarning,
+    TooLargeSamplePortionWarning,
+)
 
 _DEFAULT_LAT_RESOLUTION = 0.1
 _DEFAULT_LON_RESOLUTION = 0.1
@@ -43,26 +46,37 @@ def ensure_single_var(da: xr.Dataset | xr.DataArray) -> xr.DataArray:
     return da
 
 
-def match_axis_names(da: xr.DataArray) -> dict[Axis, str]:
-    axis_names = {}
-    coords_and_dims = {*da.dims, *da.coords.keys()}
-    for coord in coords_and_dims:
-        for axis in Axis:
-            if axis.regex.match(coord):
-                axis_names[axis] = coord
-                break
-    return axis_names
+def match_axes(da: xr.DataArray) -> dict[AxisType, str]:
+    axes = {}
+    # NOTE: we match first coords to override them by dims
+    for coord in da.coords.keys():
+        for axis in Axis.get_all_axes():
+            if axis.matches(coord):
+                axes[axis.type] = Axis(
+                    coord,
+                    np.atleast_1d(da[coord].values).astype(axis.dtype),
+                    False,
+                )
+    for dim in da.dims:
+        for axis in Axis.get_all_axes():
+            if axis.matches(dim):
+                axes[axis.type] = Axis(
+                    dim, np.atleast_1d(da[dim].values).astype(axis.dtype), True
+                )
+
+    return axes
 
 
-def validate_spatial_axes(axis_mapping: dict[Axis, str]):
-    for axis in [Axis.LATITUDE, Axis.LONGITUDE]:
+def validate_spatial_axes(axis_mapping: dict[AxisType, str]):
+    for axis in [AxisType.LATITUDE, AxisType.LONGITUDE]:
         if axis not in axis_mapping:
             raise ValueError(f"Dataset has no {axis.name} axis")
 
 
-def check_is_dense(da: xr.DataArray, axis_mapping: dict[Axis, str]) -> bool:
-    return (axis_mapping[Axis.LATITUDE] in da.dims) and (
-        axis_mapping[Axis.LONGITUDE] in da.dims
+def check_is_dense(axis_mapping: dict[AxisType, str]) -> bool:
+    return (
+        axis_mapping[AxisType.LATITUDE].is_dimension
+        and axis_mapping[AxisType.LONGITUDE].is_dimension
     )
 
 
@@ -100,36 +114,27 @@ class Domain:
     ----------
     is_sparse : ClassVar[bool]
         Indicates if the domain is sparse or dense.
-    coords : dict[str, np.ndarray]
-        Dictionary of coordinates for the domain.
-    _axis_mapping : dict[Axis, str]
-        Mapping of axis names to their corresponding coordinates.
+    _axes : dict[AxisType, Axis]
+        Mapping of `AxisType` to the corresponding `Axis` object.
     """
 
-    __slots__ = ("coords", "_axis_mapping")
+    __slots__ = "_axes"
     is_sparse: ClassVar[bool]
-    coords: dict[str, np.ndarray]
-    _axis_mapping: dict[Axis, str]
+    _axes: dict[AxisType, Axis]
 
     def __new__(cls, xarray_obj: xr.Dataset | xr.DataArray):
         validate_input(xarray_obj)
         da = ensure_single_var(xarray_obj)
-        axis_mapping = match_axis_names(da)
+        axis_mapping = match_axes(da)
         validate_spatial_axes(axis_mapping)
-        coords = {
-            axis: np.atleast_1d(da[axis_name].values)
-            for axis, axis_name in axis_mapping.items()
-        }
-        coords = ensure_all_numpy_arrays(coords)
 
         if cls is not Domain:
             return super().__new__(cls)
-        if check_is_dense(da, axis_mapping):
+        if check_is_dense(axis_mapping):
             domain = DenseDomain(da)
         else:
             domain = SparseDomain(da)
-        domain.coords = coords
-        domain._axis_mapping = axis_mapping
+        domain._axes = axis_mapping
         return domain
 
     @classmethod
@@ -188,68 +193,57 @@ class Domain:
             raise ValueError(f"Unknown kind: {kind}")
 
     @property
-    def latitude_name(self) -> str:
-        """Latitude axis name"""
-        return self._axis_mapping[Axis.LATITUDE]
-
-    @property
-    def longitude_name(self) -> str:
-        """Longitude axis name"""
-        return self._axis_mapping[Axis.LONGITUDE]
-
-    @property
-    def point_name(self) -> str | None:
-        """Point axis name"""
-        return self._axis_mapping.get(Axis.POINT)
-
-    @property
-    def time_name(self) -> str | None:
-        """Time axis name"""
-        return self._axis_mapping.get(Axis.TIME)
-
-    @property
-    def latitude(self) -> np.ndarray:
-        """Latitude coordinates values"""
-        if Axis.LATITUDE not in self.coords:
-            raise ValueError(
-                f"Latitude not found in coordinates ({list(self.coords.keys())})"
+    def latitude(self) -> Axis:
+        """Latitude axis"""
+        if AxisType.LATITUDE not in self._axes:
+            raise MissingAxisError(
+                f"Latitude axis not found in axes ({list(self._axes.keys())})"
             )
-        return self.coords[Axis.LATITUDE].astype(float)
+        return self._axes[AxisType.LATITUDE]
 
     @property
-    def longitude(self) -> np.ndarray:
-        """Longitude coordinates values"""
-        if Axis.LONGITUDE not in self.coords:
-            raise ValueError(
-                f"Longitude not found in coordinates ({list(self.coords.keys())})"
+    def longitude(self) -> Axis:
+        """Longitude axis"""
+        if AxisType.LONGITUDE not in self._axes:
+            raise MissingAxisError(
+                f"Longitude axis not found in axes ({list(self._axes.keys())})"
             )
-        return self.coords[Axis.LONGITUDE].astype(float)
+        return self._axes[AxisType.LONGITUDE]
 
     @property
-    def time(self) -> np.ndarray:
-        """Time coordinates values"""
-        if Axis.TIME not in self.coords:
-            raise ValueError(
-                f"Time not found in coordinates ({list(self.coords.keys())})"
+    def point(self) -> Axis | None:
+        """Point axis"""
+        if AxisType.POINT not in self._axes:
+            raise MissingAxisError(
+                f"Point axis not found in axes ({list(self._axes.keys())})"
             )
-        return self.coords[Axis.TIME]
+        return self._axes.get(AxisType.POINT)
 
     @property
-    def point(self) -> np.ndarray:
-        """Point coordinates values"""
-        if Axis.POINT not in self.coords:
-            raise ValueError(
-                f"Point not found in coordinates ({list(self.coords.keys())})"
+    def time(self) -> Axis | None:
+        """Time axis"""
+        if AxisType.TIME not in self._axes:
+            raise MissingAxisError(
+                f"Time axis not found in axes ({list(self._axes.keys())})"
             )
-        return self.coords[Axis.POINT]
+        return self._axes.get(AxisType.TIME)
 
-    def get_size(self, axis: Axis | str) -> int:
+    @property
+    def vertical(self) -> Axis | None:
+        """Vertical axis"""
+        if AxisType.VERTICAL not in self._axes:
+            raise MissingAxisError(
+                f"Vertical axis not found in axes ({list(self._axes.keys())})"
+            )
+        return self._axes.get(AxisType.VERTICAL)
+
+    def get_size(self, axis: AxisType | str) -> int:
         """
         Get the size of the specified axis.
 
         Parameters
         ----------
-        axis : Axis
+        axis : AxisType
             The axis for which to get the size.
 
         Returns
@@ -257,65 +251,86 @@ class Domain:
         int
             The size of the specified axis.
         """
-        axis = Axis.get(axis)
-        if axis not in self.coords:
+        axis_type = AxisType.get(axis)
+        if axis_type not in self._axes:
             return 1
-        return self.coords[axis].size
+        return self._axes[axis_type].size
 
-    def get_axis_name(self, axis: Axis | str) -> str | None:
+    def has_axis(self, axis: AxisType | str) -> bool:
+        """
+        Check if the specified axis exists in the domain.
+
+        Parameters
+        ----------
+        axis : AxisType
+            The axis type to check.
+
+        Returns
+        -------
+        bool
+            True if the axis exists, False otherwise.
+        """
+        return AxisType.get(axis) in self._axes
+
+    def get_axis(self, axis: AxisType | str) -> Axis | None:
         """
         Get the name of the specified axis.
 
         Parameters
         ----------
-        axis : Axis
-            The axis for which to get the name.
+        axis : AxisType
+            The axis type for which to get the name.
 
         Returns
         -------
-        str | None
-            The name of the specified axis, or None if not found.
+        Axis | None
+            The Axis object, or None if not found.
         """
-        return self._axis_mapping.get(Axis.get(axis))
+        return self._axes.get(AxisType.get(axis))
 
     @property
     def size(self) -> int:
         """Domain size."""
-        if Axis.POINT in self.coords:
-            lat_lon = self.get_size(Axis.POINT)
+        if AxisType.POINT in self._axes:
+            lat_lon = self.get_size(AxisType.POINT)
         else:
-            lat_lon = self.get_size(Axis.LATITUDE) * self.get_size(
-                Axis.LONGITUDE
+            lat_lon = self.get_size(AxisType.LATITUDE) * self.get_size(
+                AxisType.LONGITUDE
             )
-        if not self.time_name:
-            return lat_lon
-        return lat_lon * self.get_size(Axis.TIME)
+        try:
+            if self.time:
+                lat_lon *= self.get_size(AxisType.TIME)
+        except MissingAxisError:
+            pass
+        return lat_lon
 
     @property
     def is_dynamic(self) -> bool:
         """If the domain is dynamic."""
-        return self.time_name and self.get_size(Axis.TIME) > 1
+        try:
+            return self.time and self.get_size(AxisType.TIME) > 1
+        except MissingAxisError:
+            return False
 
     def __eq__(self, value: Any) -> bool:
         if not isinstance(value, Domain):
             return False
-        self_only = set(self.coords.keys()) - set(value.coords.keys())
-        value_only = set(value.coords.keys()) - set(self.coords.keys())
+        self_only = list(set(self._axes.keys()) - set(value._axes.keys()))
+        value_only = list(set(value._axes.keys()) - set(self._axes.keys()))
         if len(self_only) > 0 or len(value_only) > 0:
             log.warning(
                 f"Domain mismatch: {self_only} in self, {value_only} in value"
             )
             warnings.warn(
-                f"Domain mismatch: {list(self_only)} (self), "
-                f"{list(value_only)} (value). "
+                f"Domain mismatch: {self_only} (self), {value_only} (value). "
                 "To compare domains, they need to have the same axis. "
                 "Remember axis can be removed by using the `drop` method. ",
                 DomainMismatchWarning,
             )
             return False
-        for k in self.coords.keys():
+        for k in self._axes.keys():
             if not np.allclose(
-                self.coords[k], value.coords[k], equal_nan=True
+                self._axes[k].values, value._axes[k].values, equal_nan=True
             ):
                 return False
         return True
@@ -348,15 +363,6 @@ class Domain:
 
     @abstractmethod
     def get_all_spatial_points(self) -> np.ndarray:
-        """
-        Get all spatial points in the domain.
-
-        Returns
-        -------
-        np.ndarray
-            An array of shape (n_points, 2) containing the latitude and
-            longitude coordinates of all points in the domain.
-        """
         raise NotImplementedError
 
     def _get_sampling_points_nbr(
@@ -395,7 +401,25 @@ class SparseDomain(Domain):
     is_sparse: ClassVar[bool] = True
 
     def get_all_spatial_points(self) -> np.ndarray:
-        return np.stack((self.latitude, self.longitude), axis=1)
+        """
+        Get all spatial points in the domain.
+
+        Returns
+        -------
+        np.ndarray
+            An array of shape (n_points, 2) containing the latitude and
+            longitude coordinates of all points in the domain.
+
+        Examples
+        --------
+        >>> points = domain.get_all_spatial_points()
+        >>> points
+        array([[ 0. , -0.1],
+               [ 0. ,  0. ],
+               [ 0. ,  0.1],
+               ...
+        """
+        return np.stack((self.latitude.values, self.longitude.values), axis=1)
 
     def _compute_subset_indexers(
         self,
@@ -414,16 +438,16 @@ class SparseDomain(Domain):
         if west and east and west > east:
             raise ValueError("East must be greater than west")
         lat_mask = np.logical_and(
-            self.latitude >= south, self.latitude <= north
+            self.latitude.values >= south, self.latitude.values <= north
         )
         lon_mask = np.logical_and(
-            self.longitude >= west, self.longitude <= east
+            self.longitude.values >= west, self.longitude.values <= east
         )
         point_mask = np.logical_and(lat_mask, lon_mask)
         point_idx = np.where(point_mask)[0]
-        idx = {self.point_name: point_idx}
+        idx = {self.point.name: point_idx}
 
-        lon_vals = self.longitude[lon_mask]
+        lon_vals = self.longitude.values[lon_mask]
         return idx, lon_vals.min(), lon_vals.max()
 
     def _compute_sample_uniform_indexers(
@@ -433,7 +457,7 @@ class SparseDomain(Domain):
             self.point.size,
             size=self._get_sampling_points_nbr(portion=portion, number=number),
         )
-        return {self.point_name: indices}
+        return {self.point.name: indices}
 
     def _compute_sample_normal_indexers(
         self,
@@ -446,22 +470,24 @@ class SparseDomain(Domain):
         if center_point is None:
             center_point = np.array(
                 [
-                    np.mean(self.latitude),
-                    np.mean(self.longitude),
+                    np.mean(self.latitude.values),
+                    np.mean(self.longitude.values),
                 ]
             )
         else:
             center_point = np.array(center_point)
 
         distances = np.sqrt(
-            (self.longitude - center_point[0]) ** 2
-            + (self.latitude - center_point[1]) ** 2
+            (self.longitude.values - center_point[0]) ** 2
+            + (self.latitude.values - center_point[1]) ** 2
         )
         weights = np.exp(-(distances**2) / (2 * sigma**2))
         weights /= weights.sum()
 
-        indices = np.random.choice(self.point, size=n, p=weights.flatten())
-        return {self.point_name: indices}
+        indices = np.random.choice(
+            self.point.values, size=n, p=weights.flatten()
+        )
+        return {self.point.name: indices}
 
     def _compute_sample_no_nans_indexers(
         self,
@@ -472,10 +498,10 @@ class SparseDomain(Domain):
         n = self._get_sampling_points_nbr(portion=portion, number=number)
         notnan_da = da[da.notnull()]
         selected_points = np.random.choice(
-            notnan_da[self.point_name].values, n
+            notnan_da[self.point.name].values, n
         )
         return {
-            self.point_name: selected_points,
+            self.point.name: selected_points,
         }
 
     def to_xarray(
@@ -514,8 +540,8 @@ class SparseDomain(Domain):
         >>> da.name
         'example'
         """
-        point_nbr = self.get_size(Axis.POINT)
-        time_nbr = self.get_size(Axis.TIME)
+        point_nbr = self.get_size(AxisType.POINT)
+        time_nbr = self.get_size(AxisType.TIME)
 
         if values.shape == (point_nbr, time_nbr):
             log.debug(
@@ -545,19 +571,20 @@ class SparseDomain(Domain):
                 f"({point_nbr}, {time_nbr})"
             )
         coords = {
-            self.latitude_name: (
-                self.point_name,
-                self.latitude,
+            self.latitude.name: (
+                self.point.name,
+                self.latitude.values,
             ),
-            self.longitude_name: (
-                self.point_name,
-                self.longitude,
+            self.longitude.name: (
+                self.point.name,
+                self.longitude.values,
             ),
         }
-        dims = (self.point_name,)
+        dims = (self.point.name,)
         if self.is_dynamic:
-            coords[self.time_name] = self.time
-            dims = (self.point_name, self.time_name)
+            coords[self.time.name] = self.time.values
+            dims = (self.point.name, self.time.name)
+
         dset = xr.DataArray(
             values.squeeze(),
             coords=coords,
@@ -577,8 +604,26 @@ class DenseDomain(Domain):
     is_sparse: ClassVar[bool] = False
 
     def get_all_spatial_points(self) -> np.ndarray:
+        """
+        Get all spatial points in the domain.
+
+        Returns
+        -------
+        np.ndarray
+            An array of shape (n_points, 2) containing the latitude and
+            longitude coordinates of all points in the domain.
+
+        Examples
+        --------
+        >>> points = domain.get_all_spatial_points()
+        >>> points
+        array([[ 0. , -0.1],
+               [ 0. ,  0. ],
+               [ 0. ,  0.1],
+               ...
+        """
         lat_grid, lon_grid = np.meshgrid(
-            self.latitude, self.longitude, indexing="ij"
+            self.latitude.values, self.longitude.values, indexing="ij"
         )
         lat_grid = lat_grid.flatten()
         lon_grid = lon_grid.flatten()
@@ -601,34 +646,40 @@ class DenseDomain(Domain):
         if west and east and west > east:
             raise ValueError("East must be greater than west")
 
-        lats = self.latitude
-        lons = self.longitude
+        lats = self.latitude.values
+        lons = self.longitude.values
         idx = {
-            self.latitude_name: (
+            self.latitude.name: (
                 np.s_[south:north]
                 if np.all(np.diff(lats) >= 0)
                 else np.s_[north:south]
             ),
-            self.longitude_name: (
+            self.longitude.name: (
                 np.s_[west:east]
                 if np.all(np.diff(lons) >= 0)
                 else np.s_[east:west]
             ),
         }
-        start = idx[self.longitude_name].start
-        stop = idx[self.longitude_name].stop
+        if self.longitude.name in idx:
+            start = idx[self.longitude.name].start
+            stop = idx[self.longitude.name].stop
+        else:
+            start = idx[self.latitude.name].start
+            stop = idx[self.latitude.name].stop
         return idx, start, stop
 
     def _compute_sample_uniform_indexers(
         self, portion: float | None = None, number: int | None = None
     ) -> dict[str, Any]:
         n = self._get_sampling_points_nbr(portion=portion, number=number)
-        selected_lats = np.random.choice(self.latitude, n)
-        selected_lons = np.random.choice(self.longitude, n)
+        selected_lats = np.random.choice(self.latitude.values, n)
+        selected_lons = np.random.choice(self.longitude.values, n)
         return {
-            self.latitude_name: xr.DataArray(selected_lats, dims=[Axis.POINT]),
-            self.longitude_name: xr.DataArray(
-                selected_lons, dims=[Axis.POINT]
+            self.latitude.name: xr.DataArray(
+                selected_lats, dims=[AxisType.POINT]
+            ),
+            self.longitude.name: xr.DataArray(
+                selected_lons, dims=[AxisType.POINT]
             ),
         }
 
@@ -643,14 +694,16 @@ class DenseDomain(Domain):
         if center_point is None:
             center_point = np.array(
                 [
-                    np.mean(self.latitude),
-                    np.mean(self.longitude),
+                    np.mean(self.latitude.values),
+                    np.mean(self.longitude.values),
                 ]
             )
         else:
             center_point = np.array(center_point)
 
-        x_grid, y_grid = np.meshgrid(self.longitude, self.latitude)
+        x_grid, y_grid = np.meshgrid(
+            self.longitude.values, self.latitude.values
+        )
         distances = np.sqrt(
             (x_grid - center_point[0]) ** 2 + (y_grid - center_point[1]) ** 2
         )
@@ -664,9 +717,11 @@ class DenseDomain(Domain):
         selected_lats = flat_y[indices]
         selected_lons = flat_x[indices]
         return {
-            self.latitude_name: xr.DataArray(selected_lats, dims=[Axis.POINT]),
-            self.longitude_name: xr.DataArray(
-                selected_lons, dims=[Axis.POINT]
+            self.latitude.name: xr.DataArray(
+                selected_lats, dims=[AxisType.POINT]
+            ),
+            self.longitude.name: xr.DataArray(
+                selected_lons, dims=[AxisType.POINT]
             ),
         }
 
@@ -677,15 +732,17 @@ class DenseDomain(Domain):
         number: int | None = None,
     ) -> dict[str, Any]:
         n = self._get_sampling_points_nbr(portion=portion, number=number)
-        stacked = da.stack(**{Axis.POINT: da.dims})
+        stacked = da.stack(**{AxisType.POINT: da.dims})
         notnan_da = stacked[stacked.notnull()]
         selected_idx = np.random.choice(len(notnan_da), n)
-        selected_lats = notnan_da[self.latitude_name].values[selected_idx]
-        selected_lons = notnan_da[self.longitude_name].values[selected_idx]
+        selected_lats = notnan_da[self.latitude.name].values[selected_idx]
+        selected_lons = notnan_da[self.longitude.name].values[selected_idx]
         return {
-            self.latitude_name: xr.DataArray(selected_lats, dims=[Axis.POINT]),
-            self.longitude_name: xr.DataArray(
-                selected_lons, dims=[Axis.POINT]
+            self.latitude.name: xr.DataArray(
+                selected_lats, dims=[AxisType.POINT]
+            ),
+            self.longitude.name: xr.DataArray(
+                selected_lons, dims=[AxisType.POINT]
             ),
         }
 
@@ -725,9 +782,9 @@ class DenseDomain(Domain):
         >>> da.name
         'example'
         """
-        lat_nbr = self.get_size(Axis.LATITUDE)
-        lon_nbr = self.get_size(Axis.LONGITUDE)
-        time_nbr = self.get_size(Axis.TIME)
+        lat_nbr = self.get_size(AxisType.LATITUDE)
+        lon_nbr = self.get_size(AxisType.LONGITUDE)
+        time_nbr = self.get_size(AxisType.TIME)
         if values.shape == (lat_nbr, lon_nbr, time_nbr):
             log.debug(
                 "Values shape matches expected shape "
@@ -759,16 +816,16 @@ class DenseDomain(Domain):
                 f"({lat_nbr}, {lon_nbr}, {time_nbr})"
             )
         coords = {
-            self.latitude_name: self.latitude,
-            self.longitude_name: self.longitude,
+            self.latitude.name: self.latitude.values,
+            self.longitude.name: self.longitude.values,
         }
         dims = (
-            self.latitude_name,
-            self.longitude_name,
+            self.latitude.name,
+            self.longitude.name,
         )
         if self.is_dynamic:
-            coords[self.time_name] = self.time
-            dims = (self.latitude_name, self.longitude_name, self.time_name)
+            coords[self.time.name] = self.time.values
+            dims = (self.latitude.name, self.longitude.name, self.time.name)
 
         return xr.DataArray(
             values.squeeze(),

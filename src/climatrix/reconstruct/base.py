@@ -3,8 +3,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, ClassVar
 
-import numpy as np
-
 from climatrix.dataset.domain import Domain
 
 if TYPE_CHECKING:
@@ -12,9 +10,19 @@ if TYPE_CHECKING:
 
 
 class BaseReconstructor(ABC):
+    """
+    Base class for all dataset reconstruction methods.
+
+    Attributes
+    ----------
+    dataset : BaseClimatrixDataset
+        The dataset to be reconstructed.
+    target_domain : Domain
+        The target domain for the reconstruction.
+
+    """
+
     __slots__ = ("dataset", "query_lat", "query_lon")
-    _DEFAULT_LAT_RESOLUTION: ClassVar[float] = 0.1
-    _DEFAULT_LON_RESOLUTION: ClassVar[float] = 0.1
 
     dataset: BaseClimatrixDataset
 

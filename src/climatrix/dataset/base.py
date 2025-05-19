@@ -4,8 +4,9 @@ import logging
 import os
 import warnings
 from datetime import datetime
+from itertools import product
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any, Iterable, Self
 
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -14,7 +15,7 @@ import xarray as xr
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 
-from climatrix.dataset.axis import Axis
+from climatrix.dataset.axis import Axis, AxisType
 from climatrix.dataset.domain import (
     Domain,
     SamplingNaNPolicy,
@@ -33,7 +34,7 @@ def drop_scalar_coords_and_dims(da: xr.DataArray) -> xr.DataArray:
     coords_and_dims = {*da.dims, *da.coords.keys()}
     for coord in coords_and_dims:
         if len(da[coord].shape) == 0:
-            da = da.drop(coord)
+            da = da.drop_vars(coord)
     return da
 
 
@@ -143,16 +144,16 @@ class BaseClimatrixDataset:
            [https://doi.org/10.5281/zenodo.10597965](https://doi.org/10.5281/zenodo.10597965)
            [https://github.com/CMCC-Foundation/geokube](https://github.com/CMCC-Foundation/geokube)
         """
-        roll_value = (self.da[self.domain.longitude_name] >= 180).sum().item()
+        roll_value = (self.da[self.domain.longitude.name] >= 180).sum().item()
         res = self.da.assign_coords(
             {
-                self.domain.longitude_name: (
-                    ((self.da[self.domain.longitude_name] + 180) % 360) - 180
+                self.domain.longitude.name: (
+                    ((self.da[self.domain.longitude.name] + 180) % 360) - 180
                 )
             }
-        ).roll(**{self.domain.longitude_name: roll_value}, roll_coords=True)
-        res[self.domain.longitude_name].attrs.update(
-            self.da[self.domain.longitude_name].attrs
+        ).roll(**{self.domain.longitude.name: roll_value}, roll_coords=True)
+        res[self.domain.longitude.name].attrs.update(
+            self.da[self.domain.longitude.name].attrs
         )
         return type(self)(res)
 
@@ -198,28 +199,58 @@ class BaseClimatrixDataset:
            [https://doi.org/10.5281/zenodo.10597965](https://doi.org/10.5281/zenodo.10597965)
            [https://github.com/CMCC-Foundation/geokube](https://github.com/CMCC-Foundation/geokube)
         """
-        roll_value = (self.da[self.domain.longitude_name] <= 0).sum().item()
+        roll_value = (self.da[self.domain.longitude.name] <= 0).sum().item()
         res = (
             self.da.assign_coords(
                 {
-                    self.domain.longitude_name: (
-                        self.da[self.domain.longitude_name] % 360
+                    self.domain.longitude.name: (
+                        self.da[self.domain.longitude.name] % 360
                     )
                 }
             )
             .roll(
-                **{self.domain.longitude_name: -roll_value}, roll_coords=True
+                **{self.domain.longitude.name: -roll_value}, roll_coords=True
             )
-            .assign_attrs(**self.da[self.domain.longitude_name].attrs)
+            .assign_attrs(**self.da[self.domain.longitude.name].attrs)
         )
-        res[self.domain.longitude_name].attrs.update(
-            self.da[self.domain.longitude_name].attrs
+        res[self.domain.longitude.name].attrs.update(
+            self.da[self.domain.longitude.name].attrs
         )
         return type(self)(res)
 
     # ###############################
     # Utility methods
     # ###############################
+
+    def profile_along_axes(
+        self, *axes: AxisType | str
+    ) -> Iterable[BaseClimatrixDataset]:
+        """
+        Generate profiles along the specified axes.
+
+        Parameters
+        ----------
+        *axes : AxisType | str
+            The axes along which to generate profiles.
+
+        Yields
+        ------
+        BaseClimatrixDataset
+            A dataset containing the profile along the specified axes.
+        """
+        axes = [AxisType.get(axis) for axis in axes]
+        axis_values = []
+        for axis in axes:
+            axis_obj = self.domain.get_axis(axis)
+            if axis_obj is None or axis_obj.values is None:
+                continue
+            axis_values.append(range(len(axis_obj.values)))
+
+        for combination in product(*axis_values):
+            profile = self.isel(
+                {axis: value for axis, value in zip(axes, combination)}
+            )
+            yield profile
 
     def mask_nan(self, source: Self) -> Self:
         """
@@ -259,7 +290,7 @@ class BaseClimatrixDataset:
         da = xr.where(source.da.isnull(), np.nan, self.da).squeeze()
         return type(self)(da)
 
-    def sel(self, query: dict[Axis | str, Any]) -> Self:
+    def sel(self, query: dict[AxisType | str, Any]) -> Self:
         """
         Select data along the specified axes.
 
@@ -267,9 +298,8 @@ class BaseClimatrixDataset:
         ----------
         query : dict
             Dictionary of axes and values to select.
-            The keys can be either `Axis` objects or strings
-            representing the names of the axes.
-            The values can be either single values or lists of values.
+            The keys can be either `AxisType` objects or strings
+            associated to standard names of axis type.
 
         Returns
         -------
@@ -279,24 +309,25 @@ class BaseClimatrixDataset:
         Examples
         --------
         >>> import climatrix as cm
-        >>> from climatrix.dataset.axis import Axis
+        >>> from climatrix import AxisType
         >>> dset = xr.open_dataset("path/to/dataset.nc").cm
         >>> dset2 = dset.sel({"latitude": 10.0, "longitude": 20.0})
-        >>> dset3 = dset.sel({Axis.TIME: [datetime(2020, 1, 1)]})
+        >>> dset3 = dset.sel({AxisType.TIME: [datetime(2020, 1, 1)]})
         """
         query_ = {}
-        for axis_name, value in query.items():
-            axis_name_resolved = self.domain.get_axis_name(axis_name)
-            if axis_name_resolved is None:
+        for axis_type, value in query.items():
+            axis_type = AxisType.get(axis_type)
+            corresponding_axis = self.domain.get_axis(axis_type)
+            if corresponding_axis is None:
                 log.warning(
-                    "Axis name '%s' not found in the dataset", axis_name
+                    "Axis for '%s' not found in the dataset", axis_type
                 )
                 warnings.warn(
-                    f"Axis name '{axis_name}' not found in the dataset."
+                    f"Axis for '{axis_type}' not found in the dataset."
                     "Skipping."
                 )
                 continue
-            query_[axis_name_resolved] = ensure_list_or_slice(value)
+            query_[corresponding_axis.name] = ensure_list_or_slice(value)
         da = self.da.sel(query_)
         return type(self)(da)
 
@@ -307,9 +338,9 @@ class BaseClimatrixDataset:
         Parameters
         ----------
         query : dict
-            Dictionary of axes and indices to select.
-            The keys can be either `Axis` objects or strings
-            representing the names of the axes.
+            Dictionary of axes and values to select.
+            The keys can be either `AxisType` objects or strings
+            associated to standard names of axis type.
             The values must be integers, list of integers, or slices.
 
         Returns
@@ -320,24 +351,25 @@ class BaseClimatrixDataset:
         Examples
         --------
         >>> import climatrix as cm
-        >>> from climatrix.dataset.axis import Axis
+        >>> from climatrix import AxisType
         >>> dset = xr.open_dataset("path/to/dataset.nc").cm
         >>> dset2 = dset.isel({"latitude": 0, "longitude": 1})
-        >>> dset3 = dset.isel({Axis.TIME: slice(0, 2)})
+        >>> dset3 = dset.isel({AxisType.TIME: slice(0, 2)})
         """
         query_ = {}
-        for axis_name, value in query.items():
-            axis_name_resolved = self.domain.get_axis_name(axis_name)
-            if axis_name_resolved is None:
+        for axis_type, value in query.items():
+            axis_type = AxisType.get(axis_type)
+            corresponding_axis = self.domain.get_axis(axis_type)
+            if corresponding_axis is None:
                 log.warning(
-                    "Axis name '%s' not found in the dataset", axis_name
+                    "Axis for '%s' not found in the dataset", axis_type
                 )
                 warnings.warn(
-                    f"Axis name '{axis_name}' not found in the dataset."
+                    f"Axis for '{axis_type}' not found in the dataset."
                     "Skipping."
                 )
                 continue
-            query_[axis_name_resolved] = ensure_list_or_slice(value)
+            query_[corresponding_axis.name] = ensure_list_or_slice(value)
         da = self.da.isel(query_)
         return type(self)(da)
 
@@ -420,8 +452,8 @@ class BaseClimatrixDataset:
             east=east,
         )
         first_el, _ = (
-            self.domain.longitude.min(),
-            self.domain.longitude.max(),
+            self.domain.longitude.values.min(),
+            self.domain.longitude.values.max(),
         )
         start = 0 if start is None else start
         stop = 0 if stop is None else stop
@@ -447,6 +479,17 @@ class BaseClimatrixDataset:
                 "dataset properly."
             )
         da = self.da.sel(idx)
+        if da.size == 0:
+            logging.warning(
+                "No data found in the specified bounding box. "
+                "Returning empty dataset."
+            )
+            warnings.warn(
+                "No data found in the specified bounding box "
+                f"(north={north}, south={south}, west={west}, east={east}). "
+                "Returning empty dataset."
+            )
+
         return type(self)(da)
 
     def time(
@@ -486,7 +529,7 @@ class BaseClimatrixDataset:
         >>> dset.cm.time(slice(datetime(2020, 1, 1), datetime(2020, 1, 2)))
         """
         return type(self)(
-            self.da.sel({self.domain.time_name: time}, method="nearest")
+            self.da.sel({self.domain.time.name: time}, method="nearest")
         )
 
     def itime(self, time: int | list[int] | np.ndarray | slice) -> Self:
@@ -518,7 +561,7 @@ class BaseClimatrixDataset:
         >>> dset.cm.itime(slice(0, 2))
         """
         if self.domain.is_dynamic:
-            return type(self)(self.da.isel({self.domain.time_name: time}))
+            return type(self)(self.da.isel({self.domain.time.name: time}))
         return self
 
     # ##############################
@@ -677,9 +720,10 @@ class BaseClimatrixDataset:
 
         See Also
         --------
-        [`climatrix.reconstruct.type.ReconstructionType`](/climatrix/api/#climatrix.reconstruct.type.ReconstructionType)
-        [`climatrix.reconstruct.idw.IDWReconstructor`](/climatrix/api/#climatrix.reconstruct.idw.IDWReconstructor)
-        [`climatrix.reconstruct.kriging.OrdinaryKrigingReconstructor`](/climatrix/api/#climatrix.reconstruct.kriging.OrdinaryKrigingReconstructor)
+        - [`climatrix.reconstruct.type.ReconstructionType`](/climatrix/api/#climatrix.reconstruct.type.ReconstructionType)
+        - [`climatrix.reconstruct.idw.IDWReconstructor`](/climatrix/api/#climatrix.reconstruct.idw.IDWReconstructor)
+        - [`climatrix.reconstruct.kriging.OrdinaryKrigingReconstructor`](/climatrix/api/#climatrix.reconstruct.kriging.OrdinaryKrigingReconstructor)
+        - [`climatrix.reconstruct.siren.siren.SIRENReconstructor`](/climatrix/api/#climatrix.reconstruct.siren.siren.SIRENReconstructor)
 
         Returns
         -------
@@ -716,11 +760,10 @@ class BaseClimatrixDataset:
             Title of the plot. If not provided, the name of the dataset
             will be used. If the dataset has no name, "Climatrix Dataset" will be used.
         target : str, os.PathLike, Path, or None, optional
-            Path to save the plot. If not provided, the plot will be shown
-            on the screen.
+            Path to save the plot. If not provided, the plot
+            will not be saved.
         show : bool, optional
-            Whether to show the plot. If `target` is provided, this
-            parameter is ignored. Default is True.
+            Whether to show the plot. Default is True.
         **kwargs : dict, optional
             Additional keyword arguments to pass to the plotting function.
 
@@ -761,8 +804,8 @@ class BaseClimatrixDataset:
         cbar_name = kwargs.pop("cbar_name", None)
         title = title or self.da.name or "Climatrix Dataset"
 
-        lat = self.da[self.domain.latitude_name]
-        lon = self.da[self.domain.longitude_name]
+        lat = self.da[self.domain.latitude.name]
+        lon = self.da[self.domain.longitude.name]
         proj = ccrs.PlateCarree()
 
         if ax is None:
