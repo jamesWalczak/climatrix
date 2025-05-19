@@ -1,5 +1,4 @@
 from functools import partial
-from tkinter import N
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import numpy as np
