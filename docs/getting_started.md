@@ -105,7 +105,7 @@ Below, you can find available attributes:
 | Attribute | Meaning | 
 | --------- | ------- | 
 | `latitude`| [`Axis`](/climatrix/api#climatrix.dataset.axis.Axis) corresponding to `AxisType.LATITUDE` for the dataset |
-| `longitude`| [`Axis`](/climatrix/api#climatrix.dataset.axis.Axis) corresponding to `AxisType.LATITUDE` for the dataset  |
+| `longitude`| [`Axis`](/climatrix/api#climatrix.dataset.axis.Axis) corresponding to `AxisType.LONGITUDE` for the dataset  |
 | `time`| | [`Axis`](/climatrix/api#climatrix.dataset.axis.Axis) corresponding to `AxisType.TIME` for the dataset  |
 | `point`| | [`Axis`](/climatrix/api#climatrix.dataset.axis.Axis) corresponding to `AxisType.POINT` for the dataset  |
 | `vertical`| | [`Axis`](/climatrix/api#climatrix.dataset.axis.Axis) corresponding to `AxisType.VERTICAL` for the dataset  |
