@@ -118,7 +118,7 @@ class Domain:
         Mapping of `AxisType` to the corresponding `Axis` object.
     """
 
-    __slots__ = "_axes"
+    __slots__ = ('_axes',)
     is_sparse: ClassVar[bool]
     _axes: dict[AxisType, Axis]
 
