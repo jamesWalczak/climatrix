@@ -23,7 +23,10 @@ from climatrix.dataset.domain import (
 )
 from climatrix.dataset.utils import ensure_list_or_slice
 from climatrix.decorators import cm_arithmetic_binary_operator
-from climatrix.exceptions import LongitudeConventionMismatch
+from climatrix.exceptions import (
+    LongitudeConventionMismatch,
+    SubsettingByNonDimensionAxisError,
+)
 from climatrix.types import Latitude, Longitude
 
 if TYPE_CHECKING:
@@ -327,7 +330,16 @@ class BaseClimatrixDataset:
                     "Skipping."
                 )
                 continue
+            if not corresponding_axis.is_dimension:
+                log.error(
+                    "Axis '%s' is not a dimension in this dataset. ", axis_type
+                )
+                raise SubsettingByNonDimensionAxisError(
+                    f"Axis '{axis_type}' is not a dimension in this dataset. "
+                    "Subsetting by non-dimension axis is not supported."
+                )
             query_[corresponding_axis.name] = ensure_list_or_slice(value)
+
         da = self.da.sel(query_)
         return type(self)(da)
 
@@ -369,6 +381,14 @@ class BaseClimatrixDataset:
                     "Skipping."
                 )
                 continue
+            if not corresponding_axis.is_dimension:
+                log.error(
+                    "Axis '%s' is not a dimension in this dataset. ", axis_type
+                )
+                raise SubsettingByNonDimensionAxisError(
+                    f"Axis '{axis_type}' is not a dimension in this dataset. "
+                    "Subsetting by non-dimension axis is not supported."
+                )
             query_[corresponding_axis.name] = ensure_list_or_slice(value)
         da = self.da.isel(query_)
         return type(self)(da)

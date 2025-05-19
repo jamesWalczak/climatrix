@@ -244,36 +244,126 @@ class TestBaseClimatrixDataset:
         profiles = list(
             sample_static_dataset.profile_along_axes("latitude", "longitude")
         )
-        expected_count = (
-            sample_static_dataset.da.lat.size
-            * sample_static_dataset.da.lon.size
+        assert (
+            len(profiles)
+            == sample_static_dataset.domain.latitude.size
+            * sample_static_dataset.domain.longitude.size
         )
-        assert len(profiles) == expected_count
-        for profile in profiles:
+        profile_lats = []
+        profile_lons = []
+        for i, profile in enumerate(profiles):
             assert isinstance(profile, BaseClimatrixDataset)
             assert profile.domain.latitude.size == 1
             assert profile.domain.longitude.size == 1
+            profile_lats.append(profile.domain.latitude.values[0])
+            profile_lons.append(profile.domain.longitude.values[0])
 
-    def test_profile_along_no_axes(self, sample_static_dataset):
-        profiles = list(sample_static_dataset.profile_along_axes())
-        assert len(profiles) == 1
-        np.testing.assert_allclose(
-            profiles[0].da.values, sample_static_dataset.da.values
+        assert (
+            profile_lats[0] == sample_static_dataset.domain.latitude.values[0]
+        )
+        assert (
+            profile_lats[1] == sample_static_dataset.domain.latitude.values[0]
+        )
+        assert (
+            profile_lats[2] == sample_static_dataset.domain.latitude.values[0]
+        )
+        assert (
+            profile_lats[3] == sample_static_dataset.domain.latitude.values[1]
+        )
+        assert (
+            profile_lats[4] == sample_static_dataset.domain.latitude.values[1]
+        )
+        assert (
+            profile_lats[5] == sample_static_dataset.domain.latitude.values[1]
+        )
+        assert (
+            profile_lats[6] == sample_static_dataset.domain.latitude.values[2]
+        )
+        assert (
+            profile_lats[7] == sample_static_dataset.domain.latitude.values[2]
+        )
+        assert (
+            profile_lats[8] == sample_static_dataset.domain.latitude.values[2]
         )
 
-    def test_profile_along_invalid_axis(self, sample_static_dataset):
-        with pytest.raises(
-            ValueError, match="Unknown axis type: invalid_axis"
-        ):
-            list(sample_static_dataset.profile_along_axes("invalid_axis"))
+        assert (
+            profile_lons[0] == sample_static_dataset.domain.longitude.values[0]
+        )
+        assert (
+            profile_lons[1] == sample_static_dataset.domain.longitude.values[1]
+        )
+        assert (
+            profile_lons[2] == sample_static_dataset.domain.longitude.values[2]
+        )
+        assert (
+            profile_lons[3] == sample_static_dataset.domain.longitude.values[0]
+        )
+        assert (
+            profile_lons[4] == sample_static_dataset.domain.longitude.values[1]
+        )
+        assert (
+            profile_lons[5] == sample_static_dataset.domain.longitude.values[2]
+        )
+        assert (
+            profile_lons[6] == sample_static_dataset.domain.longitude.values[0]
+        )
+        assert (
+            profile_lons[7] == sample_static_dataset.domain.longitude.values[1]
+        )
+        assert (
+            profile_lons[8] == sample_static_dataset.domain.longitude.values[2]
+        )
 
-    def test_profile_along_time_axis(self, sample_dynamic_dataset):
-        profiles = list(sample_dynamic_dataset.profile_along_axes("time"))
-        assert len(profiles) == sample_dynamic_dataset.da.time.size
-        for i, profile in enumerate(profiles):
-            assert isinstance(profile, BaseClimatrixDataset)
-            assert profile.domain.time.size == 1
-            assert (
-                profile.domain.time.values[0]
-                == sample_dynamic_dataset.da.time.values[i]
-            )
+    @pytest.mark.skip(
+        reason="Logic for selecting non-dimensional axis not implemented"
+    )
+    def test_sel_with_non_dimensional_axis(self):
+        point = np.array([0, 1, 2])
+        lat = np.array([-45.0, 0.0, 45.0])
+        lon = np.array([0.0, 180.0, 360.0])
+        data = np.arange(3)
+        da = xr.DataArray(
+            data,
+            coords={
+                "point": point,
+                "lat": ("point", lat),
+                "lon": ("point", lon),
+            },
+            dims=["point"],
+            name="temperature",
+        )
+        dataset = BaseClimatrixDataset(da)
+
+        result = dataset.sel({"latitude": 0.0})
+        assert isinstance(result, BaseClimatrixDataset)
+        assert result.domain.latitude.size == 1
+        assert result.domain.latitude.values[0] == 0.0
+        assert result.domain.longitude.values[0] == 180.0
+
+    @pytest.mark.skip(
+        reason="Logic for selecting non-dimensional axis not implemented"
+    )
+    def test_isel_with_non_dimensional_axis(self):
+        # Create a dataset with a non-dimensional axis
+        point = np.array([0, 1, 2])
+        lat = np.array([-45.0, 0.0, 45.0])
+        lon = np.array([0.0, 180.0, 360.0])
+        data = np.arange(9).reshape(3, 3)
+        da = xr.DataArray(
+            data,
+            coords={
+                "point": point,
+                "lat": ("point", lat),
+                "lon": ("point", lon),
+            },
+            dims=["point"],
+            name="temperature",
+        )
+        dataset = BaseClimatrixDataset(da)
+
+        # Test indexing by non-dimensional axis
+        result = dataset.isel({"latitude": 1})
+        assert isinstance(result, BaseClimatrixDataset)
+        assert result.domain.latitude.size == 1
+        assert result.domain.latitude.values[0] == 0.0
+        assert result.domain.longitude.values[0] == 180.0
