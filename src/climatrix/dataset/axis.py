@@ -102,6 +102,25 @@ class Axis:
         The values of the axis.
     is_dimension : bool, optional
         Whether the axis is a dimension or not (default is True).
+
+    Examples
+    --------
+    Axis is a factory class for all axis types. To create an axis (by
+    matching the name), use:
+    >>> axis = Axis(name="latitude", values=np.array([1, 2, 3]))
+
+    To create a `Latitude` axis explicitly, use:
+    >>> axis = Latitude(name="latitude", values=np.array([1, 2, 3]))
+    >>> axis = Latitude(
+    ... name="latitude",
+    ... values=np.array([1, 2, 3]),
+    ... is_dimension=True)
+
+    Notes
+    -----
+    - The `Axis` class is a factory class for all axis types.
+    - If the given axis has "unusual" name, you need to create it
+        explicitly using the corresponding class (e.g. `Latitude`).
     """
 
     _regex: ClassVar[re.Pattern]
