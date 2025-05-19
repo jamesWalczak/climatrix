@@ -160,7 +160,7 @@ ______________________________________________________________________
 If you are using this software in scientific work, cite us:
 
 ```bibtex
-@misc{cliamtrix,
+@misc{climatrix,
   author       = {Walczak, J., Żyndul, W.},
   title        = {climatrix: Climate data reconstruction made simple },
   year         = {2025},

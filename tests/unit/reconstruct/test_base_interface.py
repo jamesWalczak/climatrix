@@ -197,12 +197,6 @@ class TestBaseReconstructor:
         with pytest.raises(TypeError, match="domain must be a Domain object"):
             reconstructor_class(dataset, "not_a_domain")
 
-    def test_default_attributes_exist(self, reconstructor_class):
-        assert hasattr(reconstructor_class, "_DEFAULT_LAT_RESOLUTION")
-        assert hasattr(reconstructor_class, "_DEFAULT_LON_RESOLUTION")
-        assert isinstance(reconstructor_class._DEFAULT_LAT_RESOLUTION, float)
-        assert isinstance(reconstructor_class._DEFAULT_LON_RESOLUTION, float)
-
     @pytest.mark.parametrize(
         "dataset",
         [

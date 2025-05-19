@@ -243,12 +243,12 @@ class SiNETReconstructor(BaseReconstructor):
         # )
 
         # coordinates = {
-        #     self.dataset.latitude_name: self.query_lat,
-        #     self.dataset.longitude_name: self.query_lon,
+        #     self.dataset.latitude.name: self.query_lat,
+        #     self.dataset.longitude.name: self.query_lon,
         # }
         # dims = (
-        #     self.dataset.latitude_name,
-        #     self.dataset.longitude_name,
+        #     self.dataset.latitude.name,
+        #     self.dataset.longitude.name,
         # )
         log.info("Preparing StaticDenseDataset...")
         raise NotImplementedError()

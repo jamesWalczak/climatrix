@@ -28,6 +28,10 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         Additional keyword arguments to pass to pykrige.
     backend : Literal["vectorized", "loop"] | None
         The backend to use for kriging.
+    _MAX_VECTORIZED_SIZE : ClassVar[int]
+        The maximum size for vectorized kriging.
+        If the dataset is larger than this size, loop kriging
+        will be used (if `backend` was not specified)
 
     Parameters
     ----------
@@ -94,16 +98,16 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
             self.backend = (
                 "vectorized"
                 if (
-                    len(self.target_domain.latitude)
-                    * len(self.target_domain.longitude)
+                    len(self.target_domain.latitude.values)
+                    * len(self.target_domain.longitude.values)
                 )
                 < self._MAX_VECTORIZED_SIZE
                 else "loop"
             )
             log.debug("Using backend: %s", self.backend)
         kriging = OrdinaryKriging(
-            x=self.dataset.domain.longitude,
-            y=self.dataset.domain.latitude,
+            x=self.dataset.domain.longitude.values,
+            y=self.dataset.domain.latitude.values,
             z=self.dataset.da.values.astype(float).squeeze(),
             **self.pykrige_kwargs,
         )
@@ -112,8 +116,8 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         log.debug("Reconstruction type: %s", recon_type)
         masked_values, _ = kriging.execute(
             recon_type,
-            self.target_domain.longitude,
-            self.target_domain.latitude,
+            self.target_domain.longitude.values,
+            self.target_domain.latitude.values,
             backend=self.backend,
         )
         values = ma.getdata(masked_values)

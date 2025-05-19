@@ -1,70 +1,60 @@
 from __future__ import annotations
 
+import logging
 import re
+import warnings
 from enum import StrEnum
-from typing import Self
+from typing import ClassVar, Type, final
+
+import numpy as np
+
+log = logging.getLogger(__name__)
 
 
-class _AxisEnum(StrEnum):
-    def __new__(cls, name, regex) -> Self:
-        obj = str.__new__(cls, name)
-        obj._value_ = name
-        obj.code = name
-        obj.regex = regex
-        return obj
-
-
-class Axis(_AxisEnum):
+class AxisType(StrEnum):
     """
-    Enum for axis types in a
-    [`BaseClimatrixDataset`](/climatrix/api/#climatrix.dataset.base.BaseClimatrixDataset).
+    Enum for axis types.
 
-    Members
-    -------
-    - `LATITUDE`: Latitude axis.
-    - `LONGITUDE`: Longitude axis.
-    - `TIME`: Time axis.
-    - `VERTICAL`: Vertical axis.
-    - `POINT`: Point axis.
-
-    References
+    Attributes
     ----------
-    [1] Unidata, MetPy [https://github.com/Unidata/MetPy/blob/main/src/metpy/xarray.py](https://github.com/Unidata/MetPy/blob/main/src/metpy/xarray.py)
+    LATITUDE : str
+        Latitude axis type.
+    LONGITUDE : str
+        Longitude axis type.
+    TIME : str
+        Time axis type.
+    VERTICAL : str
+        Vertical axis type.
+    POINT : str
+        Point axis type.
     """
 
-    LATITUDE = ("latitude", re.compile(r"^(x?)lat[a-z0-9_]*$"))
-    LONGITUDE = ("longitude", re.compile(r"^(x?)lon[a-z0-9_]*$"))
-    TIME = ("time", re.compile(r"^(x?)(valid_)?time(s?)([0-9]*)$"))
-    VERTICAL = (
-        "vertical",
-        re.compile(
-            r"^(z|lv_|bottom_top|sigma|h(ei)?ght|altitude|depth|"
-            r"isobaric|pres|isotherm)"
-            r"[a-z_]*[0-9]*$"
-        ),
-    )
-    POINT = ("point", re.compile(r"^(point.*|values|nstation.*)$"))
+    LATITUDE = "latitude"
+    LONGITUDE = "longitude"
+    TIME = "time"
+    VERTICAL = "vertical"
+    POINT = "point"
 
     @classmethod
     def get(cls, value: str | Axis) -> Axis:
         """
-        Get the `Axis` type given by `value`.
+        Get the `AxisType` type given by `value`.
 
-        If `value` is an instance of `Axis`,
+        If `value` is an instance of `AxisType`,
         return it as is.
         If `value` is a string, return the corresponding
-        `Axis`.
-        If `value` is neither an instance of `Axis`
+        `AxisType`.
+        If `value` is neither an instance of `AxisType`
         nor a string, raise a ValueError.
 
         Parameters
         ----------
-        value : `str` or `Axis`
+        value : str or AxisType
             The axis type
 
         Returns
         -------
-        Axis
+        AxisType
             The axis type.
 
         Raises
@@ -83,3 +73,201 @@ class Axis(_AxisEnum):
             return cls[value.upper()]
         except KeyError:
             raise ValueError(f"Unknown axis type: {value}")
+
+
+class Axis:
+    """
+    Base class for axis types.
+
+    Attributes
+    ----------
+    type : ClassVar[AxisType]
+        The type of the axis.
+    dtype : ClassVar[np.dtype]
+        The data type of the axis values.
+    is_dimension : bool
+        Whether the axis is a dimension or not.
+    name : str
+        The name of the axis.
+    values : np.ndarray
+        The values of the axis.
+
+    Parameters
+    ----------
+    name : str
+        The name of the axis.
+    values : np.ndarray
+        The values of the axis.
+    is_dimension : bool, optional
+        Whether the axis is a dimension or not (default is True).
+    """
+
+    _regex: ClassVar[re.Pattern]
+    dtype: ClassVar[np.dtype] = np.dtype("float32")
+    type: ClassVar[AxisType]
+    is_dimension: bool
+    name: str
+    values: np.ndarray
+
+    def __new__(cls, name: str, values: np.ndarray, is_dimension: bool = True):
+        """
+        Create a new instance of the Axis class.
+
+        Parameters
+        ----------
+        name : str
+            The name of the axis.
+        values : np.ndarray
+            The values of the axis.
+        is_dimension : bool, optional
+            Whether the axis is a dimension or not (default is True).
+        """
+        for axis in cls.get_all_axes():
+            if axis.matches(name):
+                return super().__new__(axis)
+        return super().__new__(cls)
+
+    def __init__(
+        self,
+        name: str,
+        values: np.ndarray,
+        is_dimension: bool = True,
+    ):
+        self.name = name
+        self.is_dimension = is_dimension
+        if values is None:
+            log.warning("No values provided. Axis will contain no values")
+            warnings.warn("No values provided. Axis will contain no values")
+            values = []
+        values = np.asarray(values, dtype=self.dtype)
+        self.values = values
+
+    @classmethod
+    def matches(cls, name: str) -> bool:
+        """
+        Check if the axis matches the given name.
+
+        Parameters
+        ----------
+        name : str
+            The name to check.
+
+        Returns
+        -------
+        bool
+            True if the axis matches the name, False otherwise.
+        """
+        return bool(cls._regex.match(name))
+
+    @property
+    def size(self) -> int:
+        """
+        Get the size of the axis.
+
+        Returns
+        -------
+        int
+            The size of the axis.
+        """
+        return len(self.values) if self.values is not None else 0
+
+    @final
+    @classmethod
+    def get_all_axes(cls) -> list[type[Axis]]:
+        """
+        Get all axis classes.
+
+        Returns
+        -------
+        list[Type[Axis]]
+            A list of all axis classes.
+        """
+        return cls.__subclasses__()
+
+
+class Latitude(Axis):
+    """
+    Latitude axis.
+
+    Attributes
+    ----------
+    name : str
+        The name of the latitude axis.
+    is_dimension : bool
+        Whether the axis is a dimension or not.
+    """
+
+    _regex = re.compile(r"^(x?)lat[a-z0-9_]*$")
+    type = AxisType.LATITUDE
+    dtype: ClassVar[np.dtype] = np.dtype("float32")
+
+
+class Longitude(Axis):
+    """
+    Longitude axis.
+
+    Attributes
+    ----------
+    name : str
+        The name of the longitude axis.
+    is_dimension : bool
+        Whether the axis is a dimension or not.
+    """
+
+    _regex = re.compile(r"^(x?)lon[a-z0-9_]*$")
+    type = AxisType.LONGITUDE
+    dtype: ClassVar[np.dtype] = np.dtype("float32")
+
+
+class Time(Axis):
+    """
+    Time axis.
+
+    Attributes
+    ----------
+    name : str
+        The name of the time axis.
+    is_dimension : bool
+        Whether the axis is a dimension or not.
+    """
+
+    _regex = re.compile(r"^(x?)(valid_)?time(s?)([0-9]*)$")
+    type = AxisType.TIME
+    dtype: ClassVar[np.dtype] = np.dtype("datetime64[ns]")
+
+
+class Vertical(Axis):
+    """
+    Vertical axis.
+
+    Attributes
+    ----------
+    name : str
+        The name of the vertical axis.
+    is_dimension : bool
+        Whether the axis is a dimension or not.
+    """
+
+    _regex = re.compile(
+        r"^(z|lv_|bottom_top|sigma|h(ei)?ght|altitude|depth|"
+        r"isobaric|pres|isotherm)[a-z_]*[0-9]*$"
+    )
+    type = AxisType.VERTICAL
+    dtype: ClassVar[np.dtype] = np.dtype("float32")
+
+
+class Point(Axis):
+    """
+    Point axis.
+
+    Attributes
+    ----------
+    name : str
+        The name of the point axis.
+    is_dimension : bool
+        Whether the axis is a dimension or not.
+    """
+
+    _regex = re.compile(r"^(point.*|values|nstation.*)$")
+    type = AxisType.POINT
+    dtype: ClassVar[np.dtype] = np.dtype("int")
