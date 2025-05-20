@@ -59,7 +59,7 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         for axis in dataset.domain.all_axes_types:
             if not dataset.domain.get_axis(axis).is_dimension:
                 continue
-            if axis in [AxisType.LATITUDE, AxisType.LONGITUDE]:
+            if axis in [AxisType.LATITUDE, AxisType.LONGITUDE, AxisType.POINT]:
                 continue
             log.error(
                 "Currently, IDWReconstructor only supports datasets with "
