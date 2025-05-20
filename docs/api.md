@@ -88,6 +88,9 @@ The library contains a few public classes:
         - subset
         - to_signed_longitude
         - to_positive_longitude
+        - squeeze
+        - profile_along_axes
+        - mask_nan
         - time
         - itime
         - sample_uniform

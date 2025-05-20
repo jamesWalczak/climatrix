@@ -317,6 +317,13 @@ class Domain:
         except MissingAxisError:
             return False
 
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """Domain shape."""
+        return tuple(
+            [axis.size for axis in self._axes.values() if axis.is_dimension]
+        )
+
     def __eq__(self, value: Any) -> bool:
         if not isinstance(value, Domain):
             return False
@@ -562,7 +569,6 @@ class SparseDomain(Domain):
                 "Values shape matches expected shape (point,) "
                 f"({point_nbr},)"
             )
-            values = values.reshape((point_nbr, 1))
         elif values.shape == (point_nbr * time_nbr,):
             log.debug(
                 "Values shape matches expected shape (point * time,) "
@@ -590,12 +596,18 @@ class SparseDomain(Domain):
             ),
         }
         dims = (self.point.name,)
-        if self.is_dynamic:
-            coords[self.time.name] = self.time.values
-            dims = (self.point.name, self.time.name)
+        for axis in self._axes.values():
+            if axis.name in coords:
+                continue
+            if axis.type is AxisType.TIME:
+                dims += (axis.name,)
+                coords[axis.name] = axis.values
+                values = values.reshape(-1, 1)
+            else:
+                coords[axis.name] = (self.point.name, axis.values)
 
         dset = xr.DataArray(
-            values.squeeze(),
+            values,
             coords=coords,
             dims=dims,
             name=name,
@@ -805,14 +817,13 @@ class DenseDomain(Domain):
                 "Values shape matches expected shape "
                 f"(latitude, longitude) ({lat_nbr}, {lon_nbr})"
             )
-            values = values.reshape((lat_nbr, lon_nbr, 1))
         elif values.shape == (lat_nbr * lon_nbr * time_nbr,):
             log.debug(
                 "Values shape matches expected shape "
                 f"(latitude * longitude * time,) "
                 f"({lat_nbr * lon_nbr * time_nbr},)"
             )
-            values = values.reshape((lat_nbr, lon_nbr, time_nbr))
+            values = values.reshape((lat_nbr, lon_nbr, time_nbr)).squeeze()
         else:
             log.error(
                 "Values shape does not match expected shape "
@@ -832,12 +843,18 @@ class DenseDomain(Domain):
             self.latitude.name,
             self.longitude.name,
         )
-        if self.is_dynamic:
-            coords[self.time.name] = self.time.values
-            dims = (self.latitude.name, self.longitude.name, self.time.name)
+        for axis in self._axes.values():
+            if axis.name in coords:
+                continue
+            if axis.type is AxisType.TIME:
+                dims += (axis.name,)
+                coords[axis.name] = axis.values
+                values = np.expand_dims(values, axis=-1)
+            else:
+                coords[axis.name] = axis.values
 
         return xr.DataArray(
-            values.squeeze(),
+            values,
             coords=coords,
             dims=dims,
             name=name,

@@ -225,6 +225,18 @@ class BaseClimatrixDataset:
     # Utility methods
     # ###############################
 
+    def squeeze(self) -> Self:
+        """
+        Squeeze the dataset to remove dimensions of size 1.
+
+        Returns
+        -------
+        Self
+            The squeezed dataset.
+        """
+        da = self.da.squeeze()
+        return type(self)(da)
+
     def profile_along_axes(
         self, *axes: AxisType | str
     ) -> Iterable[BaseClimatrixDataset]:

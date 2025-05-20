@@ -76,6 +76,8 @@ def cm_arithmetic_binary_operator(func):
         if isinstance(other_arg, BaseClimatrixDataset):
             other_arg = other_arg.da
         res = getattr(self_arg.da, func.__name__)(other_arg)
-        return type(self_arg)(res)
+        return type(self_arg)(
+            self_arg.domain.to_xarray(res.values, name=res.name)
+        )
 
     return wrapper
