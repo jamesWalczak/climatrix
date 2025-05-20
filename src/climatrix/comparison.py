@@ -111,7 +111,7 @@ class Comparison:
         if ax is None:
             fig, ax = plt.subplots()
 
-        return self.diff.da.plot(ax=ax)
+        return self.diff.plot(ax=ax)
 
     def plot_signed_diff_hist(
         self,
