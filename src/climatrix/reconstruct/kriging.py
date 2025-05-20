@@ -63,12 +63,12 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
                 continue
             log.error(
                 "Currently, IDWReconstructor only supports datasets with "
-                "latitude and longitude dimensions, but got %s",
+                "latitude and longitude dimensions, but got '%s'",
                 axis,
             )
             raise NotImplementedError(
                 "Currently, IDWReconstructor only supports datasets with "
-                f"latitude and longitude dimensions, but got {axis}"
+                f"latitude and longitude dimensions, but got '{axis}'"
             )
         if not self.dataset.domain.is_sparse:
             log.warning(

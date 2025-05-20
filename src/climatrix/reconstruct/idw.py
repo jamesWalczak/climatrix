@@ -66,11 +66,13 @@ class IDWReconstructor(BaseReconstructor):
             if axis in [AxisType.LATITUDE, AxisType.LONGITUDE]:
                 continue
             log.error(
-                "Currently, IDWReconstructor only supports datasets with latitude and longitude dimensions, but got %s",
+                "Currently, IDWReconstructor only supports datasets with "
+                "latitude and longitude dimensions, but got '%s'",
                 axis,
             )
             raise NotImplementedError(
-                f"Currently, IDWReconstructor only supports datasets with latitude and longitude dimensions, but got {axis}"
+                "Currently, IDWReconstructor only supports datasets with "
+                f"latitude and longitude dimensions, but got '{axis}'"
             )
         if k_min > k:
             log.error("k_min must be <= k")
