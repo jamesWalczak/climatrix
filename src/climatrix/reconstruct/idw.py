@@ -5,7 +5,7 @@ import logging
 import numpy as np
 from scipy.spatial import cKDTree
 
-from climatrix.dataset.base import BaseClimatrixDataset
+from climatrix.dataset.base import AxisType, BaseClimatrixDataset
 from climatrix.dataset.domain import Domain
 from climatrix.decorators.runtime import log_input
 from climatrix.reconstruct.base import BaseReconstructor
@@ -60,13 +60,17 @@ class IDWReconstructor(BaseReconstructor):
         k_min: int = 2,
     ):
         super().__init__(dataset, target_domain)
-        if dataset.domain.is_dynamic:
-            log.warning(
-                "Calling IDW on dynamic datasets, which are not yet "
-                "supported."
+        for axis in dataset.domain.all_axes_types:
+            if not dataset.domain.get_axis(axis).is_dimension:
+                continue
+            if axis in [AxisType.LATITUDE, AxisType.LONGITUDE]:
+                continue
+            log.error(
+                "Currently, IDWReconstructor only supports datasets with latitude and longitude dimensions, but got %s",
+                axis,
             )
             raise NotImplementedError(
-                "IDW reconstruction is not yet supported for dynamic datasets."
+                f"Currently, IDWReconstructor only supports datasets with latitude and longitude dimensions, but got {axis}"
             )
         if k_min > k:
             log.error("k_min must be <= k")

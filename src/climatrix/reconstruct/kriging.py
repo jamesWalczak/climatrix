@@ -5,7 +5,7 @@ from typing import ClassVar, Literal
 
 import numpy.ma as ma
 
-from climatrix.dataset.base import BaseClimatrixDataset
+from climatrix.dataset.base import AxisType, BaseClimatrixDataset
 from climatrix.dataset.domain import Domain
 from climatrix.decorators import raise_if_not_installed
 from climatrix.decorators.runtime import log_input
@@ -56,13 +56,19 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         **pykrige_kwargs,
     ):
         super().__init__(dataset, target_domain)
-        if self.dataset.domain.is_dynamic:
-            log.warning(
-                "Calling ordinary kriging on dynamic datasets, which "
-                "are not yet supported."
+        for axis in dataset.domain.all_axes_types:
+            if not dataset.domain.get_axis(axis).is_dimension:
+                continue
+            if axis in [AxisType.LATITUDE, AxisType.LONGITUDE]:
+                continue
+            log.error(
+                "Currently, IDWReconstructor only supports datasets with "
+                "latitude and longitude dimensions, but got %s",
+                axis,
             )
             raise NotImplementedError(
-                "Kriging is not supported for " "dynamic datasets."
+                "Currently, IDWReconstructor only supports datasets with "
+                f"latitude and longitude dimensions, but got {axis}"
             )
         if not self.dataset.domain.is_sparse:
             log.warning(
