@@ -359,7 +359,15 @@ class Domain:
     @abstractmethod
     def _compute_sample_uniform_indexers(
         self, portion: float | None = None, number: int | None = None
-    ) -> Self:
+    ) -> dict[str, int]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def _compute_sample_no_nans_indexers(
+        self,
+        portion: float | None = None,
+        number: int | None = None,
+    ) -> dict[str, int]:
         raise NotImplementedError
 
     @abstractmethod
@@ -370,7 +378,7 @@ class Domain:
         nan: SamplingNaNPolicy | str = "ignore",
         center_point: tuple[Longitude, Latitude] = None,
         sigma: float = 10.0,
-    ) -> Self:
+    ) -> dict[str, int]:
         raise NotImplementedError
 
     @abstractmethod
@@ -468,7 +476,7 @@ class SparseDomain(Domain):
 
     def _compute_sample_uniform_indexers(
         self, portion: float | None = None, number: int | None = None
-    ) -> dict[str, Any]:
+    ) -> dict[str, int]:
         indices = np.random.choice(
             self.point.size,
             size=self._get_sampling_points_nbr(portion=portion, number=number),
@@ -481,7 +489,7 @@ class SparseDomain(Domain):
         number: int | None = None,
         center_point: tuple[Longitude, Latitude] = None,
         sigma: float = 10.0,
-    ) -> dict[str, Any]:
+    ) -> dict[str, int]:
         n = self._get_sampling_points_nbr(portion=portion, number=number)
         if center_point is None:
             center_point = np.array(
@@ -510,14 +518,14 @@ class SparseDomain(Domain):
         da: xr.DataArray,
         portion: float | None = None,
         number: int | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, int]:
         n = self._get_sampling_points_nbr(portion=portion, number=number)
         notnan_da = da[da.notnull()]
-        selected_points = np.random.choice(
-            notnan_da[self.point.name].values, n
+        selected_points_idx = np.random.choice(
+            notnan_da[self.point.name].values.size, n
         )
         return {
-            self.point.name: selected_points,
+            self.point.name: selected_points_idx,
         }
 
     def to_xarray(
@@ -691,16 +699,16 @@ class DenseDomain(Domain):
 
     def _compute_sample_uniform_indexers(
         self, portion: float | None = None, number: int | None = None
-    ) -> dict[str, Any]:
+    ) -> dict[str, int]:
         n = self._get_sampling_points_nbr(portion=portion, number=number)
-        selected_lats = np.random.choice(self.latitude.values, n)
-        selected_lons = np.random.choice(self.longitude.values, n)
+        selected_lats_idx = np.random.choice(self.latitude.values.size, n)
+        selected_lons_idx = np.random.choice(self.longitude.values.size, n)
         return {
             self.latitude.name: xr.DataArray(
-                selected_lats, dims=[AxisType.POINT]
+                selected_lats_idx, dims=[AxisType.POINT]
             ),
             self.longitude.name: xr.DataArray(
-                selected_lons, dims=[AxisType.POINT]
+                selected_lons_idx, dims=[AxisType.POINT]
             ),
         }
 
@@ -710,7 +718,7 @@ class DenseDomain(Domain):
         number: int | None = None,
         center_point: tuple[Longitude, Latitude] = None,
         sigma: float = 10.0,
-    ) -> dict[str, Any]:
+    ) -> dict[str, int]:
         n = self._get_sampling_points_nbr(portion=portion, number=number)
         if center_point is None:
             center_point = np.array(
@@ -725,6 +733,10 @@ class DenseDomain(Domain):
         x_grid, y_grid = np.meshgrid(
             self.longitude.values, self.latitude.values
         )
+        x_grid_idx, y_grid_idx = np.meshgrid(
+            np.arange(self.longitude.values.size),
+            np.arange(self.latitude.values.size),
+        )
         distances = np.sqrt(
             (x_grid - center_point[0]) ** 2 + (y_grid - center_point[1]) ** 2
         )
@@ -732,17 +744,17 @@ class DenseDomain(Domain):
         weights /= weights.sum()
 
         flat_x = x_grid.flatten()
-        flat_y = y_grid.flatten()
 
         indices = np.random.choice(len(flat_x), size=n, p=weights.flatten())
-        selected_lats = flat_y[indices]
-        selected_lons = flat_x[indices]
+        indices_lats = y_grid_idx.flatten()[indices]
+        indices_lons = x_grid_idx.flatten()[indices]
+
         return {
             self.latitude.name: xr.DataArray(
-                selected_lats, dims=[AxisType.POINT]
+                indices_lats, dims=[AxisType.POINT]
             ),
             self.longitude.name: xr.DataArray(
-                selected_lons, dims=[AxisType.POINT]
+                indices_lons, dims=[AxisType.POINT]
             ),
         }
 
@@ -751,19 +763,19 @@ class DenseDomain(Domain):
         da: xr.DataArray,
         portion: float | None = None,
         number: int | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, int]:
         n = self._get_sampling_points_nbr(portion=portion, number=number)
         stacked = da.stack(**{AxisType.POINT: da.dims})
-        notnan_da = stacked[stacked.notnull()]
-        selected_idx = np.random.choice(len(notnan_da), n)
-        selected_lats = notnan_da[self.latitude.name].values[selected_idx]
-        selected_lons = notnan_da[self.longitude.name].values[selected_idx]
+        idx = np.arange(len(stacked))[stacked.notnull()]
+        selected_idx = np.random.choice(idx, n)
+        selected_lat_idx = selected_idx // self.longitude.values.size
+        selected_lon_idx = selected_idx % self.longitude.values.size
         return {
             self.latitude.name: xr.DataArray(
-                selected_lats, dims=[AxisType.POINT]
+                selected_lat_idx, dims=[AxisType.POINT]
             ),
             self.longitude.name: xr.DataArray(
-                selected_lons, dims=[AxisType.POINT]
+                selected_lon_idx, dims=[AxisType.POINT]
             ),
         }
 

@@ -649,7 +649,7 @@ class BaseClimatrixDataset:
             idx = self.domain._compute_sample_no_nans_indexers(
                 self.da, portion=portion, number=number
             )
-        da = self.da.sel(idx)
+        da = self.da.isel(idx)
         if nan == SamplingNaNPolicy.RAISE and da.isnull().any():
             raise ValueError("Not all points have data")
         return type(self)(da)
@@ -712,7 +712,7 @@ class BaseClimatrixDataset:
             center_point=center_point,
             sigma=sigma,
         )
-        da = self.da.sel(idx)
+        da = self.da.isel(idx)
         if nan == SamplingNaNPolicy.RAISE and da.isnull().any():
             raise ValueError("Not all points have data")
         return type(self)(da)
