@@ -74,10 +74,10 @@ def cm_arithmetic_binary_operator(func):
         _assert_first_arg_is_dataset(self_arg)
         _maybe_validate_domains(self_arg, other_arg)
         if isinstance(other_arg, BaseClimatrixDataset):
-            other_arg = other_arg.da
-        res = getattr(self_arg.da, func.__name__)(other_arg)
+            other_arg = other_arg.da.values
+        res = getattr(self_arg.da.values, func.__name__)(other_arg)
         return type(self_arg)(
-            self_arg.domain.to_xarray(res.values, name=res.name)
+            self_arg.domain.to_xarray(res, name=self_arg.da.name)
         )
 
     return wrapper
