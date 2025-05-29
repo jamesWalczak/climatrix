@@ -560,6 +560,7 @@ class BaseClimatrixDataset:
         Selecting by `slice` object:
         >>> dset.cm.time(slice(datetime(2020, 1, 1), datetime(2020, 1, 2)))
         """
+        time = ensure_list_or_slice(time)
         return type(self)(
             self.da.sel({self.domain.time.name: time}, method="nearest")
         )
@@ -593,6 +594,7 @@ class BaseClimatrixDataset:
         >>> dset.cm.itime(slice(0, 2))
         """
         if self.domain.is_dynamic:
+            time = ensure_list_or_slice(time)
             return type(self)(self.da.isel({self.domain.time.name: time}))
         return self
 

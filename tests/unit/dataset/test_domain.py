@@ -312,6 +312,31 @@ class TestDomain:
 
         assert Domain.is_dynamic.__get__(domain)
 
+    def test_equality_for_time_axis(self):
+        domain1 = MagicMock(spec=Domain)
+        domain1._axes = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, 0, 90]), True),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), True),
+            AxisType.TIME: Axis(
+                "time",
+                np.array(["2020-01-01", "2020-01-02"], dtype="datetime64"),
+                True,
+            ),
+        }
+
+        domain2 = MagicMock(spec=Domain)
+        domain2._axes = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, 0, 90]), True),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), True),
+            AxisType.TIME: Axis(
+                "time",
+                np.array(["2020-01-01", "2020-01-02"], dtype="datetime64"),
+                True,
+            ),
+        }
+
+        assert Domain.__eq__(domain1, domain2)
+
     def test_equality_valid(self):
         domain1 = MagicMock(spec=Domain)
         domain1._axes = {

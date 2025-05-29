@@ -1,4 +1,7 @@
+import logging
 from enum import Enum
+
+log = logging.getLogger(__name__)
 
 from climatrix.reconstruct.idw import IDWReconstructor
 
@@ -11,6 +14,10 @@ try:
 
     reconstructors["OK"] = OrdinaryKrigingReconstructor
 except ImportError:
+    log.warning(
+        "OrdinaryKrigingReconstructor not available. "
+        "Install climatrix[ok] to use it."
+    )
     pass
 
 try:
@@ -24,6 +31,9 @@ try:
 
     reconstructors["SIREN"] = SIRENReconstructor
 except ImportError:
+    log.warning(
+        "SIRENReconstructor not available. " "Install climatrix[ml] to use it."
+    )
     pass
 
 ReconstructionType = Enum(
@@ -73,7 +83,11 @@ def get(cls, value: str | ReconstructionType):
     try:
         return cls[value.upper()]
     except KeyError:
-        raise ValueError(f"Unknown reconstruction type: {value}")
+        raise ValueError(
+            f"Unknown reconstruction type: {value}. "
+            f"Supported types are: ({', '.join(cls.list())})."
+            "Ensure that the required packages are installed."
+        )
 
 
 def list(cls) -> list[str]:
@@ -85,7 +99,7 @@ def list(cls) -> list[str]:
     list[str]
         A list of all available reconstruction types.
     """
-    return [name for name in cls.__members__.keys()]
+    return [name.lower() for name in cls.__members__.keys()]
 
 
 setattr(ReconstructionType, "__missing__", classmethod(__missing__))
