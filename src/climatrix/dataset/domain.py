@@ -9,7 +9,7 @@ from typing import Any, ClassVar, Literal, Self
 import numpy as np
 import xarray as xr
 
-from climatrix.dataset.axis import Axis, AxisType
+from climatrix.dataset.axis import Axis, AxisType, Time
 from climatrix.exceptions import MissingAxisError
 from climatrix.types import Latitude, Longitude
 from climatrix.warnings import (
@@ -341,10 +341,17 @@ class Domain:
             )
             return False
         for k in self._axes.keys():
-            if not np.allclose(
-                self._axes[k].values, value._axes[k].values, equal_nan=True
-            ):
-                return False
+            if isinstance(self._axes[k], Time):
+                if not np.array_equal(
+                    self._axes[k].values, value._axes[k].values
+                ):
+                    return False
+            else:
+                if not np.allclose(
+                    self._axes[k].values, value._axes[k].values, equal_nan=True
+                ):
+                    return False
+
         return True
 
     @abstractmethod
