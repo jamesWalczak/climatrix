@@ -100,3 +100,32 @@ def list_dataset():
 #         status.update("[magenta]Opening dataset...", spinner="bouncingBall")
 #         dataset = BaseDataset.load(file)
 #     dataset.plot()
+
+
+configure_app = typer.Typer(name="Dataset configuration commands")
+dataset_app.add_typer(configure_app, name="config")
+
+
+@configure_app.command("cds", help="Configure CDS credentials")
+def configure_cds(
+    key: Annotated[
+        str, typer.Option(prompt="Enter your CDS API key", hide_input=False)
+    ],
+    url: Annotated[
+        str, typer.Option(prompt="Enter your CDS API url", hide_input=False)
+    ] = "https://cds.climate.copernicus.eu/api",
+):
+    CDS_AUTH_FILE = (Path.home() / ".cdsapirc").expanduser().absolute()
+    with console.status(
+        f"[magenta]Configuring CDS credentials in {CDS_AUTH_FILE}..."
+    ) as status:
+        status.update("[magenta]Writing credentials", spinner="bouncingBall")
+        if not CDS_AUTH_FILE.parent.exists():
+            CDS_AUTH_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(CDS_AUTH_FILE, "w") as f:
+            f.write(f"url: {url}\n")
+            f.write(f"key: {key}\n")
+
+    console.print(
+        f"Credentials saved in [bold green]{CDS_AUTH_FILE}[/bold green]"
+    )
