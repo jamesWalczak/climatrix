@@ -341,16 +341,8 @@ class Domain:
             )
             return False
         for k in self._axes.keys():
-            if isinstance(self._axes[k], Time):
-                if not np.array_equal(
-                    self._axes[k].values, value._axes[k].values
-                ):
-                    return False
-            else:
-                if not np.allclose(
-                    self._axes[k].values, value._axes[k].values, equal_nan=True
-                ):
-                    return False
+            if self._axes[k] != value._axes[k]:
+                return False
 
         return True
 
