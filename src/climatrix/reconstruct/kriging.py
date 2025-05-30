@@ -61,6 +61,8 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
                 continue
             if axis in [AxisType.LATITUDE, AxisType.LONGITUDE, AxisType.POINT]:
                 continue
+            elif dataset.domain.get_size(axis) == 1:
+                continue
             log.error(
                 "Currently, IDWReconstructor only supports datasets with "
                 "latitude and longitude dimensions, but got '%s'",
