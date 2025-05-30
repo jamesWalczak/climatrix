@@ -191,6 +191,7 @@ class Axis:
             return False
         return (
             self.name == other.name
+            and len(self.values) == len(other.values)
             and np.allclose(self.values, other.values, equal_nan=True)
             and self.is_dimension == other.is_dimension
         )
