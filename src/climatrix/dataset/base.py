@@ -822,10 +822,20 @@ class BaseClimatrixDataset:
             If the dataset is dynamic (contains time dimension
             with more than one value).
         """
-        if self.domain.is_dynamic:
-            raise NotImplementedError(
-                "Plotting is not yet supported for dynamic datasets."
-            )
+        for axis in self.domain.all_axes_types:
+            if axis in [AxisType.LATITUDE, AxisType.LONGITUDE]:
+                continue
+            elif (
+                self.domain.get_axis(axis).is_dimension
+                and self.domain.get_size(axis) > 1
+            ):
+                warnings.warn(
+                    f"Dataset contains axis '{axis}' with more than one "
+                    "value. It is not yet supported for plotting. "
+                    "The first value will be used."
+                )
+                self.isel({axis: 0}).plot()
+                return
         figsize = kwargs.pop("figsize", (12, 6))
         vmin = kwargs.pop("vmin", None)
         vmax = kwargs.pop("vmax", None)
@@ -876,7 +886,7 @@ class BaseClimatrixDataset:
             actor = ax.scatter(
                 lon,
                 lat,
-                c=self.da,
+                c=self.da.squeeze(),
                 cmap=cmap,
                 vmin=vmin,
                 vmax=vmax,
@@ -888,7 +898,7 @@ class BaseClimatrixDataset:
             actor = ax.pcolormesh(
                 lon,
                 lat,
-                self.da,
+                self.da.squeeze(),
                 transform=proj,
                 cmap=cmap,
                 shading="auto",
