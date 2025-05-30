@@ -130,8 +130,9 @@ class TestBaseClimatrixDataset:
     ):
         dt = datetime(2000, 1, 2)
         result = sample_dynamic_dataset.time(dt)
-        assert "time" not in result.da.dims
-        assert result.da.shape == (3, 3)
+        assert "time" in result.da.dims
+        assert result.da.time.size == 1
+        assert result.da.shape == (1, 3, 3)
 
     def test_time_selection_returns_expected_steps(
         self, sample_dynamic_dataset
@@ -180,7 +181,10 @@ class TestBaseClimatrixDataset:
     ):
         domain = sample_static_dataset.domain
         result = sample_static_dataset.reconstruct(target=domain, method="idw")
-        assert result.da.shape == sample_static_dataset.da.squeeze().shape
+        for axis in result.domain.all_axes_types:
+            sample_static_dataset.domain.get_axis(
+                axis
+            ) == result.domain.get_axis(axis)
 
     def test_reconstruct_invalid_method_raises(self, sample_static_dataset):
         with pytest.raises(ValueError):

@@ -84,10 +84,6 @@ class BaseClimatrixDataset:
         # Dataset with a single variable
         xarray_obj = ensure_single_var(xarray_obj)
         xarray_obj = drop_scalar_coords_and_dims(xarray_obj)
-        dims_to_squeeze = [
-            dim for dim in xarray_obj.dims if xarray_obj.sizes[dim] == 1
-        ]
-        xarray_obj = xarray_obj.squeeze(dim=dims_to_squeeze)
         self.domain = Domain(xarray_obj)
         self.da = xarray_obj
 
@@ -302,7 +298,7 @@ class BaseClimatrixDataset:
                 "Masking NaN values is only supported for dense domain."
             )
 
-        da = xr.where(source.da.isnull().values, np.nan, self.da).squeeze()
+        da = xr.where(source.da.isnull(), np.nan, self.da)
         return type(self)(da)
 
     def sel(self, query: dict[AxisType | str, Any]) -> Self:
