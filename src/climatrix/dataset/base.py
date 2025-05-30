@@ -24,6 +24,7 @@ from climatrix.dataset.domain import (
 from climatrix.dataset.utils import ensure_list_or_slice
 from climatrix.decorators import cm_arithmetic_binary_operator
 from climatrix.exceptions import (
+    DomainMismatchError,
     LongitudeConventionMismatch,
     SubsettingByNonDimensionAxisError,
 )
@@ -86,6 +87,22 @@ class BaseClimatrixDataset:
         xarray_obj = drop_scalar_coords_and_dims(xarray_obj)
         self.domain = Domain(xarray_obj)
         self.da = xarray_obj
+
+    # ###############################
+    # Properties
+    # ###############################
+    @property
+    def dims(self) -> tuple[AxisType, ...]:
+        """
+        Get the dimensions of the dataset.
+
+        Returns
+        -------
+        tuple[AxisType, ...]
+            A tuple of `AxisType` objects representing the dimensions
+            of the dataset.
+        """
+        return tuple(self.domain._axes.keys())
 
     # ###############################
     #  Operators
@@ -283,6 +300,9 @@ class BaseClimatrixDataset:
             If the `source` argument is not a BaseClimatrixDataset.
         ValueError
             If the domain of the `source` or the current dataset is sparse.
+        DomainMismatchError
+            If the domains of the `source` and the current dataset
+            do not match.
 
         Examples
         --------
@@ -297,8 +317,41 @@ class BaseClimatrixDataset:
             raise ValueError(
                 "Masking NaN values is only supported for dense domain."
             )
+        if self.domain != source.domain:
+            log.error("Domains of the datasets do not match.")
+            raise DomainMismatchError("Domains of the datasets do not match.")
 
-        da = xr.where(source.da.isnull(), np.nan, self.da)
+        source = source.transpose(*self.dims)
+        # NOTE: there can be slight differences (E.g. due to overflow
+        # or floating point precision) in the coordinates of the source,
+        source_da = source.da.reindex_like(
+            self.da, method="nearest", tolerance=1e-5
+        )
+        da = xr.where(source_da.isnull(), np.nan, self.da)
+        return type(self)(da)
+
+    def transpose(self, *axes: AxisType) -> Self:
+        """
+        Transpose the dataset along the specified dimensions.
+
+        Parameters
+        ----------
+        *axes : AxisType
+            The axes along which to transpose the dataset.
+
+        Returns
+        -------
+        Self
+            The transposed dataset.
+
+        Examples
+        --------
+        >>> import climatrix as cm
+        >>> dset = xr.open_dataset("path/to/dataset.nc").cm
+        >>> dset2 = dset.transpose("longitude", "latitude")
+        """
+        dim_names = [self.domain.get_axis(ax).name for ax in axes]
+        da = self.da.transpose(*dim_names)
         return type(self)(da)
 
     def sel(self, query: dict[AxisType | str, Any]) -> Self:
@@ -823,7 +876,7 @@ class BaseClimatrixDataset:
             with more than one value).
         """
         for axis in self.domain.all_axes_types:
-            if axis in [AxisType.LATITUDE, AxisType.LONGITUDE]:
+            if axis in [AxisType.LATITUDE, AxisType.LONGITUDE, AxisType.POINT]:
                 continue
             elif (
                 self.domain.get_axis(axis).is_dimension
