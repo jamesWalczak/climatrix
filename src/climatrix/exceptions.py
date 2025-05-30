@@ -20,3 +20,7 @@ class SubsettingByNonDimensionAxisError(ValueError):
 
 class AxisMatchingError(ValueError):
     pass
+
+
+class DomainMismatchError(ValueError):
+    pass
