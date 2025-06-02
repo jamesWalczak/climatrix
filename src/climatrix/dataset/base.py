@@ -102,7 +102,7 @@ class BaseClimatrixDataset:
             A tuple of `AxisType` objects representing the dimensions
             of the dataset.
         """
-        return tuple(self.domain._axes.keys())
+        return self.domain.dims
 
     # ###############################
     #  Operators
@@ -330,13 +330,13 @@ class BaseClimatrixDataset:
         da = xr.where(source_da.isnull(), np.nan, self.da)
         return type(self)(da)
 
-    def transpose(self, *axes: AxisType) -> Self:
+    def transpose(self, *axes: AxisType | str) -> Self:
         """
         Transpose the dataset along the specified dimensions.
 
         Parameters
         ----------
-        *axes : AxisType
+        *axes : AxisType or str
             The axes along which to transpose the dataset.
 
         Returns
@@ -352,6 +352,7 @@ class BaseClimatrixDataset:
         """
         dim_names = [self.domain.get_axis(ax).name for ax in axes]
         da = self.da.transpose(*dim_names)
+        da = da.compute() if hasattr(da.data, "dask") else da
         return type(self)(da)
 
     def sel(self, query: dict[AxisType | str, Any]) -> Self:

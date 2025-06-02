@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import warnings
 from abc import abstractmethod
+from collections import OrderedDict
 from enum import StrEnum
 from typing import Any, ClassVar, Literal, Self
 
@@ -47,21 +48,23 @@ def ensure_single_var(da: xr.Dataset | xr.DataArray) -> xr.DataArray:
 
 
 def match_axes(da: xr.DataArray) -> dict[AxisType, str]:
-    axes = {}
-    # NOTE: we match first coords to override them by dims
-    for coord in da.coords.keys():
-        for axis in Axis.get_all_axes():
-            if axis.matches(coord):
-                axes[axis.type] = Axis(
-                    coord,
-                    np.atleast_1d(da[coord].values).astype(axis.dtype),
-                    False,
-                )
+    axes = OrderedDict()
     for dim in da.dims:
         for axis in Axis.get_all_axes():
             if axis.matches(dim):
                 axes[axis.type] = Axis(
                     dim, np.atleast_1d(da[dim].values).astype(axis.dtype), True
+                )
+    for coord in da.coords.keys():
+        for axis in Axis.get_all_axes():
+            if axis.type in axes:
+                # If the axis is already matched by dim, skip it
+                continue
+            if axis.matches(coord):
+                axes[axis.type] = Axis(
+                    coord,
+                    np.atleast_1d(da[coord].values).astype(axis.dtype),
+                    False,
                 )
 
     return axes
@@ -241,6 +244,25 @@ class Domain:
     def all_axes_types(self) -> list[AxisType]:
         """All axis types in the domain."""
         return list(self._axes.keys())
+
+    @property
+    def dims(self) -> tuple[AxisType, ...]:
+        """
+        Get the dimensions of the dataset.
+
+        Returns
+        -------
+        tuple[AxisType, ...]
+            A tuple of `AxisType` objects representing the dimensions
+            of the dataset.
+
+        Notes
+        -----
+        The dimensions are determined by the axes that are marked as
+        dimensions in the domain. E.g. if underlying dataset has
+        shape `(5, 10, 20)`, it means there are 3 dimensional axes.
+        """
+        return tuple([k for k, v in self._axes.items() if v.is_dimension])
 
     def get_size(self, axis: AxisType | str) -> int:
         """
@@ -563,35 +585,8 @@ class SparseDomain(Domain):
         >>> da.name
         'example'
         """
-        point_nbr = self.get_size(AxisType.POINT)
-        time_nbr = self.get_size(AxisType.TIME)
-
-        if values.shape == (point_nbr, time_nbr):
-            log.debug(
-                "Values shape matches expected shape (point, time) "
-                f"({point_nbr}, {time_nbr})"
-            )
-        elif values.shape == (point_nbr,):
-            log.debug(
-                "Values shape matches expected shape (point,) "
-                f"({point_nbr},)"
-            )
-        elif values.shape == (point_nbr * time_nbr,):
-            log.debug(
-                "Values shape matches expected shape (point * time,) "
-                f"({point_nbr * time_nbr},)"
-            )
-            values = values.reshape((point_nbr, time_nbr))
-        else:
-            log.error(
-                "Values shape does not match expected shape (point, time) "
-                f"({point_nbr}, {time_nbr})"
-            )
-            raise ValueError(
-                f"Values shape {values.shape} does not match "
-                "expected shape (point, time) "
-                f"({point_nbr}, {time_nbr})"
-            )
+        target_shape = tuple([self.get_size(axis) for axis in self.dims])
+        values = values.reshape(target_shape)
         coords = {
             self.latitude.name: (
                 self.point.name,
@@ -602,21 +597,19 @@ class SparseDomain(Domain):
                 self.longitude.values,
             ),
         }
-        dims = (self.point.name,)
+        dim_names = tuple([self.get_axis(axis).name for axis in self.dims])
         for axis in self._axes.values():
             if axis.name in coords:
                 continue
-            if axis.type is AxisType.TIME:
-                dims += (axis.name,)
+            if isinstance(axis, Time):
                 coords[axis.name] = axis.values
-                values = values.reshape(-1, 1)
             else:
                 coords[axis.name] = (self.point.name, axis.values)
 
         dset = xr.DataArray(
             values,
             coords=coords,
-            dims=dims,
+            dims=dim_names,
             name=name,
         )
         return dset
@@ -814,59 +807,21 @@ class DenseDomain(Domain):
         >>> da.name
         'example'
         """
-        lat_nbr = self.get_size(AxisType.LATITUDE)
-        lon_nbr = self.get_size(AxisType.LONGITUDE)
-        time_nbr = self.get_size(AxisType.TIME)
-        if values.shape == (lat_nbr, lon_nbr, time_nbr):
-            log.debug(
-                "Values shape matches expected shape "
-                f"(latitude, longitude, time) ({lat_nbr}, {lon_nbr}, "
-                f"{time_nbr})"
-            )
-        elif values.shape == (lat_nbr, lon_nbr):
-            log.debug(
-                "Values shape matches expected shape "
-                f"(latitude, longitude) ({lat_nbr}, {lon_nbr})"
-            )
-        elif values.shape == (lat_nbr * lon_nbr * time_nbr,):
-            log.debug(
-                "Values shape matches expected shape "
-                f"(latitude * longitude * time,) "
-                f"({lat_nbr * lon_nbr * time_nbr},)"
-            )
-            values = values.reshape((lat_nbr, lon_nbr, time_nbr)).squeeze()
-        else:
-            log.error(
-                "Values shape does not match expected shape "
-                f"(latitude, longitude, time) ({lat_nbr}, {lon_nbr}, "
-                f"{time_nbr})"
-            )
-            raise ValueError(
-                f"Values shape {values.shape} does not match "
-                "expected shape (latitude, longitude, time) "
-                f"({lat_nbr}, {lon_nbr}, {time_nbr})"
-            )
+        target_shape = tuple([self.get_size(axis) for axis in self.dims])
+        values = values.reshape(target_shape)
         coords = {
             self.latitude.name: self.latitude.values,
             self.longitude.name: self.longitude.values,
         }
-        dims = (
-            self.latitude.name,
-            self.longitude.name,
-        )
+        dim_names = tuple([self.get_axis(axis).name for axis in self.dims])
         for axis in self._axes.values():
             if axis.name in coords:
                 continue
-            if axis.type is AxisType.TIME:
-                dims += (axis.name,)
-                coords[axis.name] = axis.values
-                values = np.expand_dims(values, axis=-1)
-            else:
-                coords[axis.name] = axis.values
+            coords[axis.name] = axis.values
 
         return xr.DataArray(
             values,
             coords=coords,
-            dims=dims,
+            dims=dim_names,
             name=name,
         )
