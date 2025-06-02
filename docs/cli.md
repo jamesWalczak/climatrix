@@ -9,7 +9,7 @@ The `climatrix` library includes a command-line interface (CLI) to help you:
 
 
 ## 📦 Dataset Features
-Climatrix simplifies access to the [Copernicus Climate Data Store (CDS)](https://cds.climate.copernicus.eu/) API through an easy-to-use command-line interface.
+Climatrix simplifies access to the (Copernicus Climate Data Store (CDS))[https://cds.climate.copernicus.eu/] API through an easy-to-use command-line interface.
 
 ???+ info
     To access CDS datasets, you must:
