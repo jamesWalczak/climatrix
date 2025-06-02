@@ -55,6 +55,14 @@ def download_dataset(
             "--hour", "-h", min=0, max=23, default_factory=_get_default_hours
         ),
     ],
+    variable: Annotated[
+        list[str],
+        typer.Option(
+            "--variable",
+            "-v",
+            help="Variable to download (defaults taken from download script)",
+        ),
+    ] = None,
     target: Annotated[Path, typer.Option("--target", "-t")] = Path("."),
 ):
     request: Request = load_request(dataset)
@@ -71,6 +79,14 @@ def download_dataset(
     request.request["month"] = month
     request.request["day"] = day
     request.request["time"] = hour
+    if variable is not None:
+        if isinstance(variable, str):
+            variable = [variable]
+        elif not isinstance(variable, list):
+            raise TypeError(
+                f"Variable must be a string or a list of strings, got {type(variable)}"
+            )
+        request.request["variable"] = variable
     with console.status("[magenta]Preparing request") as status:
         status.update("[magenta]Downloading dataset", spinner="bouncingBall")
         client = cdsapi.Client()
