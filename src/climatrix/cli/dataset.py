@@ -104,15 +104,18 @@ def list_dataset():
     console.print(table)
 
 
-# @dataset_app.command("show", help="Show the given dataset")
-# def show(file: Path):
-#     assert isinstance(file, Path)
-#     file = file.expanduser().resolve()
-#     if not file.exists():
-#         raise FileNotFoundError(
-#             f"The file [bold green]{file}[/bold green] does not exist"
-#         )
-#     with console.status("[magenta]Preparing dataset...") as status:
-#         status.update("[magenta]Opening dataset...", spinner="bouncingBall")
-#         dataset = BaseDataset.load(file)
-#     dataset.plot()
+@dataset_app.command("show", help="Show the given dataset")
+def show(file: Path):
+    assert isinstance(file, Path)
+    file = file.expanduser().resolve()
+    if not file.exists():
+        raise FileNotFoundError(
+            f"The file [bold green]{file}[/bold green] does not exist"
+        )
+    with console.status("[magenta]Preparing dataset...") as status:
+        status.update("[magenta]Opening dataset...", spinner="bouncingBall")
+        import xarray as xr
+
+        import climatrix as cm
+
+        xr.open_dataset(file).cm.plot()
