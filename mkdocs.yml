@@ -79,8 +79,10 @@ extra:
 
 nav:
   - Climatrix: index.md
-  - API Reference: api.md
   - Getting started: getting_started.md
+  - Reference: api.md
+  - Tutorial: tutorial.md
+  - CLI: cli.md
   - Contributing: CONTRIBUTING.md
   - License: license.md
 
