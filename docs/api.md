@@ -97,6 +97,7 @@ The library contains a few public classes:
         - sample_normal
         - reconstruct
         - plot
+        - transpose
       scoped_crossrefs: true
       show_root_heading: true
       show_source: false
@@ -109,6 +110,7 @@ The library contains a few public classes:
     options:
       members:
         - from_lat_lon
+        - dims
         - latitude
         - longitude
         - time
