@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import Optional
 
-import cdsapi
 import typer
 import xarray as xr
 from rich.console import Console
@@ -67,6 +66,14 @@ def download_dataset(
     ] = None,
     target: Annotated[Path, typer.Option("--target", "-t")] = Path("."),
 ):
+    try:
+        import cdsapi
+    except ImportError:
+        console.print(
+            "[bold red]cdsapi package is not installed. Please install it using 'pip install cdsapi'[/bold red]"
+        )
+        raise typer.Exit()
+
     request: Request = load_request(dataset)
     if target.is_dir():
         target /= request.filename
