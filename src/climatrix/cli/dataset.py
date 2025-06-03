@@ -2,6 +2,7 @@ from pathlib import Path
 
 import cdsapi
 import typer
+import xarray as xr
 from rich.console import Console
 from rich.table import Table
 from typing_extensions import Annotated
@@ -115,4 +116,4 @@ def show(file: Path):
     with console.status("[magenta]Preparing dataset...") as status:
         status.update("[magenta]Opening dataset...", spinner="bouncingBall")
         dataset = xr.open_dataset(file)
-        dataset.cm.plot()
+    dataset.cm.plot()
