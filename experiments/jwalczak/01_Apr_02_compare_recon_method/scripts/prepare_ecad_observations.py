@@ -11,17 +11,20 @@ from rich.progress import track
 
 import climatrix as cm
 
+SEED: int = 0
 DATA_DIR = importlib.resources.files("climatrix").joinpath(
     "..", "..", "data", "ecad_blend"
 )
 STATIONS_DEF_PATH = DATA_DIR / "sources.txt"
 TARGET_FILE = DATA_DIR / "ecad_blend.nc"
 
-EXP_DIR = Path(__file__).parent
+EXP_DIR = Path(__file__).parent.parent
 TRAIN_DSET_PATH = EXP_DIR / ".." / "data" / "ecad_obs_europe_train.nc"
 VALIDATION_DSET_PATH = EXP_DIR / ".." / "data" / "ecad_obs_europe_val.nc"
 TEST_DSET_PATH = EXP_DIR / ".." / "data" / "ecad_obs_europe_test.nc"
-DATE = datetime(2025, 2, 28)
+NBR_SAMPLES: int = 100
+
+np.random.seed(SEED)
 
 
 def lon_dms_to_decimal(dms_str):
@@ -185,23 +188,39 @@ def process_in_chunks(metadata_df, time_index):
 def prepare_splits():
     TRAIN_PORTION = 0.6
     VALIDATION_PORTION = 0.2
-    dset = xr.open_dataset(TARGET_FILE).sel(valid_time=DATE)
-    dset = dset.dropna(dim="point", how="all")
-    idx = np.arange(len(dset["point"]))
-    np.random.shuffle(idx)
-    train_idx = idx[: int(len(idx) * TRAIN_PORTION)]
-    val_idx = idx[
-        int(len(idx) * TRAIN_PORTION) : int(
-            len(idx) * (TRAIN_PORTION + VALIDATION_PORTION)
+    full_dset = xr.open_dataset(TARGET_FILE)
+    for date_id in np.random.choice(
+        np.arange(full_dset.valid_time.size), NBR_SAMPLES, replace=False
+    ):
+        print(f"Preparing splits for date ID: {date_id}")
+        dset = full_dset.isel(valid_time=date_id)
+        date = pd.to_datetime(dset.valid_time.values)
+        TRAIN_DSET_PATH = (
+            EXP_DIR / f"data/ecad_obs_europe_train_{date:%Y%m%d}.nc"
         )
-    ]
-    test_idx = idx[int(len(idx) * (TRAIN_PORTION + VALIDATION_PORTION)) :]
-    train_dset = dset.isel(point=train_idx)
-    val_dset = dset.isel(point=val_idx)
-    test_dset = dset.isel(point=test_idx)
-    train_dset.to_netcdf(TRAIN_DSET_PATH)
-    val_dset.to_netcdf(VALIDATION_DSET_PATH)
-    test_dset.to_netcdf(TEST_DSET_PATH)
+        VALIDATION_DSET_PATH = (
+            EXP_DIR / f"data/ecad_obs_europe_val_{date:%Y%m%d}.nc"
+        )
+        TEST_DSET_PATH = (
+            EXP_DIR / f"data/ecad_obs_europe_test_{date:%Y%m%d}.nc"
+        )
+
+        dset = dset.dropna(dim="point", how="all")
+        idx = np.arange(len(dset["point"]))
+        np.random.shuffle(idx)
+        train_idx = idx[: int(len(idx) * TRAIN_PORTION)]
+        val_idx = idx[
+            int(len(idx) * TRAIN_PORTION) : int(
+                len(idx) * (TRAIN_PORTION + VALIDATION_PORTION)
+            )
+        ]
+        test_idx = idx[int(len(idx) * (TRAIN_PORTION + VALIDATION_PORTION)) :]
+        train_dset = dset.isel(point=train_idx)
+        val_dset = dset.isel(point=val_idx)
+        test_dset = dset.isel(point=test_idx)
+        train_dset.to_netcdf(TRAIN_DSET_PATH)
+        val_dset.to_netcdf(VALIDATION_DSET_PATH)
+        test_dset.to_netcdf(TEST_DSET_PATH)
 
 
 if __name__ == "__main__":
