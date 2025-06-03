@@ -114,9 +114,5 @@ def show(file: Path):
         )
     with console.status("[magenta]Preparing dataset...") as status:
         status.update("[magenta]Opening dataset...", spinner="bouncingBall")
-        import xarray as xr
-
-        import climatrix as cm
-
         dataset = xr.open_dataset(file)
         dataset.cm.plot()
