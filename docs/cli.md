@@ -67,3 +67,14 @@ Replace [dataset-name] with one of the supported datasets (see (Supported Datase
 | `--day`  | `-d` | Day of data to download | 
 | `--hour` | `-h` | Hour of data to download |
 | `--target` | `-t` | Path to save the downloaded dataset |
+| `--variable` | `-v` | Variables to download
+
+
+<details>
+<summary>Download temperature and surface pressure</summary>
+
+```bash
+cm dataset download era5-land -y 2024 -m 10 -d 10 -h 15 -v 2m_temperature -v surface_pressure -t ./test.nc
+```
+
+</details>
