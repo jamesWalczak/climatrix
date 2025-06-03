@@ -4,7 +4,7 @@ import logging
 import re
 import warnings
 from enum import StrEnum
-from typing import ClassVar, Type, final
+from typing import ClassVar, final
 
 import numpy as np
 
@@ -173,6 +173,29 @@ class Axis:
         values = np.asarray(values, dtype=self.dtype)
         self.values = values
 
+    def __eq__(self, other: object) -> bool:
+        """
+        Check if two axes are equal.
+
+        Parameters
+        ----------
+        other : object
+            The other object to compare with.
+
+        Returns
+        -------
+        bool
+            True if the axes are equal, False otherwise.
+        """
+        if not isinstance(other, Axis):
+            return False
+        return (
+            self.name == other.name
+            and len(self.values) == len(other.values)
+            and np.allclose(self.values, other.values, equal_nan=True)
+            and self.is_dimension == other.is_dimension
+        )
+
     @classmethod
     def matches(cls, name: str) -> bool:
         """
@@ -265,6 +288,28 @@ class Time(Axis):
     _regex = re.compile(r"^(x?)(valid_)?time(s?)([0-9]*)$")
     type = AxisType.TIME
     dtype: ClassVar[np.dtype] = np.dtype("datetime64[ns]")
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Check if two axes are equal.
+
+        Parameters
+        ----------
+        other : object
+            The other object to compare with.
+
+        Returns
+        -------
+        bool
+            True if the axes are equal, False otherwise.
+        """
+        if not isinstance(other, Axis):
+            return False
+        return (
+            self.name == other.name
+            and np.array_equal(self.values, other.values)
+            and self.is_dimension == other.is_dimension
+        )
 
 
 class Vertical(Axis):

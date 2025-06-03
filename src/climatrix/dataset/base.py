@@ -24,6 +24,7 @@ from climatrix.dataset.domain import (
 from climatrix.dataset.utils import ensure_list_or_slice
 from climatrix.decorators import cm_arithmetic_binary_operator
 from climatrix.exceptions import (
+    DomainMismatchError,
     LongitudeConventionMismatch,
     SubsettingByNonDimensionAxisError,
 )
@@ -84,12 +85,24 @@ class BaseClimatrixDataset:
         # Dataset with a single variable
         xarray_obj = ensure_single_var(xarray_obj)
         xarray_obj = drop_scalar_coords_and_dims(xarray_obj)
-        dims_to_squeeze = [
-            dim for dim in xarray_obj.dims if xarray_obj.sizes[dim] == 1
-        ]
-        xarray_obj = xarray_obj.squeeze(dim=dims_to_squeeze)
         self.domain = Domain(xarray_obj)
         self.da = xarray_obj
+
+    # ###############################
+    # Properties
+    # ###############################
+    @property
+    def dims(self) -> tuple[AxisType, ...]:
+        """
+        Get the dimensions of the dataset.
+
+        Returns
+        -------
+        tuple[AxisType, ...]
+            A tuple of `AxisType` objects representing the dimensions
+            of the dataset.
+        """
+        return self.domain.dims
 
     # ###############################
     #  Operators
@@ -287,6 +300,9 @@ class BaseClimatrixDataset:
             If the `source` argument is not a BaseClimatrixDataset.
         ValueError
             If the domain of the `source` or the current dataset is sparse.
+        DomainMismatchError
+            If the domains of the `source` and the current dataset
+            do not match.
 
         Examples
         --------
@@ -301,8 +317,42 @@ class BaseClimatrixDataset:
             raise ValueError(
                 "Masking NaN values is only supported for dense domain."
             )
+        if self.domain != source.domain:
+            log.error("Domains of the datasets do not match.")
+            raise DomainMismatchError("Domains of the datasets do not match.")
 
-        da = xr.where(source.da.isnull(), np.nan, self.da).squeeze()
+        source = source.transpose(*self.dims)
+        # NOTE: there can be slight differences (E.g. due to overflow
+        # or floating point precision) in the coordinates of the source,
+        source_da = source.da.reindex_like(
+            self.da, method="nearest", tolerance=1e-5
+        )
+        da = xr.where(source_da.isnull(), np.nan, self.da)
+        return type(self)(da)
+
+    def transpose(self, *axes: AxisType | str) -> Self:
+        """
+        Transpose the dataset along the specified dimensions.
+
+        Parameters
+        ----------
+        *axes : AxisType or str
+            The axes along which to transpose the dataset.
+
+        Returns
+        -------
+        Self
+            The transposed dataset.
+
+        Examples
+        --------
+        >>> import climatrix as cm
+        >>> dset = xr.open_dataset("path/to/dataset.nc").cm
+        >>> dset2 = dset.transpose("longitude", "latitude")
+        """
+        dim_names = [self.domain.get_axis(ax).name for ax in axes]
+        da = self.da.transpose(*dim_names)
+        da = da.compute() if hasattr(da.data, "dask") else da
         return type(self)(da)
 
     def sel(self, query: dict[AxisType | str, Any]) -> Self:
@@ -560,6 +610,7 @@ class BaseClimatrixDataset:
         Selecting by `slice` object:
         >>> dset.cm.time(slice(datetime(2020, 1, 1), datetime(2020, 1, 2)))
         """
+        time = ensure_list_or_slice(time)
         return type(self)(
             self.da.sel({self.domain.time.name: time}, method="nearest")
         )
@@ -593,6 +644,7 @@ class BaseClimatrixDataset:
         >>> dset.cm.itime(slice(0, 2))
         """
         if self.domain.is_dynamic:
+            time = ensure_list_or_slice(time)
             return type(self)(self.da.isel({self.domain.time.name: time}))
         return self
 
@@ -649,7 +701,7 @@ class BaseClimatrixDataset:
             idx = self.domain._compute_sample_no_nans_indexers(
                 self.da, portion=portion, number=number
             )
-        da = self.da.sel(idx)
+        da = self.da.isel(idx)
         if nan == SamplingNaNPolicy.RAISE and da.isnull().any():
             raise ValueError("Not all points have data")
         return type(self)(da)
@@ -712,7 +764,7 @@ class BaseClimatrixDataset:
             center_point=center_point,
             sigma=sigma,
         )
-        da = self.da.sel(idx)
+        da = self.da.isel(idx)
         if nan == SamplingNaNPolicy.RAISE and da.isnull().any():
             raise ValueError("Not all points have data")
         return type(self)(da)
@@ -824,10 +876,20 @@ class BaseClimatrixDataset:
             If the dataset is dynamic (contains time dimension
             with more than one value).
         """
-        if self.domain.is_dynamic:
-            raise NotImplementedError(
-                "Plotting is not yet supported for dynamic datasets."
-            )
+        for axis in self.domain.all_axes_types:
+            if axis in [AxisType.LATITUDE, AxisType.LONGITUDE, AxisType.POINT]:
+                continue
+            elif (
+                self.domain.get_axis(axis).is_dimension
+                and self.domain.get_size(axis) > 1
+            ):
+                warnings.warn(
+                    f"Dataset contains axis '{axis}' with more than one "
+                    "value. It is not yet supported for plotting. "
+                    "The first value will be used."
+                )
+                self.isel({axis: 0}).plot()
+                return
         figsize = kwargs.pop("figsize", (12, 6))
         vmin = kwargs.pop("vmin", None)
         vmax = kwargs.pop("vmax", None)
@@ -878,7 +940,7 @@ class BaseClimatrixDataset:
             actor = ax.scatter(
                 lon,
                 lat,
-                c=self.da,
+                c=self.da.squeeze(),
                 cmap=cmap,
                 vmin=vmin,
                 vmax=vmax,
@@ -890,7 +952,7 @@ class BaseClimatrixDataset:
             actor = ax.pcolormesh(
                 lon,
                 lat,
-                self.da,
+                self.da.squeeze(),
                 transform=proj,
                 cmap=cmap,
                 shading="auto",

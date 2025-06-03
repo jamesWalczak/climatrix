@@ -203,3 +203,21 @@ The library contains a few public classes:
       scoped_crossrefs: true
       show_root_heading: true
       show_source: false         
+
+## ⚖️ Evaluation
+
+::: climatrix.comparison.Comparison
+    handler: python
+    options:    
+      members:
+        - plot_diff
+        - plot_signed_diff_hist
+        - compute_rmse
+        - compute_mae
+        - compute_r2
+        - compute_max_abs_error
+        - compute_report
+        - save_report
+      scoped_crossrefs: true
+      show_root_heading: true
+      show_source: false   

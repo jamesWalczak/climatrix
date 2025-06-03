@@ -312,6 +312,31 @@ class TestDomain:
 
         assert Domain.is_dynamic.__get__(domain)
 
+    def test_equality_for_time_axis(self):
+        domain1 = MagicMock(spec=Domain)
+        domain1._axes = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, 0, 90]), True),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), True),
+            AxisType.TIME: Axis(
+                "time",
+                np.array(["2020-01-01", "2020-01-02"], dtype="datetime64"),
+                True,
+            ),
+        }
+
+        domain2 = MagicMock(spec=Domain)
+        domain2._axes = {
+            AxisType.LATITUDE: Axis("lat", np.array([-90, 0, 90]), True),
+            AxisType.LONGITUDE: Axis("lon", np.array([-180, 0, 180]), True),
+            AxisType.TIME: Axis(
+                "time",
+                np.array(["2020-01-01", "2020-01-02"], dtype="datetime64"),
+                True,
+            ),
+        }
+
+        assert Domain.__eq__(domain1, domain2)
+
     def test_equality_valid(self):
         domain1 = MagicMock(spec=Domain)
         domain1._axes = {
@@ -501,11 +526,11 @@ class TestSparseDomain:
 
     def test_compute_sample_no_nans_indexers_return_no_nan(self):
         da = xr.DataArray(
-            np.random.rand(500, 500),
+            np.random.rand(500, 600),
             dims=["lat", "lon"],
             coords={
                 "lat": np.linspace(-90, 90, 500),
-                "lon": np.linspace(-180, 180, 500),
+                "lon": np.linspace(-180, 180, 600),
             },
         )
         idx_lat = np.random.choice(len(da.lat), size=100, replace=True)
@@ -517,7 +542,7 @@ class TestSparseDomain:
         result = DenseDomain._compute_sample_no_nans_indexers(
             domain, da, portion=0.5
         )
-        values = da.sel(result).values
+        values = da.isel(result).values
         assert np.isnan(values).sum() == 0
 
 
@@ -561,11 +586,11 @@ class TestDenseDomain:
 
     def test_compute_sample_no_nans_indexers_return_no_nan(self):
         da = xr.DataArray(
-            np.random.rand(500, 500),
+            np.random.rand(500, 600),
             dims=["lat", "lon"],
             coords={
                 "lat": np.linspace(-90, 90, 500),
-                "lon": np.linspace(-180, 180, 500),
+                "lon": np.linspace(-180, 180, 600),
             },
         )
         idx_lat = np.random.choice(len(da.lat), size=100, replace=True)
@@ -577,7 +602,7 @@ class TestDenseDomain:
         result = DenseDomain._compute_sample_no_nans_indexers(
             domain, da, portion=0.5
         )
-        values = da.sel(result).values
+        values = da.isel(result).values
         assert np.isnan(values).sum() == 0
 
     def test_equality_missing_coordinates(self):
