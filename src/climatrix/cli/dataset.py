@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 
 import cdsapi
 import typer
@@ -56,7 +57,7 @@ def download_dataset(
         ),
     ],
     variable: Annotated[
-        list[str],
+        Optional[list[str]],
         typer.Option(
             "--variable",
             "-v",
