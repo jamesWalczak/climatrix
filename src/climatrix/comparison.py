@@ -108,10 +108,7 @@ class Comparison:
         Axes
             The matplotlib axes containing the plot of the difference.
         """
-        if ax is None:
-            fig, ax = plt.subplots()
-
-        return self.diff.plot(ax=ax)
+        return self.diff.plot()
 
     def plot_signed_diff_hist(
         self,
