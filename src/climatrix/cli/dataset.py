@@ -118,4 +118,5 @@ def show(file: Path):
 
         import climatrix as cm
 
-        xr.open_dataset(file).cm.plot()
+        dataset = xr.open_dataset(file)
+        dataset.cm.plot()
