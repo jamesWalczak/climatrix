@@ -161,6 +161,8 @@ class BaseClimatrixDataset:
            [https://doi.org/10.5281/zenodo.10597965](https://doi.org/10.5281/zenodo.10597965)
            [https://github.com/CMCC-Foundation/geokube](https://github.com/CMCC-Foundation/geokube)
         """
+        if not self.domain.has_axis(AxisType.LONGITUDE):
+            return type(self)(self)        
         roll_value = (self.da[self.domain.longitude.name] >= 180).sum().item()
         res = self.da.assign_coords(
             {
@@ -216,6 +218,8 @@ class BaseClimatrixDataset:
            [https://doi.org/10.5281/zenodo.10597965](https://doi.org/10.5281/zenodo.10597965)
            [https://github.com/CMCC-Foundation/geokube](https://github.com/CMCC-Foundation/geokube)
         """
+        if not self.domain.has_axis(AxisType.LONGITUDE):
+            return type(self)(self)        
         roll_value = (self.da[self.domain.longitude.name] <= 0).sum().item()
         res = (
             self.da.assign_coords(
