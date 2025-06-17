@@ -1,6 +1,7 @@
 import gc
 import importlib.resources
 import os
+import warnings
 from datetime import datetime
 from pathlib import Path
 
@@ -104,11 +105,13 @@ def load_station_data(station_id):
         (7, 13),  # SOUID,
         (14, 22),  # DATE,
         (23, 28),  # TG
+        (29, 34),  # Q_TG
     ]
     NAMES = [
         "SOUID",
         "DATE",
         "TG",
+        "Q_TG",
     ]
     df = pd.read_fwf(
         path, skiprows=HEADER_LINES_NBR, colspecs=COLUMNS_SPECS, names=NAMES
@@ -116,6 +119,12 @@ def load_station_data(station_id):
 
     df = df.dropna(subset=["TG"])
     if df.empty:
+        return None
+
+    # NOTE: we use just valid values (Q_TG == 0) for temperature
+    df = df[df["Q_TG"] == 0]
+    if df.empty:
+        warnings.warn(f"Station {station_id} has no valid temperature data.")
         return None
 
     df["TG"] = np.where(df["TG"] == -9999, np.nan, df["TG"])
@@ -164,6 +173,7 @@ def process_in_chunks(metadata_df, time_index):
         ds.height[station] = row["HGHT"]
         ds.station_id[station] = int(row["STATION_ID"])
 
+        ts = None
         try:
             ts = load_station_data(int(row["STATION_ID"]))
         except FileNotFoundError:
@@ -177,7 +187,7 @@ def process_in_chunks(metadata_df, time_index):
             else:
                 ds.mean_temperature[:, station] = ts.values
 
-        del ts
+            del ts
         if station % 10 == 0:
             gc.collect()
 
@@ -189,9 +199,10 @@ def prepare_splits():
     TRAIN_PORTION = 0.6
     VALIDATION_PORTION = 0.2
     full_dset = xr.open_dataset(TARGET_FILE)
-    for date_id in np.random.choice(
-        np.arange(full_dset.valid_time.size), NBR_SAMPLES, replace=False
-    ):
+
+    sampled = 0
+    while sampled < NBR_SAMPLES:
+        date_id = np.random.randint(0, full_dset.valid_time.size - 1, 1).item()
         print(f"Preparing splits for date ID: {date_id}")
         dset = full_dset.isel(valid_time=date_id)
         date = pd.to_datetime(dset.valid_time.values)
@@ -206,6 +217,11 @@ def prepare_splits():
         )
 
         dset = dset.dropna(dim="point", how="all")
+        if len(dset.point.values) < 500:
+            print(
+                f"Skipping date ID {date_id} due to insufficient data: {len(dset.point.values)}."
+            )
+            continue
         idx = np.arange(len(dset["point"]))
         np.random.shuffle(idx)
         train_idx = idx[: int(len(idx) * TRAIN_PORTION)]
@@ -221,11 +237,12 @@ def prepare_splits():
         train_dset.to_netcdf(TRAIN_DSET_PATH)
         val_dset.to_netcdf(VALIDATION_DSET_PATH)
         test_dset.to_netcdf(TEST_DSET_PATH)
+        sampled += 1
 
 
 if __name__ == "__main__":
-    sources, min_date, max_date = load_sources()
-    time_index = get_time_range(min_date, max_date)
-    process_in_chunks(sources, time_index)
+    # sources, min_date, max_date = load_sources()
+    # time_index = get_time_range(min_date, max_date)
+    # process_in_chunks(sources, time_index)
 
     prepare_splits()

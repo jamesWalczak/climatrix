@@ -83,9 +83,11 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
             )
         self.pykrige_kwargs = pykrige_kwargs or {}
         if self.pykrige_kwargs.get("coordinates_type") == "geographic":
-            log.info("Using geographic coordinates for kriging "
-                     "reconstruction. Moving to positive-only "
-                     "longitude convention.")
+            log.info(
+                "Using geographic coordinates for kriging "
+                "reconstruction. Moving to positive-only "
+                "longitude convention."
+            )
             self.dataset = self.dataset.to_positive_longitude()
         self.pykrige_kwargs.setdefault("pseudo_inv", True)
         self.backend = backend
@@ -165,7 +167,7 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
             **self.pykrige_kwargs,
         )
         log.debug("Performing Ordinary Kriging reconstruction...")
-        recon_type = "points" if self.target_domain.is_sparse else "grid"
+        recon_type = "points" if self.dataset.domain.is_sparse else "grid"
         log.debug("Reconstruction type: %s", recon_type)
 
         log.debug("Normalizing target domain latitude and longitude values...")

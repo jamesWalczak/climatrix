@@ -2,7 +2,7 @@
 
 Since we don’t have the rights to redistribute the ECA&D dataset, you’ll need to download it manually  
 from the official webpage: [ECA&D Dataset](https://knmi-ecad-assets-prd.s3.amazonaws.com/download/ECA_blend_tg.zip)  
-📥 *Alternatively, you can use our custom Bash script located at* `../scripts/blend_mean_temperature.sh`:
+📥 *Alternatively, you can use our custom Bash script located at* `../scripts/download_blend_mean_temperature.sh`:
 
 > [!CAUTION]\
 > Make sure the `TARGET_DIR` variable is set correctly before running the script!
