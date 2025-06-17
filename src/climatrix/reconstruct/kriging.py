@@ -167,7 +167,7 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
             **self.pykrige_kwargs,
         )
         log.debug("Performing Ordinary Kriging reconstruction...")
-        recon_type = "points" if self.dataset.domain.is_sparse else "grid"
+        recon_type = "points" if self.target_domain.is_sparse else "grid"
         log.debug("Reconstruction type: %s", recon_type)
 
         log.debug("Normalizing target domain latitude and longitude values...")
@@ -177,7 +177,6 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         *_, target_lon = self._normalize_longitude(
             self.target_domain.longitude.values
         )
-
         masked_values, _ = kriging.execute(
             recon_type,
             target_lon,

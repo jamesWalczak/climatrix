@@ -38,7 +38,7 @@ console.print(
     OPTIM_INIT_POINTS,
 )
 
-OPTIM_N_ITERS: int = 10
+OPTIM_N_ITERS: int = 100
 console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )

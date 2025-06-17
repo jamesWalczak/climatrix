@@ -47,7 +47,7 @@ console.print(
     OPTIM_INIT_POINTS,
 )
 
-OPTIM_N_ITERS: int = 10
+OPTIM_N_ITERS: int = 100
 console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
@@ -111,6 +111,7 @@ def compute_criterion(
         anisotropy_scaling=float(anisotropy_scaling),
         coordinates_type=coordinates_type_mapping[coordinates_type_code],
         variogram_model=variogram_model_mapping[variogram_model_code],
+        backend="vectorized",
     )
     metrics = cm.Comparison(
         recon_dset, val_dset, map_nan_from_source=False
@@ -256,6 +257,7 @@ def run_experiment():
                 anisotropy_scaling=anisotroty_scaling,
                 coordinates_type=coordinates_type,
                 variogram_model=variogram_model,
+                backend="vectorized",
             )
             status.update(
                 "[magenta]Saving reconstructed dset to "
@@ -277,6 +279,7 @@ def run_experiment():
                 anisotropy_scaling=anisotroty_scaling,
                 coordinates_type=coordinates_type,
                 variogram_model=variogram_model,
+                backend="vectorized",
             )
             status.update(
                 "[magenta]Saving reconstructed dense dset to "
