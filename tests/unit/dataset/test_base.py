@@ -371,3 +371,9 @@ class TestBaseClimatrixDataset:
         assert result.domain.latitude.size == 1
         assert result.domain.latitude.values[0] == 0.0
         assert result.domain.longitude.values[0] == 180.0
+
+    def test_dataarray_accessor_registered(self, static_sample_dataarray):
+        assert hasattr(static_sample_dataarray, "cm")
+
+    def test_dataset_accesor_registererd(self, static_sample_dataarray):
+        assert hasattr(static_sample_dataarray.to_dataset(), "cm")
