@@ -46,6 +46,7 @@ log = logging.getLogger(__name__)
 
 
 @xr.register_dataset_accessor("cm")
+@xr.register_dataarray_accessor("cm")
 class BaseClimatrixDataset:
     """
     Base class for Climatrix workflows.
