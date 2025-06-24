@@ -7,7 +7,9 @@
 <br>
 
 <!-- Badges -->
-
+<a href="https://jameswalczak.github.io/climatrix/latest/">
+   <img src="https://img.shields.io/badge/docs-stable-blue" alt="Docs">
+</a>
 <a href="https://www.python.org/downloads">
   <img src="https://img.shields.io/badge/-Python_3.12%7C3.13-blue?logo=python&logoColor=white" alt="Python Versions">
 </a>
