@@ -177,3 +177,7 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 .qodo
+
+# Test files
+test_*.py
+debug_*.py
