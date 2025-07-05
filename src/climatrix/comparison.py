@@ -77,11 +77,8 @@ class Comparison:
         self.true_dataset = true_dataset
         self.distance_threshold = distance_threshold
         self._assert_static()
-        
-        # Handle sparse domain comparison
         if (predicted_dataset.domain.is_sparse or true_dataset.domain.is_sparse):
             if predicted_dataset.domain.is_sparse and true_dataset.domain.is_sparse:
-                # Both are sparse - use nearest neighbor matching
                 self.diff = self._compute_sparse_diff()
             else:
                 raise ValueError(
@@ -89,7 +86,6 @@ class Comparison:
                     "Both datasets must be either sparse or dense."
                 )
         else:
-            # Handle dense domain comparison (existing logic)
             if map_nan_from_source is None:
                 map_nan_from_source = not predicted_dataset.domain.is_sparse
             if map_nan_from_source:
@@ -128,43 +124,31 @@ class Comparison:
         
         # Find nearest neighbors for predicted dataset points
         if self.distance_threshold is not None:
-            # Add small tolerance for zero threshold to handle floating point precision
-            threshold = max(self.distance_threshold, 1e-10) if self.distance_threshold == 0.0 else self.distance_threshold
-            distances, indices = tree.query(pred_points, distance_upper_bound=threshold)
-            # Filter out points beyond distance threshold (cKDTree returns infinity for these)
             if self.distance_threshold == 0.0:
-                # For zero threshold, only accept truly exact matches (within machine precision)
-                valid_mask = distances <= 1e-10
+                threshold = np.finfo(float).eps
+            else:
+                threshold = self.distance_threshold
+            distances, indices = tree.query(pred_points, distance_upper_bound=threshold)
+            if self.distance_threshold == 0.0:
+                valid_mask = distances <= np.finfo(float).eps
             else:
                 valid_mask = distances < np.inf
         else:
             distances, indices = tree.query(pred_points)
             valid_mask = np.ones(len(distances), dtype=bool)
         
-        # Get values for matched points
         pred_values = self.predicted_dataset.da.values
         true_values = self.true_dataset.da.values
         
-        # Compute differences for valid matches only
         valid_indices = np.where(valid_mask)[0]
-        result_values = np.full(len(valid_indices), np.nan)
-        
-        # Compute differences for valid matches
-        for i, pred_idx in enumerate(valid_indices):
-            true_idx = indices[pred_idx]
-            if true_idx < len(true_values):  # Ensure valid index
-                result_values[i] = pred_values[pred_idx] - true_values[true_idx]
-        
-        # Create result dataset with the same structure as predicted dataset but filtered points
         if len(valid_indices) == 0:
             log.warning("No valid point correspondences found within distance threshold")
-            # Return empty dataset with same structure
             empty_da = self.predicted_dataset.da.isel({self.predicted_dataset.domain.point.name: []})
             return type(self.predicted_dataset)(empty_da)
         
-        # Create new dataset with matched points
+        result_values = (pred_values - true_values[indices])[valid_indices]
+        
         result_da = self.predicted_dataset.da.isel({self.predicted_dataset.domain.point.name: valid_indices})
-        # Update the values with computed differences
         result_da = result_da.copy()
         result_da.values = result_values
         
