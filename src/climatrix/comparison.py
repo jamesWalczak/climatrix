@@ -93,22 +93,50 @@ class Comparison:
                 "Comparison between dynamic datasets is not yet implemented"
             )
 
-    def plot_diff(self, ax: Axes | None = None) -> Axes:
+    def plot_diff(
+        self,
+        title: str | None = None,
+        target: str | os.PathLike | Path | None = None,
+        show: bool = False,
+        ax: Axes | None = None,
+        **kwargs,
+    ) -> Axes:
         """
         Plot the difference between the source and target datasets.
 
         Parameters
         ----------
+        title : str, optional
+            Title of the plot. If not provided, the name of the dataset
+            will be used. If the dataset has no name, "Climatrix Dataset" will be used.
+        target : str, os.PathLike, Path, or None, optional
+            Path to save the plot. If not provided, the plot
+            will not be saved.
+        show : bool, optional
+            Whether to show the plot. Default is False.
         ax : Axes, optional
-            The matplotlib axes on which to plot the difference. If None,
-            a new set of axes will be created.
+            Axes to plot on. If not provided, a new figure and axes
+            will be created.
+        **kwargs : dict, optional
+            Additional keyword arguments to pass to the plotting function.
+
+            - `figsize`: tuple, optional
+                Size of the figure. Default is (12, 6).
+            - `vmin`: float, optional
+                Minimum value for the color scale. Default is None.
+            - `vmax`: float, optional
+                Maximum value for the color scale. Default is None.
+            - `cmap`: str, optional
+                Colormap to use for the plot. Default is "seismic".
+            - `size`: int, optional
+                Size of the points for sparse datasets. Default is 10.
 
         Returns
         -------
         Axes
             The matplotlib axes containing the plot of the difference.
         """
-        return self.diff.plot()
+        return self.diff.plot(title=title, target=target, show=show, ax=ax, **kwargs)
 
     def plot_signed_diff_hist(
         self,
