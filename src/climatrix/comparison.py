@@ -24,29 +24,38 @@ log = logging.getLogger(__name__)
 
 class Comparison:
     """
-    Class for comparing two dense datasets.
+    Class for comparing two datasets (dense or sparse).
+
+    For sparse domains, uses nearest neighbor matching with optional 
+    distance thresholds to find corresponding observations.
 
     Attributes
     ----------
-    sd : DenseDataset
-        The source dataset.
-    td : DenseDataset
-        The target dataset.
-    diff : xarray.DataArray
-        The difference between the source and target datasets.
+    predicted_dataset : BaseClimatrixDataset
+        The predicted/source dataset.
+    true_dataset : BaseClimatrixDataset
+        The true/target dataset.
+    diff : BaseClimatrixDataset
+        The difference between the predicted and true datasets.
+    distance_threshold : float, optional
+        Maximum distance for point correspondence in sparse domains.
 
     Parameters
     ----------
-    predicted_dataset : DenseDataset
-        The source dataset.
-    true_dataset : DenseDataset
-        The target dataset.
+    predicted_dataset : BaseClimatrixDataset
+        The predicted/source dataset.
+    true_dataset : BaseClimatrixDataset
+        The true/target dataset.
     map_nan_from_source : bool, optional
         If True, the NaN values from the source dataset will be
         mapped to the target dataset. If False, the NaN values
         from the target dataset will be used. Default is None,
         which means `False` for sparse datasets and `True`
         for dense datasets.
+    distance_threshold : float, optional
+        For sparse domains, maximum distance threshold for considering
+        points as corresponding. If None, closest points are always matched.
+        Only used when both datasets have sparse domains.
     """
 
     def __init__(
@@ -54,6 +63,7 @@ class Comparison:
         predicted_dataset: BaseClimatrixDataset,
         true_dataset: BaseClimatrixDataset,
         map_nan_from_source: bool | None = None,
+        distance_threshold: float | None = None,
     ):
         from climatrix.dataset.base import BaseClimatrixDataset
 
@@ -65,24 +75,100 @@ class Comparison:
             )
         self.predicted_dataset = predicted_dataset
         self.true_dataset = true_dataset
+        self.distance_threshold = distance_threshold
         self._assert_static()
-        if map_nan_from_source is None:
-            map_nan_from_source = not predicted_dataset.domain.is_sparse
-        if map_nan_from_source:
-            try:
-                self.predicted_dataset = self.predicted_dataset.mask_nan(
-                    self.true_dataset
-                )
-            except ValueError as err:
-                log.error(
-                    "Error while masking NaN values from source dataset. "
-                    "Set `map_nan_from_source` to False to skip this step."
-                )
+        
+        # Handle sparse domain comparison
+        if (predicted_dataset.domain.is_sparse or true_dataset.domain.is_sparse):
+            if predicted_dataset.domain.is_sparse and true_dataset.domain.is_sparse:
+                # Both are sparse - use nearest neighbor matching
+                self.diff = self._compute_sparse_diff()
+            else:
                 raise ValueError(
-                    "Error while masking NaN values from source dataset. "
-                    "Set `map_nan_from_source` to False to skip this step."
-                ) from err
-        self.diff = self.predicted_dataset - self.true_dataset
+                    "Comparison between sparse and dense domains is not supported. "
+                    "Both datasets must be either sparse or dense."
+                )
+        else:
+            # Handle dense domain comparison (existing logic)
+            if map_nan_from_source is None:
+                map_nan_from_source = not predicted_dataset.domain.is_sparse
+            if map_nan_from_source:
+                try:
+                    self.predicted_dataset = self.predicted_dataset.mask_nan(
+                        self.true_dataset
+                    )
+                except ValueError as err:
+                    log.error(
+                        "Error while masking NaN values from source dataset. "
+                        "Set `map_nan_from_source` to False to skip this step."
+                    )
+                    raise ValueError(
+                        "Error while masking NaN values from source dataset. "
+                        "Set `map_nan_from_source` to False to skip this step."
+                    ) from err
+            self.diff = self.predicted_dataset - self.true_dataset
+
+    def _compute_sparse_diff(self) -> BaseClimatrixDataset:
+        """
+        Compute differences between sparse datasets using nearest neighbor matching.
+        
+        Returns
+        -------
+        BaseClimatrixDataset
+            A sparse dataset containing differences between matched points.
+        """
+        from scipy.spatial import cKDTree
+        
+        # Get spatial points for both datasets
+        pred_points = self.predicted_dataset.domain.get_all_spatial_points()
+        true_points = self.true_dataset.domain.get_all_spatial_points()
+        
+        # Build KDTree for true dataset points
+        tree = cKDTree(true_points)
+        
+        # Find nearest neighbors for predicted dataset points
+        if self.distance_threshold is not None:
+            # Add small tolerance for zero threshold to handle floating point precision
+            threshold = max(self.distance_threshold, 1e-10) if self.distance_threshold == 0.0 else self.distance_threshold
+            distances, indices = tree.query(pred_points, distance_upper_bound=threshold)
+            # Filter out points beyond distance threshold (cKDTree returns infinity for these)
+            if self.distance_threshold == 0.0:
+                # For zero threshold, only accept truly exact matches (within machine precision)
+                valid_mask = distances <= 1e-10
+            else:
+                valid_mask = distances < np.inf
+        else:
+            distances, indices = tree.query(pred_points)
+            valid_mask = np.ones(len(distances), dtype=bool)
+        
+        # Get values for matched points
+        pred_values = self.predicted_dataset.da.values
+        true_values = self.true_dataset.da.values
+        
+        # Compute differences for valid matches only
+        valid_indices = np.where(valid_mask)[0]
+        result_values = np.full(len(valid_indices), np.nan)
+        
+        # Compute differences for valid matches
+        for i, pred_idx in enumerate(valid_indices):
+            true_idx = indices[pred_idx]
+            if true_idx < len(true_values):  # Ensure valid index
+                result_values[i] = pred_values[pred_idx] - true_values[true_idx]
+        
+        # Create result dataset with the same structure as predicted dataset but filtered points
+        if len(valid_indices) == 0:
+            log.warning("No valid point correspondences found within distance threshold")
+            # Return empty dataset with same structure
+            empty_da = self.predicted_dataset.da.isel({self.predicted_dataset.domain.point.name: []})
+            return type(self.predicted_dataset)(empty_da)
+        
+        # Create new dataset with matched points
+        result_da = self.predicted_dataset.da.isel({self.predicted_dataset.domain.point.name: valid_indices})
+        # Update the values with computed differences
+        result_da = result_da.copy()
+        result_da.values = result_values
+        
+        return type(self.predicted_dataset)(result_da)
 
     def _assert_static(self):
         if (
