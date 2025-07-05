@@ -41,7 +41,7 @@ class TestComparison:
         predicted_dataset, true_dataset = sample_datasets
         comparison = Comparison(predicted_dataset, true_dataset)
         
-        with mock.patch.object(comparison.diff, "plot") as mock_plot:
+        with mock.patch('climatrix.dataset.base.BaseClimatrixDataset.plot') as mock_plot:
             comparison.plot_diff(
                 title="Test Title",
                 show=True,
@@ -64,7 +64,7 @@ class TestComparison:
         predicted_dataset, true_dataset = sample_datasets
         comparison = Comparison(predicted_dataset, true_dataset)
         
-        with mock.patch.object(comparison.diff, "plot") as mock_plot:
+        with mock.patch('climatrix.dataset.base.BaseClimatrixDataset.plot') as mock_plot:
             comparison.plot_diff()
             
             mock_plot.assert_called_once_with(
@@ -79,7 +79,7 @@ class TestComparison:
         predicted_dataset, true_dataset = sample_datasets
         comparison = Comparison(predicted_dataset, true_dataset)
         
-        with mock.patch.object(comparison.diff, "plot") as mock_plot:
+        with mock.patch('climatrix.dataset.base.BaseClimatrixDataset.plot') as mock_plot:
             mock_ax = mock.Mock()
             comparison.plot_diff(ax=mock_ax)
             
