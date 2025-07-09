@@ -129,10 +129,7 @@ class Comparison:
             else:
                 threshold = self.distance_threshold
             distances, indices = tree.query(pred_points, distance_upper_bound=threshold)
-            if self.distance_threshold == 0.0:
-                valid_mask = distances <= np.finfo(float).eps
-            else:
-                valid_mask = distances < np.inf
+            valid_mask = distances < np.inf
         else:
             distances, indices = tree.query(pred_points)
             valid_mask = np.ones(len(distances), dtype=bool)
