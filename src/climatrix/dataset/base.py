@@ -165,7 +165,7 @@ class BaseClimatrixDataset:
             not self.domain.has_axis(AxisType.LONGITUDE)
             or not self.domain.longitude.is_dimension
         ):
-            return type(self)(self)
+            return type(self)(self.da)
         roll_value = (self.da[self.domain.longitude.name] >= 180).sum().item()
         res = self.da.assign_coords(
             {
@@ -225,7 +225,7 @@ class BaseClimatrixDataset:
             not self.domain.has_axis(AxisType.LONGITUDE)
             or not self.domain.longitude.is_dimension
         ):
-            return type(self)(self)
+            return type(self)(self.da)
         roll_value = (self.da[self.domain.longitude.name] <= 0).sum().item()
         res = (
             self.da.assign_coords(

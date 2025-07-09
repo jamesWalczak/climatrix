@@ -83,11 +83,12 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
             )
         self.pykrige_kwargs = pykrige_kwargs or {}
         if self.pykrige_kwargs.get("coordinates_type") == "geographic":
-            log.info("Using geographic coordinates for kriging "
-                     "reconstruction. Moving to positive-only "
-                     "longitude convention.")
+            log.info(
+                "Using geographic coordinates for kriging "
+                "reconstruction. Moving to positive-only "
+                "longitude convention."
+            )
             self.dataset = self.dataset.to_positive_longitude()
-        self.pykrige_kwargs.setdefault("pseudo_inv", True)
         self.backend = backend
 
     def _normalize_latitude(self, lat: np.ndarray) -> np.ndarray:
@@ -175,7 +176,6 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         *_, target_lon = self._normalize_longitude(
             self.target_domain.longitude.values
         )
-
         masked_values, _ = kriging.execute(
             recon_type,
             target_lon,
