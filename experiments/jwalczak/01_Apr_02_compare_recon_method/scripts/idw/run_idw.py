@@ -26,7 +26,6 @@ NAN_POLICY = "resample"
 console.print("[bold green]Using NaN policy: [/bold green]", NAN_POLICY)
 
 SEED = 1
-cm.seed_all(SEED)
 console.print("[bold green]Using seed: [/bold green]", SEED)
 
 DSET_PATH = Path(__file__).parent.parent.parent.joinpath("data")
@@ -176,6 +175,7 @@ def run_experiment():
         all_metrics = {}
         hyperparams = defaultdict(list)
         for i, d in enumerate(dset_idx):
+            cm.seed_all(SEED)
             status.update(
                 f"[magenta]Processing date: {d} ({i + 1}/{len(dset_idx)})...",
                 spinner="bouncingBall",
@@ -239,7 +239,7 @@ def run_experiment():
                 "[magenta]Reconstructing to dense Europe domain...",
                 spinner="bouncingBall",
             )
-            reconstructed_dense = reconstructed_dset.reconstruct(
+            reconstructed_dense = train_val_dset.reconstruct(
                 EUROPE_DOMAIN,
                 method="idw",
                 k=k,

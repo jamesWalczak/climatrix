@@ -89,7 +89,6 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
                 "longitude convention."
             )
             self.dataset = self.dataset.to_positive_longitude()
-        self.pykrige_kwargs.setdefault("pseudo_inv", True)
         self.backend = backend
 
     def _normalize_latitude(self, lat: np.ndarray) -> np.ndarray:

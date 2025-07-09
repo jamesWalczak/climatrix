@@ -1,5 +1,5 @@
 """
-This module runs experiment of OK method
+This module runs experiment of SiNET method
 
 @author: Jakub Walczak, PhD
 """
@@ -19,14 +19,6 @@ import climatrix as cm
 console = Console()
 
 INF_LOSS = -1e4
-coordinates_type_mapping = {1: "euclidean", 2: "geographic"}
-variogram_model_mapping = {
-    1: "linear",
-    2: "power",
-    3: "gaussian",
-    4: "spherical",
-    5: "exponential",
-}
 
 # Setting up the experiment parameters
 NAN_POLICY = "resample"
@@ -49,7 +41,9 @@ console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
 
-RESULT_DIR: Path = Path(__file__).parent.parent.parent / "results" / "ok"
+RESULT_DIR: Path = (
+    Path(__file__).parent.parent.parent / "results" / "inr" / "sinet"
+)
 PLOT_DIR: Path = RESULT_DIR / "plots"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
 console.print("[bold green]Plots will be saved to: [/bold green]", PLOT_DIR)
@@ -66,10 +60,14 @@ console.print(
 )
 
 BOUNDS = {
-    "nlags": (2, 50),
-    "anisotropy_scaling": (1e-5, 5.0),
-    "coordinates_type_code": ("1", "2"),
-    "variogram_model_code": ("1", "5"),
+    "lr": (1e-5, 1e-2),
+    "num_epochs": (50, 500),
+    "gradient_clipping_value": (1e-4, 1e4),
+    "batch_size": (32, 1024),
+    "mse_loss_weight": (1e-5, 1e3),
+    "eikonal_loss_weight": (0, 1e3),
+    "laplace_loss_weight": (0, 1e3),
+    "early_stopping_patience": (10, 200),
 }
 console.print("[bold green]Hyperparameter bounds: [/bold green]", BOUNDS)
 
@@ -97,30 +95,28 @@ def compute_criterion(
     val_dset: cm.BaseClimatrixDataset,
     **hparams,
 ) -> float:
-    coordinates_type_code = int(hparams["coordinates_type_code"])
-    variogram_model_code = int(hparams["variogram_model_code"])
-    nlags = int(hparams["nlags"])
-    anisotropy_scaling = float(hparams["anisotropy_scaling"])
-    coordinates_type = coordinates_type_mapping[coordinates_type_code]
-    variogram_model = variogram_model_mapping[variogram_model_code]
-
-    try:
-        recon_dset = train_dset.reconstruct(
-            val_dset.domain,
-            method="ok",
-            nlags=int(nlags),
-            anisotropy_scaling=float(anisotropy_scaling),
-            coordinates_type=coordinates_type,
-            variogram_model=variogram_model,
-            backend="vectorized",
-        )
-    except Exception as e:
-        console.print(
-            f"[yellow]Error during reconstruction with parameters: "
-            f"{hparams}[/yellow]"
-        )
-        console.print(f"[yellow]{e}[/yellow]")
-        return INF_LOSS
+    lr = float(hparams["lr"])
+    num_epochs = int(hparams["num_epochs"])
+    gradient_clipping_value = float(hparams["gradient_clipping_value"])
+    batch_size = int(hparams["batch_size"])
+    mse_loss_weight = float(hparams["mse_loss_weight"])
+    eikonal_loss_weight = float(hparams["eikonal_loss_weight"])
+    laplace_loss_weight = float(hparams["laplace_loss_weight"])
+    early_stopping_patience = int(hparams["early_stopping_patience"])
+    recon_dset = train_dset.reconstruct(
+        val_dset.domain,
+        method="sinet",
+        lr=lr,
+        num_epochs=num_epochs,
+        batch_size=batch_size,
+        num_workers=0,
+        device="cuda",
+        gradient_clipping_value=gradient_clipping_value,
+        mse_loss_weight=mse_loss_weight,
+        eikonal_loss_weight=eikonal_loss_weight,
+        laplace_loss_weight=laplace_loss_weight,
+        patience=early_stopping_patience,
+    )
     metrics = cm.Comparison(
         recon_dset, val_dset, map_nan_from_source=False
     ).compute_report()
@@ -179,14 +175,14 @@ def find_hyperparameters(
         n_iter=n_iter,
     )
     return optimizer.max["target"], (
-        int(optimizer.max["params"]["nlags"]),
-        float(optimizer.max["params"]["anisotropy_scaling"]),
-        coordinates_type_mapping[
-            int(optimizer.max["params"]["coordinates_type_code"])
-        ],
-        variogram_model_mapping[
-            int(optimizer.max["params"]["variogram_model_code"])
-        ],
+        optimizer.max["params"]["lr"],
+        int(optimizer.max["params"]["num_epochs"]),
+        optimizer.max["params"]["gradient_clipping_value"],
+        int(optimizer.max["params"]["batch_size"]),
+        optimizer.max["params"]["mse_loss_weight"],
+        optimizer.max["params"]["eikonal_loss_weight"],
+        optimizer.max["params"]["laplace_loss_weight"],
+        int(optimizer.max["params"]["early_stopping_patience"]),
     )
 
 
@@ -196,10 +192,14 @@ def get_all_dataset_idx() -> list[str]:
 
 def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
     fieldnames = [
-        "nlags",
-        "anisotropy_scaling",
-        "coordinates_type",
-        "variogram_model",
+        "lr",
+        "num_epochs",
+        "gradient_clipping_value",
+        "batch_size",
+        "mse_loss_weight",
+        "eikonal_loss_weight",
+        "laplace_loss_weight",
+        "early_stopping_patience",
         "opt_loss",
     ]
     if not hparam_path.exists():
@@ -255,10 +255,14 @@ def run_single_experiment(
         spinner="bouncingBall",
     )
     best_loss, (
-        nlags,
-        anisotroty_scaling,
-        coordinates_type,
-        variogram_model,
+        lr,
+        num_epochs,
+        gradient_clipping_value,
+        batch_size,
+        mse_loss_weight,
+        eikonal_loss_weight,
+        laplace_loss_weight,
+        early_stopping_patience,
     ) = find_hyperparameters(
         train_dset,
         val_dset,
@@ -270,19 +274,19 @@ def run_single_experiment(
         verbose=2,
     )
     console.print("[bold yellow]Optimized parameters:[/bold yellow]")
-    console.print("[yellow]Number of lags:[/yellow]", nlags)
+    console.print("[yellow]Learning rate (lr):[/yellow]", lr)
+    console.print("[yellow]Number of epochs:[/yellow]", num_epochs)
     console.print(
-        "[yellow]Anisotropy scaling factor:[/yellow]",
-        anisotroty_scaling,
+        "[yellow]Gradient clipping value:[/yellow]", gradient_clipping_value
     )
+    console.print("[yellow]Batch size:[/yellow]", batch_size)
+    console.print("[yellow]MSE loss weight:[/yellow]", mse_loss_weight)
+    console.print("[yellow]Eikonal loss weight:[/yellow]", eikonal_loss_weight)
+    console.print("[yellow]Laplace loss weight:[/yellow]", laplace_loss_weight)
     console.print(
-        "[yellow]Coordinates type:[/yellow]",
-        coordinates_type,
+        "[yellow]Early stopping patience:[/yellow]", early_stopping_patience
     )
-    console.print(
-        "[yellow]Variogram model:[/yellow]",
-        variogram_model,
-    )
+    console.print("[yellow]Best loss:[/yellow]", best_loss)
     status.update(
         "[magenta]Reconstructing with optimised parameters...",
         spinner="bouncingBall",
@@ -294,13 +298,17 @@ def run_single_experiment(
     train_val_dset = xr.concat([train_dset.da, val_dset.da], dim="point").cm
     reconstructed_dset = train_val_dset.reconstruct(
         test_dset.domain,
-        method="ok",
-        nlags=nlags,
-        anisotropy_scaling=anisotroty_scaling,
-        coordinates_type=coordinates_type,
-        variogram_model=variogram_model,
-        backend="vectorized",
-        pseudo_inv=True,
+        method="sinet",
+        lr=lr,
+        num_epochs=num_epochs,
+        batch_size=batch_size,
+        num_workers=0,
+        device="cuda",
+        gradient_clipping_value=gradient_clipping_value,
+        mse_loss_weight=mse_loss_weight,
+        eikonal_loss_weight=eikonal_loss_weight,
+        laplace_loss_weight=laplace_loss_weight,
+        patience=early_stopping_patience,
     )
     status.update(
         "[magenta]Saving reconstructed dset to "
@@ -318,13 +326,17 @@ def run_single_experiment(
     if reconstruct_dense:
         reconstructed_dense = train_val_dset.reconstruct(
             EUROPE_DOMAIN,
-            method="ok",
-            nlags=nlags,
-            anisotropy_scaling=anisotroty_scaling,
-            coordinates_type=coordinates_type,
-            variogram_model=variogram_model,
-            backend="loop",
-            pseudo_inv=True,
+            method="sinet",
+            lr=lr,
+            num_epochs=num_epochs,
+            batch_size=batch_size,
+            num_workers=0,
+            device="cuda",
+            gradient_clipping_value=gradient_clipping_value,
+            mse_loss_weight=mse_loss_weight,
+            eikonal_loss_weight=eikonal_loss_weight,
+            laplace_loss_weight=laplace_loss_weight,
+            patience=early_stopping_patience,
         )
         status.update(
             "[magenta]Saving reconstructed dense dset to "
@@ -347,10 +359,14 @@ def run_single_experiment(
     )
     metrics = cmp.compute_report()
     hyperparams = {
-        "nlags": nlags,
-        "anisotropy_scaling": anisotroty_scaling,
-        "coordinates_type": coordinates_type,
-        "variogram_model": variogram_model,
+        "lr": lr,
+        "num_epochs": num_epochs,
+        "gradient_clipping_value": gradient_clipping_value,
+        "batch_size": batch_size,
+        "mse_loss_weight": mse_loss_weight,
+        "eikonal_loss_weight": eikonal_loss_weight,
+        "laplace_loss_weight": laplace_loss_weight,
+        "early_stopping_patience": early_stopping_patience,
         "opt_loss": best_loss,
     }
     if continuous_update:
@@ -380,11 +396,11 @@ def run_all_experiments_sequentially():
                 len(dset_idx),
                 status,
                 continuous_update=True,
-                reconstruct_dense=False,
+                reconstruct_dense=True,
             )
 
 
 if __name__ == "__main__":
-    # clear_result_dir()
+    clear_result_dir()
     create_result_dir()
     run_all_experiments_sequentially()
