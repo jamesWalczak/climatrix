@@ -57,13 +57,13 @@ ______________________________________________________________________
 
 ## 📚 Table of Contents
 
-- [🚀 Getting Started](#-getting-started)
-- [📦 Installation](#-installation)
-- [⚙️ Usage](#%EF%B8%8F-usage)
-- [🧪 Examples](#-examples)
-- [🛠️ Features](#%EF%B8%8F-features)
-- [📄 License](#-license)
-- [🙏 Citation](#-citation)
+- [🚀 Getting Started](#getting-started)
+- [📦 Installation](#installation)
+- [⚙️ Usage](#usage)
+- [🧪 Examples](#examples)
+- [🛠️ Features](#features)
+- [📄 License](#license)
+- [🙏 Citation](#citation)
 
 ______________________________________________________________________
 
@@ -79,6 +79,15 @@ These instructions will get you a copy of the project up and running on your loc
 git clone https://github.com/jamesWalczak/climatrix/
 cd climatrix
 ```
+
+______________________________________________________________________
+
+## 📦 Installation
+
+???+ info "PyPI Installation"
+
+    The project is now available via PyPI (`pip install climatrix`)
+
 ______________________________________________________________________
 
 ## ⚙️ Usage
@@ -106,7 +115,27 @@ cm_dset = xr.open_dataset(my_dataset).cm
 <summary>📊 Click to expand example: Getting values of coordinate</summary>
 
 ```python
-# TODO
+import climatrix as cm
+import xarray as xr
+
+my_dataset = "/file/to/netcdf.nc"
+cm_dset = xr.open_dataset(my_dataset).cm
+print("Latitude values: ", cm_dset.latitude)
+print("Time values: ", cm_dset.time)
+```
+
+</details>
+
+<details>
+<summary>📊 Subsetting by bounding box</summary>
+
+```python
+import climatrix as cm
+import xarray as xr
+
+my_dataset = "/file/to/netcdf.nc"
+cm_dset = xr.open_dataset(my_dataset).cm
+europe = cm_dset.cm.subset(north=71, south=36, west=-24, east=35)
 ```
 
 </details>
@@ -120,7 +149,7 @@ ______________________________________________________________________
 - 🔁 Reconstruction via:
   - **IDW** (Inverse Distance Weighting)
   - **Ordinary Kriging**
-  - **SiNET** (Sinusoidal reconstruction)
+  - **SIREN** (Sinusoidal INR)
 - 🧪 Tools to compare reconstruction results
 - 📈 Plotting utilities for visualizing inputs and outputs
 
@@ -140,7 +169,7 @@ ______________________________________________________________________
 
 If you are using this software in scientific work, cite us:
 
-```
+```bibtex
 @misc{climatrix,
   author       = {Walczak, J., Żyndul, W.},
   title        = {climatrix: Climate data reconstruction made simple },
