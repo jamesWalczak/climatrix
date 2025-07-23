@@ -14,7 +14,7 @@ def _configure_logger():
 
 _configure_logger()
 
-from .comparison import Comparison as Comparison
+# from .comparison import Comparison as Comparison
 from .dataset.axis import Axis as Axis
 from .dataset.axis import AxisType as AxisType
 from .dataset.base import BaseClimatrixDataset as BaseClimatrixDataset
