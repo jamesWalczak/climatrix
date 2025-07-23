@@ -407,13 +407,9 @@ class BaseClimatrixDataset:
                 )
                 continue
             if not corresponding_axis.is_dimension:
-                # For sparse domains, allow selection by non-dimensional coordinates
-                # that depend on the point dimension
                 if self.domain.is_sparse and corresponding_axis.name in self.da.coords:
-                    # Check if the coordinate depends on a sparse dimension
                     coord_dims = self.da.coords[corresponding_axis.name].dims
                     if any(dim_name == self.domain.point.name for dim_name in coord_dims):
-                        # Store this for special handling using where()
                         sparse_coord_queries[corresponding_axis.name] = value
                         continue
                     else:
@@ -502,14 +498,9 @@ class BaseClimatrixDataset:
                 )
                 continue
             if not corresponding_axis.is_dimension:
-                # For sparse domains, allow selection by non-dimensional coordinates
-                # that depend on the point dimension, but convert to point selection
                 if self.domain.is_sparse and corresponding_axis.name in self.da.coords:
-                    # Check if the coordinate depends on a sparse dimension
                     coord_dims = self.da.coords[corresponding_axis.name].dims
                     if any(dim_name == self.domain.point.name for dim_name in coord_dims):
-                        # For isel, we need to convert coordinate index to point index
-                        # since xarray isel only works with dimensions, not coordinates
                         log.warning(
                             "Using isel with coordinate '%s' in sparse domain. "
                             "Converting to point dimension selection.", axis_type
@@ -519,7 +510,6 @@ class BaseClimatrixDataset:
                             "This selects the point at the given index, not the coordinate value. "
                             "Consider using sel() instead for coordinate value selection."
                         )
-                        # Map the coordinate selection to point selection
                         query_[self.domain.point.name] = ensure_list_or_slice(value)
                         continue
                     else:
