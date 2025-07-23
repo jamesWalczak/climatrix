@@ -191,11 +191,14 @@ def find_hyperparameters(
 
 
 def get_all_dataset_idx() -> list[str]:
-    return list({path.stem.split("_")[-1] for path in DSET_PATH.glob("*.nc")})
+    return sorted(
+        list({path.stem.split("_")[-1] for path in DSET_PATH.glob("*.nc")})
+    )
 
 
 def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
     fieldnames = [
+        "dataset_id",
         "nlags",
         "anisotropy_scaling",
         "coordinates_type",
@@ -212,7 +215,7 @@ def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
 
 
 def update_metric_csv(metrics_path: Path, metrics: dict[str, Any]):
-    fieldnames = ["RMSE", "MAE", "Max Abs Error", "R^2"]
+    fieldnames = ["dataset_id", "RMSE", "MAE", "Max Abs Error", "R^2"]
     if not metrics_path.exists():
         with open(metrics_path, "w") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -346,7 +349,9 @@ def run_single_experiment(
         PLOT_DIR / f"{d}_hist.png"
     )
     metrics = cmp.compute_report()
+    metrics["dataset_id"] = d
     hyperparams = {
+        "dataset_id": d,
         "nlags": nlags,
         "anisotropy_scaling": anisotroty_scaling,
         "coordinates_type": coordinates_type,

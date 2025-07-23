@@ -18,6 +18,8 @@ import climatrix as cm
 
 console = Console()
 
+use_elevation = {0: False, 1: True}
+
 INF_LOSS = -1e4
 
 # Setting up the experiment parameters
@@ -64,10 +66,11 @@ BOUNDS = {
     "num_epochs": (50, 500),
     "gradient_clipping_value": (1e-4, 1e4),
     "batch_size": (32, 1024),
-    "mse_loss_weight": (1e-5, 1e3),
-    "eikonal_loss_weight": (0, 1e3),
-    "laplace_loss_weight": (0, 1e3),
+    "mse_loss_weight": (1e-5, 1),
+    "eikonal_loss_weight": (0, 1e-2),
+    "laplace_loss_weight": (0, 1e-2),
     "early_stopping_patience": (10, 200),
+    "use_elevation": ("0", "1"),  # 0 for False, 1 for True
 }
 console.print("[bold green]Hyperparameter bounds: [/bold green]", BOUNDS)
 
@@ -103,6 +106,7 @@ def compute_criterion(
     eikonal_loss_weight = float(hparams["eikonal_loss_weight"])
     laplace_loss_weight = float(hparams["laplace_loss_weight"])
     early_stopping_patience = int(hparams["early_stopping_patience"])
+    use_elevation = bool(int(hparams["use_elevation"]))
     recon_dset = train_dset.reconstruct(
         val_dset.domain,
         method="sinet",
@@ -116,6 +120,7 @@ def compute_criterion(
         eikonal_loss_weight=eikonal_loss_weight,
         laplace_loss_weight=laplace_loss_weight,
         patience=early_stopping_patience,
+        use_elevation=use_elevation,
     )
     metrics = cm.Comparison(
         recon_dset, val_dset, map_nan_from_source=False
@@ -187,11 +192,14 @@ def find_hyperparameters(
 
 
 def get_all_dataset_idx() -> list[str]:
-    return list({path.stem.split("_")[-1] for path in DSET_PATH.glob("*.nc")})
+    return sorted(
+        list({path.stem.split("_")[-1] for path in DSET_PATH.glob("*.nc")})
+    )
 
 
 def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
     fieldnames = [
+        "dataset_id",
         "lr",
         "num_epochs",
         "gradient_clipping_value",
@@ -212,7 +220,7 @@ def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
 
 
 def update_metric_csv(metrics_path: Path, metrics: dict[str, Any]):
-    fieldnames = ["RMSE", "MAE", "Max Abs Error", "R^2"]
+    fieldnames = ["dataset_id", "RMSE", "MAE", "Max Abs Error", "R^2"]
     if not metrics_path.exists():
         with open(metrics_path, "w") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -358,7 +366,9 @@ def run_single_experiment(
         PLOT_DIR / f"{d}_hist.png"
     )
     metrics = cmp.compute_report()
+    metrics["dataset_id"] = d
     hyperparams = {
+        "dataset_id": d,
         "lr": lr,
         "num_epochs": num_epochs,
         "gradient_clipping_value": gradient_clipping_value,
@@ -401,6 +411,6 @@ def run_all_experiments_sequentially():
 
 
 if __name__ == "__main__":
-    clear_result_dir()
+    # clear_result_dir()
     create_result_dir()
     run_all_experiments_sequentially()

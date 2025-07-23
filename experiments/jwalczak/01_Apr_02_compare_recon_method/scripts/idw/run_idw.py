@@ -166,7 +166,9 @@ def find_hyperparameters(
 
 
 def get_all_dataset_idx() -> list[str]:
-    return list({path.stem.split("_")[-1] for path in DSET_PATH.glob("*.nc")})
+    return sorted(
+        list({path.stem.split("_")[-1] for path in DSET_PATH.glob("*.nc")})
+    )
 
 
 def run_experiment():
@@ -272,6 +274,7 @@ def run_experiment():
             metrics = cmp.compute_report()
             all_metrics[d] = metrics
 
+            hyperparams["dataset_id"].append(d)
             hyperparams["k"].append(k)
             hyperparams["power"].append(power)
             hyperparams["k_min"].append(k_min)
