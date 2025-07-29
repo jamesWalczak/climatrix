@@ -4,6 +4,10 @@ import logging
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
+try:
+    from typing_extensions import Annotated
+except ImportError:
+    from typing import Annotated
 
 import numpy as np
 import torch
@@ -75,21 +79,13 @@ class SIRENReconstructor(BaseReconstructor):
         If trying to use SIREN with a dynamic dataset.
     """
 
-    # Hyperparameter type annotations
-    lr: Hyperparameter[float]
-    batch_size: Hyperparameter[int]
-    num_epochs: Hyperparameter[int]
-    hidden_dim: Hyperparameter[int]
-    num_layers: Hyperparameter[int]
-    gradient_clipping_value: Hyperparameter[float]
-    
-    # Hyperparameter specifications
-    _hparam_lr = {'type': float, 'bounds': (1e-5, 1e-2)}
-    _hparam_batch_size = {'type': int, 'bounds': (64, 1024)}
-    _hparam_num_epochs = {'type': int, 'bounds': (1000, 10000)}
-    _hparam_hidden_dim = {'type': int, 'bounds': (128, 512)}
-    _hparam_num_layers = {'type': int, 'bounds': (3, 8)}
-    _hparam_gradient_clipping_value = {'type': float, 'bounds': (0.1, 10.0)}
+    # Hyperparameter type annotations with specifications
+    lr: Annotated[Hyperparameter[float], {'type': float, 'bounds': (1e-5, 1e-2)}]
+    batch_size: Annotated[Hyperparameter[int], {'type': int, 'bounds': (64, 1024)}]
+    num_epochs: Annotated[Hyperparameter[int], {'type': int, 'bounds': (1000, 10000)}]
+    hidden_dim: Annotated[Hyperparameter[int], {'type': int, 'bounds': (128, 512)}]
+    num_layers: Annotated[Hyperparameter[int], {'type': int, 'bounds': (3, 8)}]
+    gradient_clipping_value: Annotated[Hyperparameter[float], {'type': float, 'bounds': (0.1, 10.0)}]
 
     @log_input(log, level=logging.DEBUG)
     def __init__(

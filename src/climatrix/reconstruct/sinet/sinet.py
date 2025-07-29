@@ -4,6 +4,10 @@ import logging
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
+try:
+    from typing_extensions import Annotated
+except ImportError:
+    from typing import Annotated
 
 import numpy as np
 import torch
@@ -26,23 +30,14 @@ log = logging.getLogger(__name__)
 
 class SiNETReconstructor(BaseReconstructor):
     
-    # Hyperparameter type annotations
-    lr: Hyperparameter[float]
-    batch_size: Hyperparameter[int]
-    num_epochs: Hyperparameter[int]
-    gradient_clipping_value: Hyperparameter[float]
-    mse_loss_weight: Hyperparameter[float]
-    eikonal_loss_weight: Hyperparameter[float]
-    laplace_loss_weight: Hyperparameter[float]
-    
-    # Hyperparameter specifications
-    _hparam_lr = {'type': float, 'bounds': (1e-5, 1e-2)}
-    _hparam_batch_size = {'type': int, 'bounds': (64, 1024)}
-    _hparam_num_epochs = {'type': int, 'bounds': (1000, 10000)}
-    _hparam_gradient_clipping_value = {'type': float, 'bounds': (0.1, 10.0)}
-    _hparam_mse_loss_weight = {'type': float, 'bounds': (1e1, 1e4)}
-    _hparam_eikonal_loss_weight = {'type': float, 'bounds': (1e0, 1e3)}  
-    _hparam_laplace_loss_weight = {'type': float, 'bounds': (1e1, 1e3)}
+    # Hyperparameter type annotations with specifications
+    lr: Annotated[Hyperparameter[float], {'type': float, 'bounds': (1e-5, 1e-2)}]
+    batch_size: Annotated[Hyperparameter[int], {'type': int, 'bounds': (64, 1024)}]
+    num_epochs: Annotated[Hyperparameter[int], {'type': int, 'bounds': (1000, 10000)}]
+    gradient_clipping_value: Annotated[Hyperparameter[float], {'type': float, 'bounds': (0.1, 10.0)}]
+    mse_loss_weight: Annotated[Hyperparameter[float], {'type': float, 'bounds': (1e1, 1e4)}]
+    eikonal_loss_weight: Annotated[Hyperparameter[float], {'type': float, 'bounds': (1e0, 1e3)}]
+    laplace_loss_weight: Annotated[Hyperparameter[float], {'type': float, 'bounds': (1e1, 1e3)}]
 
     @log_input(log, level=logging.DEBUG)
     def __init__(

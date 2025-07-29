@@ -50,13 +50,12 @@ class TestBaseReconstructorRegistry:
 
 
 class TestHyperparameterProperty:
-    """Test the hparams property system."""
+    """Test the hparams classmethod system."""
     
     def test_idw_hparams(self):
         """Test IDW hyperparameters."""
         from climatrix.reconstruct.idw import IDWReconstructor
-        instance = IDWReconstructor.__new__(IDWReconstructor)
-        hparams = instance.hparams
+        hparams = IDWReconstructor.hparams()
         
         assert "power" in hparams
         assert "k" in hparams

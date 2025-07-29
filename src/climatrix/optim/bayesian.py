@@ -47,17 +47,8 @@ def get_hparams_bounds(method: str) -> dict[str, tuple[float, float]]:
     from climatrix.reconstruct.base import BaseReconstructor
     
     reconstruction_class = BaseReconstructor.get(method)
-    # Create a temporary instance to get hparams property
-    # We need to pass None for the required parameters since we're just getting hyperparameters
-    try:
-        instance = reconstruction_class.__new__(reconstruction_class)
-        hparams = instance.hparams
-    except Exception:
-        # Fallback to class method if it exists
-        if hasattr(reconstruction_class, 'get_hparams'):
-            hparams = reconstruction_class.get_hparams()
-        else:
-            raise ValueError(f"Cannot get hyperparameters for method: {method}")
+    # Access hparams directly from the class since they are class-level definitions
+    hparams = reconstruction_class.hparams()
     
     bounds = {}
     for param_name, param_def in hparams.items():

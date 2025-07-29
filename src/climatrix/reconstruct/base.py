@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, ClassVar, get_type_hints, get_origin, get_args
+try:
+    from typing_extensions import Annotated, get_args as get_args_ext
+except ImportError:
+    from typing import Annotated, get_args as get_args_ext
 import inspect
 
 from climatrix.dataset.domain import Domain
@@ -97,10 +101,10 @@ class BaseReconstructor(ABC):
         """
         raise NotImplementedError
 
-    @property
-    def hparams(self) -> dict[str, dict[str, any]]:
+    @classmethod
+    def hparams(cls) -> dict[str, dict[str, any]]:
         """
-        Get hyperparameter definitions from class attributes.
+        Get hyperparameter definitions from Annotated type hints.
         
         Returns
         -------
@@ -113,12 +117,35 @@ class BaseReconstructor(ABC):
         """
         result = {}
         
-        # Look for _hparam_ prefixed attributes
-        for attr_name in dir(self.__class__):
-            if attr_name.startswith('_hparam_'):
-                param_name = attr_name[8:]  # Remove '_hparam_' prefix
-                param_spec = getattr(self.__class__, attr_name)
-                if isinstance(param_spec, dict):
-                    result[param_name] = param_spec
+        # Get type hints for the class
+        try:
+            type_hints = get_type_hints(cls, include_extras=True)
+        except (NameError, AttributeError):
+            # Fallback to __annotations__ if get_type_hints fails
+            type_hints = getattr(cls, '__annotations__', {})
+        
+        for param_name, type_hint in type_hints.items():
+            # Check if this is an Annotated type
+            if get_origin(type_hint) is Annotated:
+                args = get_args_ext(type_hint)
+                if len(args) >= 2:
+                    # First arg is the actual type, second+ args are annotations
+                    actual_type = args[0]
+                    annotations = args[1:]
+                    
+                    # Look for a dictionary annotation with hyperparameter spec
+                    for annotation in annotations:
+                        if isinstance(annotation, dict):
+                            result[param_name] = annotation
+                            break
+        
+        # Fallback: look for _hparam_ prefixed attributes for backward compatibility
+        if not result:
+            for attr_name in dir(cls):
+                if attr_name.startswith('_hparam_'):
+                    param_name = attr_name[8:]  # Remove '_hparam_' prefix
+                    param_spec = getattr(cls, attr_name)
+                    if isinstance(param_spec, dict):
+                        result[param_name] = param_spec
                     
         return result

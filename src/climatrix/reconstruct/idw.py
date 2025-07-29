@@ -4,6 +4,10 @@ import logging
 
 import numpy as np
 from scipy.spatial import cKDTree
+try:
+    from typing_extensions import Annotated
+except ImportError:
+    from typing import Annotated
 
 from climatrix.dataset.base import AxisType, BaseClimatrixDataset
 from climatrix.dataset.domain import Domain
@@ -51,15 +55,10 @@ class IDWReconstructor(BaseReconstructor):
         If k_min is greater than k or if k is less than 1.
     """
     
-    # Hyperparameter type annotations
-    power: Hyperparameter[float]
-    k: Hyperparameter[int]
-    k_min: Hyperparameter[int]
-    
-    # Hyperparameter specifications
-    _hparam_power = {'type': float, 'bounds': (0.5, 5.0)}
-    _hparam_k = {'type': int, 'bounds': (1, 20)}
-    _hparam_k_min = {'type': int, 'bounds': (1, 10)}
+    # Hyperparameter type annotations with specifications
+    power: Annotated[Hyperparameter[float], {'type': float, 'bounds': (0.5, 5.0)}]
+    k: Annotated[Hyperparameter[int], {'type': int, 'bounds': (1, 20)}]
+    k_min: Annotated[Hyperparameter[int], {'type': int, 'bounds': (1, 10)}]
 
     @log_input(log, level=logging.DEBUG)
     def __init__(
