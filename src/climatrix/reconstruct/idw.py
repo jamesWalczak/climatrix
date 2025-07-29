@@ -4,16 +4,12 @@ import logging
 
 import numpy as np
 from scipy.spatial import cKDTree
-try:
-    from typing_extensions import Annotated
-except ImportError:
-    from typing import Annotated
 
 from climatrix.dataset.base import AxisType, BaseClimatrixDataset
 from climatrix.dataset.domain import Domain
 from climatrix.decorators.runtime import log_input
 from climatrix.reconstruct.base import BaseReconstructor
-from climatrix.reconstruct.hyperparameter import Hyperparameter
+from climatrix.utils.hyperparameter import Hyperparameter
 
 log = logging.getLogger(__name__)
 
@@ -55,21 +51,30 @@ class IDWReconstructor(BaseReconstructor):
         If k_min is greater than k or if k is less than 1.
     """
     
-    # Hyperparameter type annotations with specifications
-    power: Annotated[Hyperparameter[float], {'type': float, 'bounds': (0.5, 5.0)}]
-    k: Annotated[Hyperparameter[int], {'type': int, 'bounds': (1, 20)}]
-    k_min: Annotated[Hyperparameter[int], {'type': int, 'bounds': (1, 10)}]
+    # Hyperparameter descriptors
+    power = Hyperparameter(float, bounds=(0.5, 5.0), default=2.0)
+    k = Hyperparameter(int, bounds=(1, 20), default=5)
+    k_min = Hyperparameter(int, bounds=(1, 10), default=2)
 
     @log_input(log, level=logging.DEBUG)
     def __init__(
         self,
         dataset: BaseClimatrixDataset,
         target_domain: Domain,
-        power: int = 2,
-        k: int = 5,
-        k_min: int = 2,
+        power: float = None,
+        k: int = None,
+        k_min: int = None,
     ):
         super().__init__(dataset, target_domain)
+        
+        # Set hyperparameter values using descriptors (will use defaults if None)
+        if power is not None:
+            self.power = power
+        if k is not None:
+            self.k = k
+        if k_min is not None:
+            self.k_min = k_min
+        
         for axis in dataset.domain.all_axes_types:
             if not dataset.domain.get_axis(axis).is_dimension:
                 continue
@@ -86,15 +91,12 @@ class IDWReconstructor(BaseReconstructor):
                 "Currently, IDWReconstructor only supports datasets with "
                 f"latitude and longitude dimensions, but got '{axis}'"
             )
-        if k_min > k:
+        if self.k_min > self.k:
             log.error("k_min must be <= k")
             raise ValueError("k_min must be <= k")
-        if k < 1:
+        if self.k < 1:
             log.error("k must be >= 1")
             raise ValueError("k must be >= 1")
-        self.k = k
-        self.k_min = k_min
-        self.power = power
 
     def reconstruct(self) -> BaseClimatrixDataset:
         """

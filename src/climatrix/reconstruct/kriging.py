@@ -2,10 +2,6 @@ from __future__ import annotations
 
 import logging
 from typing import ClassVar, Literal
-try:
-    from typing_extensions import Annotated
-except ImportError:
-    from typing import Annotated
 
 import numpy as np
 import numpy.ma as ma
@@ -15,7 +11,7 @@ from climatrix.dataset.domain import Domain
 from climatrix.decorators import raise_if_not_installed
 from climatrix.decorators.runtime import log_input
 from climatrix.reconstruct.base import BaseReconstructor
-from climatrix.reconstruct.hyperparameter import Hyperparameter
+from climatrix.utils.hyperparameter import Hyperparameter
 
 log = logging.getLogger(__name__)
 
@@ -53,11 +49,11 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
 
     _MAX_VECTORIZED_SIZE: ClassVar[int] = 500_000
     
-    # Hyperparameter type annotations with specifications
-    nlags: Annotated[Hyperparameter[int], {'type': int, 'bounds': (4, 20)}]
-    weight: Annotated[Hyperparameter[float], {'type': float, 'bounds': (0.0, 1.0)}]
-    verbose: Annotated[Hyperparameter[bool], {'type': bool, 'bounds': (0, 1)}]
-    pseudo_inv: Annotated[Hyperparameter[bool], {'type': bool, 'bounds': (0, 1)}]
+    # Hyperparameter descriptors
+    nlags = Hyperparameter(int, bounds=(4, 20), default=6)
+    weight = Hyperparameter(float, bounds=(0.0, 1.0), default=0.0)
+    verbose = Hyperparameter(bool, default=False)
+    pseudo_inv = Hyperparameter(bool, default=False)
 
     @log_input(log, level=logging.DEBUG)
     def __init__(

@@ -4,10 +4,6 @@ import logging
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
-try:
-    from typing_extensions import Annotated
-except ImportError:
-    from typing import Annotated
 
 import numpy as np
 import torch
@@ -17,7 +13,7 @@ from torch.utils.data import DataLoader
 from climatrix.dataset.domain import Domain
 from climatrix.decorators.runtime import log_input, raise_if_not_installed
 from climatrix.reconstruct.base import BaseReconstructor
-from climatrix.reconstruct.hyperparameter import Hyperparameter
+from climatrix.utils.hyperparameter import Hyperparameter
 
 from .dataset import SIRENDataset
 from .losses import (
@@ -79,13 +75,13 @@ class SIRENReconstructor(BaseReconstructor):
         If trying to use SIREN with a dynamic dataset.
     """
 
-    # Hyperparameter type annotations with specifications
-    lr: Annotated[Hyperparameter[float], {'type': float, 'bounds': (1e-5, 1e-2)}]
-    batch_size: Annotated[Hyperparameter[int], {'type': int, 'bounds': (64, 1024)}]
-    num_epochs: Annotated[Hyperparameter[int], {'type': int, 'bounds': (1000, 10000)}]
-    hidden_dim: Annotated[Hyperparameter[int], {'type': int, 'bounds': (128, 512)}]
-    num_layers: Annotated[Hyperparameter[int], {'type': int, 'bounds': (3, 8)}]
-    gradient_clipping_value: Annotated[Hyperparameter[float], {'type': float, 'bounds': (0.1, 10.0)}]
+    # Hyperparameter descriptors
+    lr = Hyperparameter(float, bounds=(1e-5, 1e-2), default=1e-3)
+    batch_size = Hyperparameter(int, bounds=(64, 1024), default=256)
+    num_epochs = Hyperparameter(int, bounds=(1000, 10000), default=5000)
+    hidden_dim = Hyperparameter(int, bounds=(128, 512), default=256)
+    num_layers = Hyperparameter(int, bounds=(3, 8), default=4)
+    gradient_clipping_value = Hyperparameter(float, bounds=(0.1, 10.0), default=1.0)
 
     @log_input(log, level=logging.DEBUG)
     def __init__(
