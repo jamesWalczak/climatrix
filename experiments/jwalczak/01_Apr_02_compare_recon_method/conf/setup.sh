@@ -24,7 +24,7 @@ function activate_venv() {
 
 function install_dependencies() {
   echo "Installing pip dependencies..."
-  pip install climatrix[plot,ml,optim,ok] jupyterlab dask ipywidgets
+  pip install climatrix[plot,ml,optim,ok]
   if [ $? -ne 0 ]; then
     echo "Error installing dependencies."
     deactivate
