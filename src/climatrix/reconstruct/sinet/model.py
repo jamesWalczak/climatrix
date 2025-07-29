@@ -1,92 +1,88 @@
-# Adapted from https://github.com/vsitzmann/siren?tab=MIT-1-ov-file#readme
-import math
-from collections import OrderedDict
-
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.nn.init import _calculate_correct_fan
 
 
-def sine_init(m):
-    with torch.no_grad():
-        if hasattr(m, "weight"):
-            num_input = m.weight.size(-1)
-            # See supplement Sec. 1.5 for discussion of factor 30
-            m.weight.uniform_(
-                -np.sqrt(6 / num_input) / 30, np.sqrt(6 / num_input) / 30
-            )
-
-
-def first_layer_sine_init(m):
-    with torch.no_grad():
-        if hasattr(m, "weight"):
-            num_input = m.weight.size(-1)
-            # See paper sec. 3.2, final paragraph, and supplement
-            # Sec. 1.5 for discussion of factor 30
-            m.weight.uniform_(-1 / num_input, 1 / num_input)
-
-
-class SineActivation(nn.Module):
-    scale: float
-
-    def __init__(self, scale: float = 1.0):
+class FourierFeatures(nn.Module):
+    def __init__(
+        self,
+        input_dim: int,
+        mapping_size: int,
+        scale: float,
+        trainable: bool = False,
+    ):
         super().__init__()
-        self.scale = scale
+        if trainable:
+            self.log_scale = nn.Parameter(torch.log(torch.tensor(scale)))
+            B = torch.randn((input_dim, mapping_size))
+            self.B = nn.Parameter(B)
+        else:
+            self.log_scale = torch.log(torch.tensor(scale))
+            B = torch.randn((input_dim, mapping_size))
+            self.register_buffer("B", B)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.sin(self.scale * x)
+    def forward(self, x) -> torch.Tensor:
+        x_proj = 2 * np.pi * x @ (self.B * torch.exp(self.log_scale))
+        return torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
 
 
-class PositionalEncoding(nn.Module):
-    def __init__(self, num_frequencies: int = 6, include_input: bool = True):
+class GroupSortActivation(nn.Module):
+    def __init__(self, group_size):
         super().__init__()
-        self.num_frequencies = num_frequencies
-        self.include_input = include_input
-        self.freq_bands = 2.0 ** torch.linspace(
-            0, num_frequencies - 1, num_frequencies
-        )
+        self.group_size = group_size
 
     def forward(self, x):
-        out = [x] if self.include_input else []
-        for freq in self.freq_bands.to(x.device):
-            out.append(torch.sin(freq * x))
-            out.append(torch.cos(freq * x))
-        return torch.cat(out, dim=-1)
+        batch_size, dim = x.shape
+        if dim % self.group_size != 0:
+            raise ValueError(
+                f"Input dimension {dim} must be divisible by group size {self.group_size}."
+            )
+        x_reshaped = x.view(batch_size, -1, self.group_size)
+        x_sorted, _ = x_reshaped.sort(dim=-1)
+        return x_sorted.view(batch_size, dim)
 
 
 class SiNET(nn.Module):
+    FOURIER_FEATURES: int = 64
+
     def __init__(
         self,
         in_features: int,
         out_features: int,
-        mlp: list[int],
-        scale: float = 1.0,
-        scale_first_layer: float = 30.0,
+        *,
+        layers: int = 2,
+        hidden_dim: int = 64,
+        sorting_group_size: int = 16,
+        scale: float = 1.5,
         bias: bool = True,
     ) -> None:
         super().__init__()
-        if len(mlp) == 0:
-            mlp = [64, 64]
-        self.encoder = PositionalEncoding(
-            num_frequencies=6, include_input=True
+        if hidden_dim <= 0:
+            raise ValueError("Hidden dimension must be a positive integer.")
+        if layers <= 0:
+            raise ValueError("Number of layers must be a positive integer.")
+        if sorting_group_size <= 0:
+            raise ValueError("Sorting group size must be a positive integer.")
+        if hidden_dim % sorting_group_size != 0:
+            raise ValueError(
+                f"Hidden dimension {hidden_dim} must be divisible by sorting group size {sorting_group_size}."
+            )
+        self.fourier_features = FourierFeatures(
+            input_dim=in_features,
+            mapping_size=self.FOURIER_FEATURES,
+            scale=scale,
+            trainable=False,
         )
-        layers = [
-            nn.Linear(in_features * (2 * 6 + 1), mlp[0], bias=bias),
-            SineActivation(scale=scale_first_layer),
-        ]
-        for i in range(len(mlp) - 1):
-            layers.append(nn.Linear(mlp[i], mlp[i + 1], bias=bias))
-            layers.append(SineActivation(scale=scale))
-
-        layers.append(nn.Linear(mlp[-1], out_features, bias=bias))
-
-        self.net = nn.Sequential(*layers)
-
-        self.net.apply(sine_init)
-        self.net[0].apply(first_layer_sine_init)
+        mlps = []
+        in_dim = self.FOURIER_FEATURES * 2
+        for i in range(layers):
+            mlps.append(nn.Linear(in_dim, hidden_dim, bias=bias))
+            mlps.append(GroupSortActivation(sorting_group_size))
+            in_dim = hidden_dim
+        mlps.append(nn.Linear(in_dim, out_features, bias=bias))
+        self.net = nn.Sequential(*mlps)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.encoder(x)
-        return self.net(x)
+        fourier_features = self.fourier_features(x)
+        scores = self.net(fourier_features)
+        return scores
