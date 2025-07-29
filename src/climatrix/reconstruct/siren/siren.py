@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader
 from climatrix.dataset.domain import Domain
 from climatrix.decorators.runtime import log_input, raise_if_not_installed
 from climatrix.reconstruct.base import BaseReconstructor
+from climatrix.reconstruct.hyperparameter import Hyperparameter
 
 from .dataset import SIRENDataset
 from .losses import (
@@ -73,6 +74,22 @@ class SIRENReconstructor(BaseReconstructor):
     NotImplementedError
         If trying to use SIREN with a dynamic dataset.
     """
+
+    # Hyperparameter type annotations
+    lr: Hyperparameter[float]
+    batch_size: Hyperparameter[int]
+    num_epochs: Hyperparameter[int]
+    hidden_dim: Hyperparameter[int]
+    num_layers: Hyperparameter[int]
+    gradient_clipping_value: Hyperparameter[float]
+    
+    # Hyperparameter specifications
+    _hparam_lr = {'type': float, 'bounds': (1e-5, 1e-2)}
+    _hparam_batch_size = {'type': int, 'bounds': (64, 1024)}
+    _hparam_num_epochs = {'type': int, 'bounds': (1000, 10000)}
+    _hparam_hidden_dim = {'type': int, 'bounds': (128, 512)}
+    _hparam_num_layers = {'type': int, 'bounds': (3, 8)}
+    _hparam_gradient_clipping_value = {'type': float, 'bounds': (0.1, 10.0)}
 
     @log_input(log, level=logging.DEBUG)
     def __init__(
@@ -553,40 +570,3 @@ class SIRENReconstructor(BaseReconstructor):
                 reconstructed_values, self.dataset.da.name
             )
         )
-
-    @classmethod
-    def get_hparams(cls) -> dict[str, dict[str, any]]:
-        """
-        Get hyperparameter definitions for SIREN reconstruction.
-
-        Returns
-        -------
-        dict[str, dict[str, any]]
-            Dictionary mapping parameter names to their definitions.
-        """
-        return {
-            "lr": {
-                "bounds": (1e-5, 1e-2),
-                "type": float,
-            },
-            "batch_size": {
-                "bounds": (64, 1024),
-                "type": int,
-            },
-            "num_epochs": {
-                "bounds": (1000, 10000),
-                "type": int,
-            },
-            "hidden_dim": {
-                "bounds": (128, 512),
-                "type": int,
-            },
-            "num_layers": {
-                "bounds": (3, 8),
-                "type": int,
-            },
-            "gradient_clipping_value": {
-                "bounds": (0.1, 10.0),
-                "type": float,
-            },
-        }

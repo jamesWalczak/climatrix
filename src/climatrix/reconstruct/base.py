@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, get_type_hints, get_origin, get_args
+import inspect
 
 from climatrix.dataset.domain import Domain
 
@@ -23,6 +24,9 @@ class BaseReconstructor(ABC):
     """
 
     __slots__ = ("dataset", "query_lat", "query_lon")
+    
+    # Class registry for reconstruction methods
+    _registry: ClassVar[dict[str, type[BaseReconstructor]]] = {}
 
     dataset: BaseClimatrixDataset
 
@@ -32,6 +36,39 @@ class BaseReconstructor(ABC):
         self.dataset = dataset
         self.target_domain = target_domain
         self._validate_types(dataset, target_domain)
+
+    def __init_subclass__(cls, **kwargs):
+        """Register subclasses automatically."""
+        super().__init_subclass__(**kwargs)
+        # Register the class with a lowercase name derived from the class name
+        name = cls.__name__.lower().replace('reconstructor', '')
+        cls._registry[name] = cls
+
+    @classmethod
+    def get(cls, method: str) -> type[BaseReconstructor]:
+        """
+        Get a reconstruction class by method name.
+        
+        Parameters
+        ----------
+        method : str
+            The reconstruction method name (e.g., 'idw', 'ok', 'sinet', 'siren').
+            
+        Returns
+        -------
+        type[BaseReconstructor]
+            The reconstruction class.
+            
+        Raises
+        ------
+        ValueError
+            If the method is not supported.
+        """
+        method = method.lower().strip()
+        if method not in cls._registry:
+            available = ", ".join(cls._registry.keys())
+            raise ValueError(f"Unknown method '{method}'. Available methods: {available}")
+        return cls._registry[method]
 
     def _validate_types(self, dataset, domain: Domain) -> None:
         from climatrix.dataset.base import BaseClimatrixDataset
@@ -60,19 +97,28 @@ class BaseReconstructor(ABC):
         """
         raise NotImplementedError
 
-    @classmethod
-    @abstractmethod
-    def get_hparams(cls) -> dict[str, dict[str, any]]:
+    @property
+    def hparams(self) -> dict[str, dict[str, any]]:
         """
-        Get hyperparameter definitions for this reconstruction method.
-
+        Get hyperparameter definitions from class attributes.
+        
         Returns
         -------
         dict[str, dict[str, any]]
             Dictionary mapping parameter names to their definitions.
-            Each parameter definition should contain:
-            - 'bounds': tuple of (min, max) for numeric parameters
-            - 'type': type of the parameter (int, float, bool)
-            - 'values': list of valid values for categorical parameters
+            Each parameter definition contains:
+            - 'type': the parameter type
+            - 'bounds': tuple of (min, max) for numeric parameters (if defined)
+            - 'values': list of valid values for categorical parameters (if defined)
         """
-        raise NotImplementedError
+        result = {}
+        
+        # Look for _hparam_ prefixed attributes
+        for attr_name in dir(self.__class__):
+            if attr_name.startswith('_hparam_'):
+                param_name = attr_name[8:]  # Remove '_hparam_' prefix
+                param_spec = getattr(self.__class__, attr_name)
+                if isinstance(param_spec, dict):
+                    result[param_name] = param_spec
+                    
+        return result

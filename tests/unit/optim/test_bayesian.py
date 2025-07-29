@@ -7,7 +7,8 @@ import pytest
 import xarray as xr
 
 from climatrix import BaseClimatrixDataset
-from climatrix.optim.bayesian import HParamFinder, get_hparams_bounds, get_reconstruction_class, MetricType
+from climatrix.optim.bayesian import HParamFinder, get_hparams_bounds, MetricType
+from climatrix.reconstruct.base import BaseReconstructor
 from tests.unit.utils import skip_on_error
 
 
@@ -21,31 +22,49 @@ class TestMetricType:
         assert MetricType.RMSE == "rmse"
 
 
-class TestGetReconstructionClass:
-    """Test the get_reconstruction_class function."""
+class TestBaseReconstructorRegistry:
+    """Test the BaseReconstructor registry system."""
     
     def test_idw_class(self):
         """Test getting IDW reconstruction class."""
-        cls = get_reconstruction_class("idw")
+        cls = BaseReconstructor.get("idw")
         assert cls.__name__ == "IDWReconstructor"
         
     def test_ok_class(self):
         """Test getting Ordinary Kriging reconstruction class."""
-        cls = get_reconstruction_class("ok")
+        cls = BaseReconstructor.get("ok")
         assert cls.__name__ == "OrdinaryKrigingReconstructor"
         
     def test_case_insensitive(self):
         """Test that method names are case insensitive."""
-        cls_lower = get_reconstruction_class("idw")
-        cls_upper = get_reconstruction_class("IDW")
-        cls_mixed = get_reconstruction_class("IdW")
+        cls_lower = BaseReconstructor.get("idw")
+        cls_upper = BaseReconstructor.get("IDW")
+        cls_mixed = BaseReconstructor.get("IdW")
         
         assert cls_lower == cls_upper == cls_mixed
     
     def test_unknown_method(self):
         """Test error for unknown method."""
-        with pytest.raises(ValueError, match="Unknown reconstruction method"):
-            get_reconstruction_class("unknown_method")
+        with pytest.raises(ValueError, match="Unknown method"):
+            BaseReconstructor.get("unknown_method")
+
+
+class TestHyperparameterProperty:
+    """Test the hparams property system."""
+    
+    def test_idw_hparams(self):
+        """Test IDW hyperparameters."""
+        from climatrix.reconstruct.idw import IDWReconstructor
+        instance = IDWReconstructor.__new__(IDWReconstructor)
+        hparams = instance.hparams
+        
+        assert "power" in hparams
+        assert "k" in hparams
+        assert "k_min" in hparams
+        
+        assert hparams["power"]["type"] == float
+        assert hparams["k"]["type"] == int
+        assert "bounds" in hparams["power"]
 
 
 class TestGetHparamsBounds:

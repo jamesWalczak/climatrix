@@ -11,6 +11,7 @@ from climatrix.dataset.domain import Domain
 from climatrix.decorators import raise_if_not_installed
 from climatrix.decorators.runtime import log_input
 from climatrix.reconstruct.base import BaseReconstructor
+from climatrix.reconstruct.hyperparameter import Hyperparameter
 
 log = logging.getLogger(__name__)
 
@@ -47,6 +48,18 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
     """
 
     _MAX_VECTORIZED_SIZE: ClassVar[int] = 500_000
+    
+    # Hyperparameter type annotations
+    nlags: Hyperparameter[int]
+    weight: Hyperparameter[float]
+    verbose: Hyperparameter[bool]
+    pseudo_inv: Hyperparameter[bool]
+    
+    # Hyperparameter specifications
+    _hparam_nlags = {'type': int, 'bounds': (4, 20)}
+    _hparam_weight = {'type': float, 'bounds': (0.0, 1.0)}
+    _hparam_verbose = {'type': bool, 'bounds': (0, 1)}
+    _hparam_pseudo_inv = {'type': bool, 'bounds': (0, 1)}
 
     @log_input(log, level=logging.DEBUG)
     def __init__(
@@ -191,32 +204,3 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         return BaseClimatrixDataset(
             self.target_domain.to_xarray(values, self.dataset.da.name)
         )
-
-    @classmethod  
-    def get_hparams(cls) -> dict[str, dict[str, any]]:
-        """
-        Get hyperparameter definitions for Ordinary Kriging reconstruction.
-
-        Returns
-        -------
-        dict[str, dict[str, any]]
-            Dictionary mapping parameter names to their definitions.
-        """
-        return {
-            "nlags": {
-                "bounds": (4, 20),
-                "type": int,
-            },
-            "weight": {
-                "bounds": (0.0, 1.0),
-                "type": float,
-            },
-            "verbose": {
-                "bounds": (0, 1),
-                "type": bool,
-            },
-            "pseudo_inv": {
-                "bounds": (0, 1), 
-                "type": bool,
-            },
-        }

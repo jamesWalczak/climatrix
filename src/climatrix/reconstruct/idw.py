@@ -9,6 +9,7 @@ from climatrix.dataset.base import AxisType, BaseClimatrixDataset
 from climatrix.dataset.domain import Domain
 from climatrix.decorators.runtime import log_input
 from climatrix.reconstruct.base import BaseReconstructor
+from climatrix.reconstruct.hyperparameter import Hyperparameter
 
 log = logging.getLogger(__name__)
 
@@ -49,6 +50,16 @@ class IDWReconstructor(BaseReconstructor):
     ValueError
         If k_min is greater than k or if k is less than 1.
     """
+    
+    # Hyperparameter type annotations
+    power: Hyperparameter[float]
+    k: Hyperparameter[int]
+    k_min: Hyperparameter[int]
+    
+    # Hyperparameter specifications
+    _hparam_power = {'type': float, 'bounds': (0.5, 5.0)}
+    _hparam_k = {'type': int, 'bounds': (1, 20)}
+    _hparam_k_min = {'type': int, 'bounds': (1, 10)}
 
     @log_input(log, level=logging.DEBUG)
     def __init__(
@@ -156,28 +167,3 @@ class IDWReconstructor(BaseReconstructor):
         return BaseClimatrixDataset(
             self.target_domain.to_xarray(interp_vals, self.dataset.da.name)
         )
-
-    @classmethod
-    def get_hparams(cls) -> dict[str, dict[str, any]]:
-        """
-        Get hyperparameter definitions for IDW reconstruction.
-
-        Returns
-        -------
-        dict[str, dict[str, any]]
-            Dictionary mapping parameter names to their definitions.
-        """
-        return {
-            "power": {
-                "bounds": (0.5, 5.0),
-                "type": float,
-            },
-            "k": {
-                "bounds": (1, 20),
-                "type": int,
-            },
-            "k_min": {
-                "bounds": (1, 10),
-                "type": int,
-            },
-        }

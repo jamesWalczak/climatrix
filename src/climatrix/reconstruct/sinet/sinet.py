@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader
 from climatrix import BaseClimatrixDataset, Domain
 from climatrix.decorators.runtime import log_input, raise_if_not_installed
 from climatrix.reconstruct.base import BaseReconstructor
+from climatrix.reconstruct.hyperparameter import Hyperparameter
 from climatrix.reconstruct.sinet.dataset import (
     SiNETDatasetGenerator,
 )
@@ -24,6 +25,24 @@ log = logging.getLogger(__name__)
 
 
 class SiNETReconstructor(BaseReconstructor):
+    
+    # Hyperparameter type annotations
+    lr: Hyperparameter[float]
+    batch_size: Hyperparameter[int]
+    num_epochs: Hyperparameter[int]
+    gradient_clipping_value: Hyperparameter[float]
+    mse_loss_weight: Hyperparameter[float]
+    eikonal_loss_weight: Hyperparameter[float]
+    laplace_loss_weight: Hyperparameter[float]
+    
+    # Hyperparameter specifications
+    _hparam_lr = {'type': float, 'bounds': (1e-5, 1e-2)}
+    _hparam_batch_size = {'type': int, 'bounds': (64, 1024)}
+    _hparam_num_epochs = {'type': int, 'bounds': (1000, 10000)}
+    _hparam_gradient_clipping_value = {'type': float, 'bounds': (0.1, 10.0)}
+    _hparam_mse_loss_weight = {'type': float, 'bounds': (1e1, 1e4)}
+    _hparam_eikonal_loss_weight = {'type': float, 'bounds': (1e0, 1e3)}  
+    _hparam_laplace_loss_weight = {'type': float, 'bounds': (1e1, 1e3)}
 
     @log_input(log, level=logging.DEBUG)
     def __init__(
@@ -252,44 +271,3 @@ class SiNETReconstructor(BaseReconstructor):
         # )
         log.info("Preparing StaticDenseDataset...")
         raise NotImplementedError()
-
-    @classmethod
-    def get_hparams(cls) -> dict[str, dict[str, any]]:
-        """
-        Get hyperparameter definitions for SiNET reconstruction.
-
-        Returns
-        -------
-        dict[str, dict[str, any]]
-            Dictionary mapping parameter names to their definitions.
-        """
-        return {
-            "lr": {
-                "bounds": (1e-5, 1e-2),
-                "type": float,
-            },
-            "batch_size": {
-                "bounds": (64, 1024),
-                "type": int,
-            },
-            "num_epochs": {
-                "bounds": (1000, 10000),
-                "type": int,
-            },
-            "gradient_clipping_value": {
-                "bounds": (0.1, 10.0),
-                "type": float,
-            },
-            "mse_loss_weight": {
-                "bounds": (1e1, 1e4),
-                "type": float,
-            },
-            "eikonal_loss_weight": {
-                "bounds": (1e0, 1e3),
-                "type": float,
-            },
-            "laplace_loss_weight": {
-                "bounds": (1e1, 1e3),
-                "type": float,
-            },
-        }

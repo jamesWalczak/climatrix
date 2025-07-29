@@ -25,46 +25,6 @@ class MetricType(StrEnum):
     RMSE = "rmse"
 
 
-def get_reconstruction_class(method: str):
-    """
-    Get the reconstruction class for a given method name.
-    
-    Parameters
-    ----------
-    method : str
-        The reconstruction method name (e.g., 'idw', 'ok', 'sinet', 'siren').
-        
-    Returns
-    -------
-    type
-        The reconstruction class.
-        
-    Raises
-    ------
-    ValueError
-        If the method is not supported.
-    """
-    method = method.lower().strip()
-    
-    if method == "idw":
-        from climatrix.reconstruct.idw import IDWReconstructor
-        return IDWReconstructor
-    elif method == "ok":
-        from climatrix.reconstruct.kriging import OrdinaryKrigingReconstructor
-        return OrdinaryKrigingReconstructor
-    elif method == "sinet":
-        from climatrix.reconstruct.sinet import SiNETReconstructor
-        return SiNETReconstructor
-    elif method == "siren":
-        from climatrix.reconstruct.siren import SiRENReconstructor
-        return SiRENReconstructor
-    else:
-        raise ValueError(
-            f"Unknown reconstruction method: {method}. "
-            f"Supported methods are: idw, ok, sinet, siren"
-        )
-
-
 def get_hparams_bounds(method: str) -> dict[str, tuple[float, float]]:
     """
     Get default hyperparameter bounds for a given reconstruction method.
@@ -84,8 +44,20 @@ def get_hparams_bounds(method: str) -> dict[str, tuple[float, float]]:
     ValueError
         If the method is not supported.
     """
-    reconstruction_class = get_reconstruction_class(method)
-    hparams = reconstruction_class.get_hparams()
+    from climatrix.reconstruct.base import BaseReconstructor
+    
+    reconstruction_class = BaseReconstructor.get(method)
+    # Create a temporary instance to get hparams property
+    # We need to pass None for the required parameters since we're just getting hyperparameters
+    try:
+        instance = reconstruction_class.__new__(reconstruction_class)
+        hparams = instance.hparams
+    except Exception:
+        # Fallback to class method if it exists
+        if hasattr(reconstruction_class, 'get_hparams'):
+            hparams = reconstruction_class.get_hparams()
+        else:
+            raise ValueError(f"Cannot get hyperparameters for method: {method}")
     
     bounds = {}
     for param_name, param_def in hparams.items():
@@ -207,7 +179,6 @@ class HParamFinder:
     ) -> None:
         """Filter parameters based on include/exclude lists."""
         if include is not None and exclude is not None:
-            # Check for common keys between include and exclude
             include_set = {include} if isinstance(include, str) else set(include)
             exclude_set = {exclude} if isinstance(exclude, str) else set(exclude)
             common_keys = include_set.intersection(exclude_set)
@@ -252,8 +223,10 @@ class HParamFinder:
         """
         try:
             # Get parameter types from the reconstruction class
-            reconstruction_class = get_reconstruction_class(self.method)
-            hparams_def = reconstruction_class.get_hparams()
+            from climatrix.reconstruct.base import BaseReconstructor
+            reconstruction_class = BaseReconstructor.get(self.method)
+            instance = reconstruction_class.__new__(reconstruction_class)
+            hparams_def = instance.hparams
             
             # Convert parameters to appropriate types
             processed_params = {}
@@ -348,8 +321,10 @@ class HParamFinder:
         
         # Get best parameters and convert to appropriate types
         best_params_raw = optimizer.max['params']
-        reconstruction_class = get_reconstruction_class(self.method)
-        hparams_def = reconstruction_class.get_hparams()
+        from climatrix.reconstruct.base import BaseReconstructor
+        reconstruction_class = BaseReconstructor.get(self.method)
+        instance = reconstruction_class.__new__(reconstruction_class)
+        hparams_def = instance.hparams
         
         best_params = {}
         for key, value in best_params_raw.items():
