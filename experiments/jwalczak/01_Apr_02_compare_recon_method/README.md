@@ -52,8 +52,8 @@ docker run --rm \
   my-experiments
 ```
 
-- `-v $(pwd)/../data:/app/data` → Mounts host `exp_dir/data` into container `/app/data`  
-- `-v $(pwd)/../results:/app/results` → Mounts host `exp_dir/results` into container `/app/results`  
+- `-v $(pwd)/../data:/app/data` → Mounts host `01_Apr_02_compare_recon_method/data` into container `/app/data`  
+- `-v $(pwd)/../results:/app/results` → Mounts host `01_Apr_02_compare_recon_method/results` into container `/app/results`  
 - `--rm` → Automatically removes the container after execution  
 
 ---
@@ -65,7 +65,7 @@ docker run --rm \
 From inside the `images/` directory:
 
 ```bash
-cd exp_dir/images
+cd 01_Apr_02_compare_recon_method/images
 apptainer build experiment.sif experiment.def
 ```
 
@@ -85,9 +85,9 @@ apptainer run \
   experiment.sif
 ```
 
-- `--bind ../data:/app/data` → Mounts host `exp_dir/data`  
-- `--bind ../results:/app/results` → Mounts host `exp_dir/results`  
-- Results will appear in your host `exp_dir/results`.
+- `--bind ../data:/app/data` → Mounts host `01_Apr_02_compare_recon_method/data`  
+- `--bind ../results:/app/results` → Mounts host `01_Apr_02_compare_recon_method/results`  
+- Results will appear in your host `01_Apr_02_compare_recon_method/results`.
 
 ---
 
@@ -99,7 +99,7 @@ When the container starts (`CMD` in Dockerfile):
    ```bash
    scripts/download_blend_mean_temperature.sh
    ```
-   - Downloads data into `/app/data` (mapped to host `exp_dir/data`).
+   - Downloads data into `/app/data` (mapped to host `01_Apr_02_compare_recon_method/data`).
 
 2. **Prepare dataset**  
    ```bash
@@ -111,7 +111,7 @@ When the container starts (`CMD` in Dockerfile):
    ```bash
    bash scripts/run_experiments.sh
    ```
-   - Executes experiments and saves outputs in `/app/results` (mapped to host `exp_dir/results`).
+   - Executes experiments and saves outputs in `/app/results` (mapped to host `01_Apr_02_compare_recon_method/results`).
 
 ---
 
