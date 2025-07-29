@@ -40,18 +40,17 @@ def get_hparams_bounds(method: str) -> dict[str, tuple[float, float]]:
             "k_min": (1, 10),
         },
         "ok": {
-            # Common pykrige parameters
-            "variogram_model": {
-                # This is categorical, will be handled differently
-                "values": ["linear", "power", "gaussian", "spherical", "exponential"]
-            },
+            # Common pykrige parameters that can be optimized
             "nlags": (4, 20),
             "weight": (0.0, 1.0),
+            "verbose": (0, 1),  # boolean-like
+            "pseudo_inv": (0, 1),  # boolean-like
         },
         "sinet": {
             "lr": (1e-5, 1e-2),
             "batch_size": (64, 1024),
             "num_epochs": (1000, 10000),
+            "gradient_clipping_value": (0.1, 10.0),
             "mse_loss_weight": (1e1, 1e4),
             "eikonal_loss_weight": (1e0, 1e3),
             "laplace_loss_weight": (1e1, 1e3),
@@ -62,6 +61,7 @@ def get_hparams_bounds(method: str) -> dict[str, tuple[float, float]]:
             "num_epochs": (1000, 10000),
             "hidden_dim": (128, 512),
             "num_layers": (3, 8),
+            "gradient_clipping_value": (0.1, 10.0),
         }
     }
     
@@ -218,11 +218,25 @@ class HParamFinder:
             Negative metric value (since BayesianOptimization maximizes).
         """
         try:
+            # Convert parameters to appropriate types
+            processed_params = {}
+            for key, value in params.items():
+                # Handle integer parameters
+                if key in ["k", "k_min", "nlags", "batch_size", "num_epochs", "num_layers"]:
+                    processed_params[key] = int(round(value))
+                # Handle boolean-like parameters
+                elif key in ["verbose", "pseudo_inv"]:
+                    processed_params[key] = bool(round(value))
+                else:
+                    processed_params[key] = value
+            
+            log.debug("Evaluating parameters: %s", processed_params)
+            
             # Perform reconstruction with given parameters
             reconstructed = self.train_dset.reconstruct(
                 target=self.val_dset.domain,
                 method=self.method,
-                **params
+                **processed_params
             )
             
             # Compute metric
@@ -236,6 +250,8 @@ class HParamFinder:
                 score = np.sqrt(np.nanmean(diff ** 2))
             else:
                 raise ValueError(f"Unknown metric: {self.metric}")
+            
+            log.debug("Score for params %s: %f", processed_params, score)
             
             # Return negative score for maximization
             return -score
@@ -254,9 +270,11 @@ class HParamFinder:
         -------
         dict[str, Any]
             Dictionary containing:
-            - 'best_params': Best hyperparameters found
-            - 'best_score': Best score achieved (negative metric value)
+            - 'best_params': Best hyperparameters found (with correct types)
+            - 'best_score': Best score achieved (negative metric value)  
             - 'history': Optimization history
+            - 'metric_name': Name of the optimized metric
+            - 'method': Reconstruction method used
         """
         from bayes_opt import BayesianOptimization
         
@@ -295,7 +313,19 @@ class HParamFinder:
             n_iter=self.n_iter,
         )
         
-        best_params = optimizer.max['params']
+        # Get best parameters and convert to appropriate types
+        best_params_raw = optimizer.max['params']
+        best_params = {}
+        for key, value in best_params_raw.items():
+            # Handle integer parameters
+            if key in ["k", "k_min", "nlags", "batch_size", "num_epochs", "num_layers"]:
+                best_params[key] = int(round(value))
+            # Handle boolean-like parameters
+            elif key in ["verbose", "pseudo_inv"]:
+                best_params[key] = bool(round(value))
+            else:
+                best_params[key] = value
+        
         best_score = optimizer.max['target']
         
         log.info("Optimization completed. Best score: %f", best_score)
@@ -304,6 +334,8 @@ class HParamFinder:
         return {
             'best_params': best_params,
             'best_score': best_score,
+            'metric_name': self.metric,
+            'method': self.method,
             'history': [{'params': res['params'], 'target': res['target']} 
                        for res in optimizer.res],
         }
