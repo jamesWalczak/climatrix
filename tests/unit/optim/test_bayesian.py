@@ -308,3 +308,34 @@ class TestHParamFinder:
                 init_points=finder.init_points,
                 n_iter=finder.n_iter
             )
+
+
+class TestStandaloneFunctions:
+    """Test standalone functions in the module."""
+    
+    def test_get_hparams_bounds_idw(self):
+        """Test standalone get_hparams_bounds function for IDW."""
+        from climatrix.optim.bayesian import get_hparams_bounds
+        
+        bounds = get_hparams_bounds("idw")
+        
+        assert "power" in bounds
+        assert "k" in bounds 
+        assert "k_min" in bounds
+        assert isinstance(bounds["power"], tuple)
+        assert len(bounds["power"]) == 2
+        
+    def test_get_hparams_bounds_kriging(self):
+        """Test standalone get_hparams_bounds function for kriging."""
+        from climatrix.optim.bayesian import get_hparams_bounds
+        
+        bounds = get_hparams_bounds("kriging")
+        
+        assert isinstance(bounds, dict)
+        
+    def test_get_hparams_bounds_unknown_method(self):
+        """Test standalone get_hparams_bounds function with unknown method."""
+        from climatrix.optim.bayesian import get_hparams_bounds
+        
+        with pytest.raises(ValueError, match="Unknown reconstruction method"):
+            get_hparams_bounds("unknown_method")

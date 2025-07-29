@@ -10,7 +10,7 @@ import numpy as np
 import xarray as xr
 
 from climatrix import BaseClimatrixDataset
-from climatrix.optim.bayesian import HParamFinder
+from climatrix.optim.bayesian import HParamFinder, get_hparams_bounds
 
 
 def create_sample_data():
@@ -176,11 +176,30 @@ def example_different_metrics():
         print(f"  - Ready for optimization with {metric} metric")
 
 
+def example_bounds_inspection():
+    """Example showing how to inspect default hyperparameter bounds."""
+    
+    print("\\n=== Inspecting Default Hyperparameter Bounds ===")
+    
+    # Get bounds for different methods
+    methods = ["idw", "kriging"]
+    
+    for method in methods:
+        try:
+            bounds = get_hparams_bounds(method)
+            print(f"\\n{method.upper()} method bounds:")
+            for param, (min_val, max_val) in bounds.items():
+                print(f"  - {param}: [{min_val}, {max_val}]")
+        except ValueError as e:
+            print(f"\\n{method.upper()}: {e}")
+
+
 if __name__ == "__main__":
     print("Climatrix Hyperparameter Optimization Examples")
     print("=" * 50)
     
     # Run examples
+    example_bounds_inspection()
     example_basic_optimization()
     example_selective_optimization()
     example_custom_bounds()

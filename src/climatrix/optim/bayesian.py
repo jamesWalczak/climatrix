@@ -293,3 +293,37 @@ class HParamFinder:
             return 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
         else:
             raise ValueError(f"Unknown metric: {metric}")
+
+
+def get_hparams_bounds(method: str) -> Dict[str, tuple]:
+    """
+    Get default hyperparameter bounds for reconstruction methods.
+    
+    This is a convenience function that delegates to the appropriate
+    reconstructor class's get_hparams_bounds() method.
+    
+    Parameters
+    ----------
+    method : str
+        Name of the reconstruction method ("idw", "kriging", etc.).
+        
+    Returns
+    -------
+    Dict[str, tuple]
+        Dictionary mapping hyperparameter names to (min, max) bounds.
+        
+    Examples
+    --------
+    >>> bounds = get_hparams_bounds("idw")
+    >>> print(bounds)
+    {'power': (0.5, 5.0), 'k': (3, 20), 'k_min': (1, 10)}
+    """
+    if method == "idw":
+        from climatrix.reconstruct.idw import IDWReconstructor
+        return IDWReconstructor.get_hparams_bounds()
+    elif method == "kriging":
+        from climatrix.reconstruct.kriging import OrdinaryKrigingReconstructor
+        return OrdinaryKrigingReconstructor.get_hparams_bounds()
+    else:
+        raise ValueError(f"Unknown reconstruction method: {method}. "
+                        f"Supported methods: idw, kriging")
