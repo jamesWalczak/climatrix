@@ -191,3 +191,20 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         return BaseClimatrixDataset(
             self.target_domain.to_xarray(values, self.dataset.da.name)
         )
+    
+    @classmethod
+    def get_hparams_bounds(cls) -> dict:
+        """
+        Get default hyperparameter bounds for Ordinary Kriging reconstruction.
+        
+        Returns
+        -------
+        dict
+            Dictionary with bounds for kriging hyperparameters.
+            Note: Most kriging parameters are passed via pykrige_kwargs
+            and bounds depend on the specific variogram model used.
+        """
+        return {
+            # Basic bounds for common parameters
+            # More specific bounds would need to be set based on variogram model
+        }

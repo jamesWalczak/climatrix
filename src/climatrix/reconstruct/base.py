@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Dict
 
 from climatrix.dataset.domain import Domain
 
@@ -59,3 +59,18 @@ class BaseReconstructor(ABC):
             The reconstructed dataset.
         """
         raise NotImplementedError
+    
+    @classmethod
+    def get_hparams_bounds(cls) -> Dict[str, tuple]:
+        """
+        Get default hyperparameter bounds for this reconstruction method.
+        
+        This method should be implemented by subclasses to provide
+        default bounds for hyperparameters that can be optimized.
+        
+        Returns
+        -------
+        Dict[str, tuple]
+            Dictionary mapping hyperparameter names to (min, max) bounds.
+        """
+        return {}

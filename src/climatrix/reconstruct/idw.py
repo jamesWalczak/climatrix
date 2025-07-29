@@ -156,3 +156,22 @@ class IDWReconstructor(BaseReconstructor):
         return BaseClimatrixDataset(
             self.target_domain.to_xarray(interp_vals, self.dataset.da.name)
         )
+    
+    @classmethod
+    def get_hparams_bounds(cls) -> dict:
+        """
+        Get default hyperparameter bounds for IDW reconstruction.
+        
+        Returns
+        -------
+        dict
+            Dictionary with bounds for IDW hyperparameters:
+            - power: Inverse distance weighting power (0.5 to 5.0)
+            - k: Number of nearest neighbors (3 to 20)  
+            - k_min: Minimum number of neighbors (1 to 10)
+        """
+        return {
+            "power": (0.5, 5.0),
+            "k": (3, 20),
+            "k_min": (1, 10)
+        }
