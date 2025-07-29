@@ -3,15 +3,66 @@
 from __future__ import annotations
 
 import logging
+from enum import StrEnum
 from typing import Any, Collection, Union
 
 import numpy as np
 
-# Import BaseClimatrixDataset directly to avoid full climatrix import issues
 from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.decorators.runtime import raise_if_not_installed
+from climatrix.comparison import Comparison
 
 log = logging.getLogger(__name__)
+
+# Module-level constants
+DEFAULT_BAD_SCORE = -1e6
+
+
+class MetricType(StrEnum):
+    """Supported metrics for hyperparameter optimization."""
+    MAE = "mae"
+    MSE = "mse" 
+    RMSE = "rmse"
+
+
+def get_reconstruction_class(method: str):
+    """
+    Get the reconstruction class for a given method name.
+    
+    Parameters
+    ----------
+    method : str
+        The reconstruction method name (e.g., 'idw', 'ok', 'sinet', 'siren').
+        
+    Returns
+    -------
+    type
+        The reconstruction class.
+        
+    Raises
+    ------
+    ValueError
+        If the method is not supported.
+    """
+    method = method.lower().strip()
+    
+    if method == "idw":
+        from climatrix.reconstruct.idw import IDWReconstructor
+        return IDWReconstructor
+    elif method == "ok":
+        from climatrix.reconstruct.kriging import OrdinaryKrigingReconstructor
+        return OrdinaryKrigingReconstructor
+    elif method == "sinet":
+        from climatrix.reconstruct.sinet import SiNETReconstructor
+        return SiNETReconstructor
+    elif method == "siren":
+        from climatrix.reconstruct.siren import SiRENReconstructor
+        return SiRENReconstructor
+    else:
+        raise ValueError(
+            f"Unknown reconstruction method: {method}. "
+            f"Supported methods are: idw, ok, sinet, siren"
+        )
 
 
 def get_hparams_bounds(method: str) -> dict[str, tuple[float, float]]:
@@ -33,46 +84,18 @@ def get_hparams_bounds(method: str) -> dict[str, tuple[float, float]]:
     ValueError
         If the method is not supported.
     """
-    bounds = {
-        "idw": {
-            "power": (0.5, 5.0),
-            "k": (1, 20),
-            "k_min": (1, 10),
-        },
-        "ok": {
-            # Common pykrige parameters that can be optimized
-            "nlags": (4, 20),
-            "weight": (0.0, 1.0),
-            "verbose": (0, 1),  # boolean-like
-            "pseudo_inv": (0, 1),  # boolean-like
-        },
-        "sinet": {
-            "lr": (1e-5, 1e-2),
-            "batch_size": (64, 1024),
-            "num_epochs": (1000, 10000),
-            "gradient_clipping_value": (0.1, 10.0),
-            "mse_loss_weight": (1e1, 1e4),
-            "eikonal_loss_weight": (1e0, 1e3),
-            "laplace_loss_weight": (1e1, 1e3),
-        },
-        "siren": {
-            "lr": (1e-5, 1e-2), 
-            "batch_size": (64, 1024),
-            "num_epochs": (1000, 10000),
-            "hidden_dim": (128, 512),
-            "num_layers": (3, 8),
-            "gradient_clipping_value": (0.1, 10.0),
-        }
-    }
+    reconstruction_class = get_reconstruction_class(method)
+    hparams = reconstruction_class.get_hparams()
     
-    method = method.lower()
-    if method not in bounds:
-        raise ValueError(
-            f"Unknown reconstruction method: {method}. "
-            f"Supported methods are: {list(bounds.keys())}"
-        )
+    bounds = {}
+    for param_name, param_def in hparams.items():
+        if 'bounds' in param_def:
+            bounds[param_name] = param_def['bounds']
+        elif 'values' in param_def:
+            # Handle categorical parameters - for now skip them
+            continue
     
-    return bounds[method]
+    return bounds
 
 
 class HParamFinder:
@@ -105,6 +128,8 @@ class HParamFinder:
         Total number of optimization iterations. Default is 100.
     bounds : dict, optional
         Custom parameter bounds. Overrides default bounds for the method.
+    random_seed : int, optional
+        Random seed for reproducible optimization. Default is 42.
         
     Attributes
     ----------
@@ -112,7 +137,7 @@ class HParamFinder:
         Training dataset.
     val_dset : BaseClimatrixDataset  
         Validation dataset.
-    metric : str
+    metric : MetricType
         Evaluation metric.
     method : str
         Reconstruction method.
@@ -122,6 +147,8 @@ class HParamFinder:
         Number of initial random points.
     n_iter : int
         Number of Bayesian optimization iterations.
+    random_seed : int
+        Random seed for optimization.
     """
     
     def __init__(
@@ -136,17 +163,20 @@ class HParamFinder:
         explore: float = 0.9,
         n_iters: int = 100,
         bounds: dict[str, tuple[float, float]] | None = None,
+        random_seed: int = 42,
     ):
         self.train_dset = train_dset
         self.val_dset = val_dset
-        self.metric = metric.lower()
-        self.method = method.lower()
+        self.metric = MetricType(metric.lower().strip())
+        self.method = method.lower().strip()
+        self.random_seed = random_seed
         
         # Validate inputs
         self._validate_inputs(explore, n_iters)
         
         # Get default bounds and apply customizations
-        self.bounds = bounds or get_hparams_bounds(self.method)
+        default_bounds = get_hparams_bounds(self.method) if bounds is None else {}
+        self.bounds = {**default_bounds, **(bounds or {})}
         self._filter_parameters(include, exclude)
         
         # Compute init points and iterations based on explore parameter
@@ -165,8 +195,6 @@ class HParamFinder:
             raise TypeError("train_dset must be a BaseClimatrixDataset")
         if not isinstance(self.val_dset, BaseClimatrixDataset):
             raise TypeError("val_dset must be a BaseClimatrixDataset") 
-        if self.metric not in ["mae", "mse", "rmse"]:
-            raise ValueError(f"Unsupported metric: {self.metric}")
         if not 0 < explore < 1:
             raise ValueError("explore must be in the range (0, 1)")
         if n_iters < 1:
@@ -179,7 +207,12 @@ class HParamFinder:
     ) -> None:
         """Filter parameters based on include/exclude lists."""
         if include is not None and exclude is not None:
-            raise ValueError("Cannot specify both include and exclude parameters")
+            # Check for common keys between include and exclude
+            include_set = {include} if isinstance(include, str) else set(include)
+            exclude_set = {exclude} if isinstance(exclude, str) else set(exclude)
+            common_keys = include_set.intersection(exclude_set)
+            if common_keys:
+                raise ValueError(f"Cannot specify same parameters in both include and exclude: {common_keys}")
         
         if include is not None:
             if isinstance(include, str):
@@ -193,7 +226,7 @@ class HParamFinder:
                     log.warning("Parameter '%s' not found in bounds for method '%s'", param, self.method)
             self.bounds = filtered_bounds
             
-        elif exclude is not None:
+        if exclude is not None:
             if isinstance(exclude, str):
                 exclude = [exclude]
             # Remove excluded parameters
@@ -218,15 +251,23 @@ class HParamFinder:
             Negative metric value (since BayesianOptimization maximizes).
         """
         try:
+            # Get parameter types from the reconstruction class
+            reconstruction_class = get_reconstruction_class(self.method)
+            hparams_def = reconstruction_class.get_hparams()
+            
             # Convert parameters to appropriate types
             processed_params = {}
             for key, value in params.items():
-                # Handle integer parameters
-                if key in ["k", "k_min", "nlags", "batch_size", "num_epochs", "num_layers"]:
-                    processed_params[key] = int(round(value))
-                # Handle boolean-like parameters
-                elif key in ["verbose", "pseudo_inv"]:
-                    processed_params[key] = bool(round(value))
+                if key in hparams_def:
+                    param_type = hparams_def[key]['type']
+                    if param_type == int:
+                        processed_params[key] = int(round(value))
+                    elif param_type == bool:
+                        processed_params[key] = bool(round(value))
+                    elif param_type == float:
+                        processed_params[key] = value
+                    else:
+                        processed_params[key] = value
                 else:
                     processed_params[key] = value
             
@@ -239,17 +280,9 @@ class HParamFinder:
                 **processed_params
             )
             
-            # Compute metric
-            diff = reconstructed.da.values - self.val_dset.da.values
-            
-            if self.metric == "mae":
-                score = np.nanmean(np.abs(diff))
-            elif self.metric == "mse":
-                score = np.nanmean(diff ** 2)
-            elif self.metric == "rmse":
-                score = np.sqrt(np.nanmean(diff ** 2))
-            else:
-                raise ValueError(f"Unknown metric: {self.metric}")
+            # Compute metric using Comparison class
+            comparison = Comparison(reconstructed, self.val_dset)
+            score = comparison.compute(self.metric.value)
             
             log.debug("Score for params %s: %f", processed_params, score)
             
@@ -259,7 +292,7 @@ class HParamFinder:
         except Exception as e:
             log.warning("Error evaluating parameters %s: %s", params, e)
             # Return a very bad score
-            return -1e6
+            return DEFAULT_BAD_SCORE
     
     @raise_if_not_installed("bayesian-optimization")
     def optimize(self) -> dict[str, Any]:
@@ -305,7 +338,7 @@ class HParamFinder:
         optimizer = BayesianOptimization(
             f=self._evaluate_params,
             pbounds=numeric_bounds,
-            random_state=42,
+            random_state=self.random_seed,
         )
         
         optimizer.maximize(
@@ -315,14 +348,21 @@ class HParamFinder:
         
         # Get best parameters and convert to appropriate types
         best_params_raw = optimizer.max['params']
+        reconstruction_class = get_reconstruction_class(self.method)
+        hparams_def = reconstruction_class.get_hparams()
+        
         best_params = {}
         for key, value in best_params_raw.items():
-            # Handle integer parameters
-            if key in ["k", "k_min", "nlags", "batch_size", "num_epochs", "num_layers"]:
-                best_params[key] = int(round(value))
-            # Handle boolean-like parameters
-            elif key in ["verbose", "pseudo_inv"]:
-                best_params[key] = bool(round(value))
+            if key in hparams_def:
+                param_type = hparams_def[key]['type']
+                if param_type == int:
+                    best_params[key] = int(round(value))
+                elif param_type == bool:
+                    best_params[key] = bool(round(value))
+                elif param_type == float:
+                    best_params[key] = value
+                else:
+                    best_params[key] = value
             else:
                 best_params[key] = value
         
@@ -334,7 +374,7 @@ class HParamFinder:
         return {
             'best_params': best_params,
             'best_score': best_score,
-            'metric_name': self.metric,
+            'metric_name': self.metric.value,
             'method': self.method,
             'history': [{'params': res['params'], 'target': res['target']} 
                        for res in optimizer.res],

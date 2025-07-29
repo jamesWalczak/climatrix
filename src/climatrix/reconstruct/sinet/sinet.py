@@ -252,3 +252,44 @@ class SiNETReconstructor(BaseReconstructor):
         # )
         log.info("Preparing StaticDenseDataset...")
         raise NotImplementedError()
+
+    @classmethod
+    def get_hparams(cls) -> dict[str, dict[str, any]]:
+        """
+        Get hyperparameter definitions for SiNET reconstruction.
+
+        Returns
+        -------
+        dict[str, dict[str, any]]
+            Dictionary mapping parameter names to their definitions.
+        """
+        return {
+            "lr": {
+                "bounds": (1e-5, 1e-2),
+                "type": float,
+            },
+            "batch_size": {
+                "bounds": (64, 1024),
+                "type": int,
+            },
+            "num_epochs": {
+                "bounds": (1000, 10000),
+                "type": int,
+            },
+            "gradient_clipping_value": {
+                "bounds": (0.1, 10.0),
+                "type": float,
+            },
+            "mse_loss_weight": {
+                "bounds": (1e1, 1e4),
+                "type": float,
+            },
+            "eikonal_loss_weight": {
+                "bounds": (1e0, 1e3),
+                "type": float,
+            },
+            "laplace_loss_weight": {
+                "bounds": (1e1, 1e3),
+                "type": float,
+            },
+        }

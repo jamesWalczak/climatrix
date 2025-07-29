@@ -553,3 +553,40 @@ class SIRENReconstructor(BaseReconstructor):
                 reconstructed_values, self.dataset.da.name
             )
         )
+
+    @classmethod
+    def get_hparams(cls) -> dict[str, dict[str, any]]:
+        """
+        Get hyperparameter definitions for SIREN reconstruction.
+
+        Returns
+        -------
+        dict[str, dict[str, any]]
+            Dictionary mapping parameter names to their definitions.
+        """
+        return {
+            "lr": {
+                "bounds": (1e-5, 1e-2),
+                "type": float,
+            },
+            "batch_size": {
+                "bounds": (64, 1024),
+                "type": int,
+            },
+            "num_epochs": {
+                "bounds": (1000, 10000),
+                "type": int,
+            },
+            "hidden_dim": {
+                "bounds": (128, 512),
+                "type": int,
+            },
+            "num_layers": {
+                "bounds": (3, 8),
+                "type": int,
+            },
+            "gradient_clipping_value": {
+                "bounds": (0.1, 10.0),
+                "type": float,
+            },
+        }

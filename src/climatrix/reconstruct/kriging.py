@@ -191,3 +191,32 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         return BaseClimatrixDataset(
             self.target_domain.to_xarray(values, self.dataset.da.name)
         )
+
+    @classmethod  
+    def get_hparams(cls) -> dict[str, dict[str, any]]:
+        """
+        Get hyperparameter definitions for Ordinary Kriging reconstruction.
+
+        Returns
+        -------
+        dict[str, dict[str, any]]
+            Dictionary mapping parameter names to their definitions.
+        """
+        return {
+            "nlags": {
+                "bounds": (4, 20),
+                "type": int,
+            },
+            "weight": {
+                "bounds": (0.0, 1.0),
+                "type": float,
+            },
+            "verbose": {
+                "bounds": (0, 1),
+                "type": bool,
+            },
+            "pseudo_inv": {
+                "bounds": (0, 1), 
+                "type": bool,
+            },
+        }

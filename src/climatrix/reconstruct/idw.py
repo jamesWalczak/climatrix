@@ -156,3 +156,28 @@ class IDWReconstructor(BaseReconstructor):
         return BaseClimatrixDataset(
             self.target_domain.to_xarray(interp_vals, self.dataset.da.name)
         )
+
+    @classmethod
+    def get_hparams(cls) -> dict[str, dict[str, any]]:
+        """
+        Get hyperparameter definitions for IDW reconstruction.
+
+        Returns
+        -------
+        dict[str, dict[str, any]]
+            Dictionary mapping parameter names to their definitions.
+        """
+        return {
+            "power": {
+                "bounds": (0.5, 5.0),
+                "type": float,
+            },
+            "k": {
+                "bounds": (1, 20),
+                "type": int,
+            },
+            "k_min": {
+                "bounds": (1, 10),
+                "type": int,
+            },
+        }

@@ -7,8 +7,45 @@ import pytest
 import xarray as xr
 
 from climatrix import BaseClimatrixDataset
-from climatrix.optim.bayesian import HParamFinder, get_hparams_bounds
+from climatrix.optim.bayesian import HParamFinder, get_hparams_bounds, get_reconstruction_class, MetricType
 from tests.unit.utils import skip_on_error
+
+
+class TestMetricType:
+    """Test the MetricType enum."""
+    
+    def test_metric_values(self):
+        """Test metric enum values."""
+        assert MetricType.MAE == "mae"
+        assert MetricType.MSE == "mse"
+        assert MetricType.RMSE == "rmse"
+
+
+class TestGetReconstructionClass:
+    """Test the get_reconstruction_class function."""
+    
+    def test_idw_class(self):
+        """Test getting IDW reconstruction class."""
+        cls = get_reconstruction_class("idw")
+        assert cls.__name__ == "IDWReconstructor"
+        
+    def test_ok_class(self):
+        """Test getting Ordinary Kriging reconstruction class."""
+        cls = get_reconstruction_class("ok")
+        assert cls.__name__ == "OrdinaryKrigingReconstructor"
+        
+    def test_case_insensitive(self):
+        """Test that method names are case insensitive."""
+        cls_lower = get_reconstruction_class("idw")
+        cls_upper = get_reconstruction_class("IDW")
+        cls_mixed = get_reconstruction_class("IdW")
+        
+        assert cls_lower == cls_upper == cls_mixed
+    
+    def test_unknown_method(self):
+        """Test error for unknown method."""
+        with pytest.raises(ValueError, match="Unknown reconstruction method"):
+            get_reconstruction_class("unknown_method")
 
 
 class TestGetHparamsBounds:
@@ -102,8 +139,9 @@ class TestHParamFinder:
         
         assert finder.train_dset is sparse_dataset
         assert finder.val_dset is dense_dataset
-        assert finder.metric == "mae"
+        assert finder.metric == MetricType.MAE
         assert finder.method == "idw"
+        assert finder.random_seed == 42
         assert finder.n_init_points + finder.n_iter == 100
         assert finder.bounds is not None
     
@@ -115,11 +153,13 @@ class TestHParamFinder:
             metric="mse",
             method="ok",
             explore=0.5,
-            n_iters=50
+            n_iters=50,
+            random_seed=123
         )
         
-        assert finder.metric == "mse"
+        assert finder.metric == MetricType.MSE
         assert finder.method == "ok" 
+        assert finder.random_seed == 123
         assert finder.n_init_points == 25  # 50 * 0.5
         assert finder.n_iter == 25
     
@@ -144,14 +184,26 @@ class TestHParamFinder:
         expected_params = {"power", "k_min"}  # IDW params except k
         assert set(finder.bounds.keys()) == expected_params
     
-    def test_include_exclude_conflict(self, sparse_dataset, dense_dataset):
-        """Test that include and exclude cannot be used together."""
-        with pytest.raises(ValueError, match="Cannot specify both include and exclude"):
+    def test_include_exclude_both(self, sparse_dataset, dense_dataset):
+        """Test that include and exclude can be used together if no common keys."""
+        finder = HParamFinder(
+            sparse_dataset,
+            dense_dataset,
+            include=["power", "k"],
+            exclude=["k_min"]  # No overlap with include
+        )
+        
+        # Should include power and k, but not k_min (which is excluded)
+        assert set(finder.bounds.keys()) == {"power", "k"}
+    
+    def test_include_exclude_common_keys(self, sparse_dataset, dense_dataset):
+        """Test that include and exclude cannot have common keys."""
+        with pytest.raises(ValueError, match="Cannot specify same parameters in both include and exclude"):
             HParamFinder(
                 sparse_dataset,
                 dense_dataset,
-                include=["power"],
-                exclude=["k"]
+                include=["power", "k"],
+                exclude=["k"]  # Common key with include
             )
     
     def test_custom_bounds(self, sparse_dataset, dense_dataset):
@@ -180,7 +232,7 @@ class TestHParamFinder:
     
     def test_invalid_metric(self, sparse_dataset, dense_dataset):
         """Test invalid metric parameter."""
-        with pytest.raises(ValueError, match="Unsupported metric"):
+        with pytest.raises(ValueError, match="invalid literal"):
             HParamFinder(sparse_dataset, dense_dataset, metric="invalid_metric")
     
     def test_invalid_dataset_types(self, sparse_dataset):

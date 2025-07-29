@@ -59,3 +59,20 @@ class BaseReconstructor(ABC):
             The reconstructed dataset.
         """
         raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def get_hparams(cls) -> dict[str, dict[str, any]]:
+        """
+        Get hyperparameter definitions for this reconstruction method.
+
+        Returns
+        -------
+        dict[str, dict[str, any]]
+            Dictionary mapping parameter names to their definitions.
+            Each parameter definition should contain:
+            - 'bounds': tuple of (min, max) for numeric parameters
+            - 'type': type of the parameter (int, float, bool)
+            - 'values': list of valid values for categorical parameters
+        """
+        raise NotImplementedError

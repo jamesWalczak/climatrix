@@ -273,6 +273,46 @@ class Comparison:
         """
         return np.nanmean(np.abs(self.diff.da.values)).item()
 
+    def compute_mse(self) -> float:
+        """
+        Compute the MSE between the source and target datasets.
+
+        Returns
+        -------
+        float
+            The mean squared error between the source and target datasets.
+        """
+        return np.nanmean(np.power(self.diff.da.values, 2.0)).item()
+
+    def compute(self, metric: str) -> float:
+        """
+        Compute the specified metric between the source and target datasets.
+
+        Parameters
+        ----------
+        metric : str
+            The metric to compute. Supported values: "mae", "mse", "rmse".
+
+        Returns
+        -------
+        float
+            The computed metric value.
+            
+        Raises
+        ------
+        ValueError
+            If the metric is not supported.
+        """
+        metric = metric.lower().strip()
+        if metric == "mae":
+            return self.compute_mae()
+        elif metric == "mse":
+            return self.compute_mse()
+        elif metric == "rmse":
+            return self.compute_rmse()
+        else:
+            raise ValueError(f"Unsupported metric: {metric}. Supported metrics: mae, mse, rmse")
+
     @raise_if_not_installed("sklearn")
     def compute_r2(self):
         """
