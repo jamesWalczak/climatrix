@@ -13,6 +13,7 @@ from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import Dataset
 
 from climatrix.decorators.runtime import log_input
+from climatrix.utils.download import download_zenodo_file
 
 if TYPE_CHECKING:
     pass
@@ -28,7 +29,7 @@ _ELEVATION_DATASET_PATH: Path = importlib.resources.files(
 
 def load_elevation_dataset() -> np.ndarray:
     """
-    Load the elevation dataset.
+    Load the elevation dataset (download if needed).
 
     Returns
     -------
@@ -38,7 +39,17 @@ def load_elevation_dataset() -> np.ndarray:
         and the second array contains the elevation values.
     """
     log.debug("Loading elevation dataset...")
-    data = np.load(_ELEVATION_DATASET_PATH)
+    try:
+        data = np.load(_ELEVATION_DATASET_PATH)
+    except FileNotFoundError:
+        log.info("Elevation dataset not found, downloading...")
+        download_zenodo_file(
+            "climatrix/reconstruct/sinet/resources/lat_lon_elevation.npy",
+            _ELEVATION_DATASET_PATH,
+            branch="f-68",
+        )
+        log.info("Elevation dataset downloaded successfully.")
+        data = np.load(_ELEVATION_DATASET_PATH)
     return data[:, :-1], MinMaxScaler((-1, 1)).fit_transform(
         data[:, -1].reshape(-1, 1)
     )
@@ -47,10 +58,13 @@ def load_elevation_dataset() -> np.ndarray:
 def query_features(
     tree: cKDTree, values: np.ndarray, query_points: np.ndarray
 ):
-    log.debug("Querying nearest naighbours...")
+    log.debug("Querying nearest neighbours...")
     distances, indices = tree.query(query_points, k=1)
     if np.any(distances > 0.1):
-        log.warning("Some coordinates are too far from the known data points.")
+        log.warning(
+            "Some coordinates are too far from the known data points. The maximum distance is %f.",
+            distances.max(),
+        )
     return values[indices]
 
 
@@ -162,18 +176,34 @@ class SiNETDatasetGenerator:
             self._extend_input_featuers(ckdtree, self.elevation)
 
         # # Plot europe lat/lon
-        # import matplotlib.pyplot as plt
-        # import cartopy.feature as cfeature
         # import cartopy.crs as ccrs
+        # import cartopy.feature as cfeature
+        # import matplotlib.pyplot as plt
+
         # fig = plt.figure(figsize=(10, 8))
         # ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
-        # scatter = ax.scatter(np.rad2deg(self.target_coordinates[:, 1]), np.rad2deg(self.target_coordinates[:, 0]), c=self.target_coordinates[:, 2], cmap='viridis', s=50,
-        #                     transform=ccrs.PlateCarree(), edgecolor='k', linewidth=0.5, alpha=0.7)
-        # ax.add_feature(cfeature.BORDERS, linestyle=':', edgecolor='gray')
+        # scatter = ax.scatter(
+        #     np.rad2deg(self.target_coordinates[:, 1]),
+        #     np.rad2deg(self.target_coordinates[:, 0]),
+        #     c=self.target_coordinates[:, 2],
+        #     cmap="viridis",
+        #     s=50,
+        #     transform=ccrs.PlateCarree(),
+        #     edgecolor="k",
+        #     linewidth=0.5,
+        #     alpha=0.7,
+        # )
+        # ax.add_feature(cfeature.BORDERS, linestyle=":", edgecolor="gray")
         # ax.add_feature(cfeature.COASTLINE, linewidth=0.8)
         # # ax.set_extent([0, 40, 30, 60], crs=ccrs.PlateCarree())
-        # gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
-        #                 linewidth=0.5, color='gray', alpha=0.5, linestyle='--')
+        # gl = ax.gridlines(
+        #     crs=ccrs.PlateCarree(),
+        #     draw_labels=True,
+        #     linewidth=0.5,
+        #     color="gray",
+        #     alpha=0.5,
+        #     linestyle="--",
+        # )
         # gl.top_labels = False
         # gl.right_labels = False
 

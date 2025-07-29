@@ -46,12 +46,13 @@ class SiNETReconstructor(BaseReconstructor):
         mse_loss_weight: float = 3e3,
         eikonal_loss_weight: float = 5e1,
         laplace_loss_weight: float = 1e2,
-        use_elevation: bool = False,
+        # use_elevation: bool = False, # NOTE: switched off until we have a proper elevation dataset
         validation: float | BaseClimatrixDataset = 0.2,
         patience: int | None = None,
         overwrite_checkpoint: bool = False,
     ) -> None:
         super().__init__(dataset, target_domain)
+        use_elevation = False
         if dataset.domain.is_dynamic:
             log.error("SiNET is not yet supported for dynamic datasets.")
             raise ValueError(
