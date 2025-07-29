@@ -4,7 +4,7 @@ import importlib.resources
 import logging
 from collections import namedtuple
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
@@ -24,9 +24,6 @@ log = logging.getLogger(__name__)
 _ELEVATION_DATASET_PATH: Path = importlib.resources.files(
     "climatrix.reconstruct.sinet"
 ).joinpath("resources", "lat_lon_elevation.npy")
-_SLOPE_DATASET_PATH: Path = importlib.resources.files(
-    "climatrix.reconstruct.sinet"
-).joinpath("resources", "lat_lon_slope.npy")
 
 
 def load_elevation_dataset() -> np.ndarray:
@@ -47,28 +44,10 @@ def load_elevation_dataset() -> np.ndarray:
     )
 
 
-def load_slope_dataset() -> np.ndarray:
-    """
-    Load the slope dataset.
-
-    Returns
-    -------
-    tuple[np.ndarray, np.ndarray]
-        Tuple containing the coordinates and slope data as numpy arrays.
-        The first array contains the coordinates (latitude, longitude),
-        and the second array contains the slope values.
-    """
-    log.debug("Loading slope dataset...")
-    data = np.load(_SLOPE_DATASET_PATH)
-    return data[:, :-1], MinMaxScaler((-1, 1)).fit_transform(
-        data[:, -1].reshape(-1, 1)
-    )
-
-
 def query_features(
     tree: cKDTree, values: np.ndarray, query_points: np.ndarray
 ):
-    log.debug("Querying elevation and slope...")
+    log.debug("Querying nearest naighbours...")
     distances, indices = tree.query(query_points, k=1)
     if np.any(distances > 0.1):
         log.warning("Some coordinates are too far from the known data points.")
@@ -91,9 +70,10 @@ class SiNETDatasetGenerator:
         target_coordinates: np.ndarray | None = None,
         degree: bool = True,
         radius: float = 1.0,
-        val_portion: float = 0.2,
+        val_portion: float | None = None,
+        validation_coordinates: np.ndarray | None = None,
+        validation_field: np.ndarray | None = None,
         use_elevation: bool = False,
-        use_slope: bool = False,
     ) -> None:
         """
         Initialize a SiNET dataset generator.
@@ -111,19 +91,20 @@ class SiNETDatasetGenerator:
             Defaults to True.
         radius : float, optional
             The radius of the sphere. Defaults to 1.0.
-        val_portion : float, optional
+        val_portion : float | None, optional
             Portion of the training data to use for validation. Defaults to 0.2.
+        validation_coordinates : np.ndarray | None, optional
+            Array on shape Nx2 with latitudes and longitudes of validation points.
+            Cannot be used together with `val_portion`.
+            Must be provided if `validation_field` is given.
+        validation_field : np.ndarray | None, optional
+            Array of shape (N,) with field values at validation points.
+            Cannot be used together with `val_portion`.
+            Must be provided if `validation_coordinates` is given.
         use_elevation: bool, optional
             Whether to use elevation data. Defaults to False.
-        use_slope: bool, optional
-            Whether to use slope data. Defaults to False.
         """
-        if val_portion <= 0 or val_portion >= 1:
-            log.error("Validation portion must be in the range (0, 1).")
-            raise ValueError("Validation portion must be in the range (0, 1).")
-        # NOTE: we expect slope and elevation to be defined
-
-        self.field_transformer = MinMaxScaler((-1, 1))
+        self.field_transformer = MinMaxScaler((0, 1))
         field = self.field_transformer.fit_transform(field.reshape(-1, 1))
         self.target_coordinates = target_coordinates
         if degree:
@@ -131,12 +112,47 @@ class SiNETDatasetGenerator:
             spatial_points = np.deg2rad(spatial_points)
             if target_coordinates is not None:
                 self.target_coordinates = np.deg2rad(target_coordinates)
-        (
-            self.train_coordinates,
-            self.train_field,
-            self.val_coordinates,
-            self.val_field,
-        ) = self._split_train_val(spatial_points, field, val_portion)
+
+        if val_portion is not None:
+            if not (0 < val_portion < 1):
+                log.error(
+                    "Validation portion must be between 0 and 1, got %f.",
+                    val_portion,
+                )
+                raise ValueError(
+                    "Validation portion must be between 0 and 1, got %f."
+                    % val_portion
+                )
+            if (
+                validation_coordinates is not None
+                or validation_field is not None
+            ):
+                log.error(
+                    "Cannot use both `val_portion` and `validation_coordinates`/`validation_field`."
+                )
+                raise ValueError(
+                    "Cannot use both `val_portion` and `validation_coordinates`/`validation_field`."
+                )
+            log.debug("Splitting train and validation datasets...")
+            (
+                self.train_coordinates,
+                self.train_field,
+                self.val_coordinates,
+                self.val_field,
+            ) = self._split_train_val(spatial_points, field, val_portion)
+        else:
+            if validation_coordinates is None or validation_field is None:
+                log.error(
+                    "Validation coordinates and field must be provided if `val_portion` is not used."
+                )
+                raise ValueError(
+                    "Validation coordinates and field must be provided if `val_portion` is not used."
+                )
+            log.debug("Using provided validation dataset...")
+            self.train_coordinates = spatial_points
+            self.train_field = field
+            self.val_coordinates = validation_coordinates
+            self.val_field = validation_field
 
         ckdtree = None
         self.radius = radius
@@ -144,11 +160,27 @@ class SiNETDatasetGenerator:
             coords, self.elevation = load_elevation_dataset()
             ckdtree = cKDTree(np.deg2rad(coords))
             self._extend_input_featuers(ckdtree, self.elevation)
-        if use_slope:
-            coords, self.slope = load_slope_dataset()
-            if ckdtree is None:
-                ckdtree = cKDTree(np.deg2rad(coords))
-            self._extend_input_featuers(ckdtree, self.slope)
+
+        # # Plot europe lat/lon
+        # import matplotlib.pyplot as plt
+        # import cartopy.feature as cfeature
+        # import cartopy.crs as ccrs
+        # fig = plt.figure(figsize=(10, 8))
+        # ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
+        # scatter = ax.scatter(np.rad2deg(self.target_coordinates[:, 1]), np.rad2deg(self.target_coordinates[:, 0]), c=self.target_coordinates[:, 2], cmap='viridis', s=50,
+        #                     transform=ccrs.PlateCarree(), edgecolor='k', linewidth=0.5, alpha=0.7)
+        # ax.add_feature(cfeature.BORDERS, linestyle=':', edgecolor='gray')
+        # ax.add_feature(cfeature.COASTLINE, linewidth=0.8)
+        # # ax.set_extent([0, 40, 30, 60], crs=ccrs.PlateCarree())
+        # gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
+        #                 linewidth=0.5, color='gray', alpha=0.5, linestyle='--')
+        # gl.top_labels = False
+        # gl.right_labels = False
+
+        # # Set title
+        # ax.set_title("Europe Latitude/Longitude")
+
+        # plt.show()
 
     @property
     def n_features(self) -> int:

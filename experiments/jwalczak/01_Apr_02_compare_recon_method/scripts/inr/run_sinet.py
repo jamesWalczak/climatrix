@@ -188,6 +188,7 @@ def find_hyperparameters(
         optimizer.max["params"]["eikonal_loss_weight"],
         optimizer.max["params"]["laplace_loss_weight"],
         int(optimizer.max["params"]["early_stopping_patience"]),
+        bool(int(optimizer.max["params"]["use_elevation"])),
     )
 
 
@@ -208,6 +209,7 @@ def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
         "eikonal_loss_weight",
         "laplace_loss_weight",
         "early_stopping_patience",
+        "use_elevation",
         "opt_loss",
     ]
     if not hparam_path.exists():
@@ -271,6 +273,7 @@ def run_single_experiment(
         eikonal_loss_weight,
         laplace_loss_weight,
         early_stopping_patience,
+        use_elevation,
     ) = find_hyperparameters(
         train_dset,
         val_dset,
@@ -294,6 +297,7 @@ def run_single_experiment(
     console.print(
         "[yellow]Early stopping patience:[/yellow]", early_stopping_patience
     )
+    console.print("[yellow]Use elevation:[/yellow]", use_elevation)
     console.print("[yellow]Best loss:[/yellow]", best_loss)
     status.update(
         "[magenta]Reconstructing with optimised parameters...",
@@ -317,6 +321,7 @@ def run_single_experiment(
         eikonal_loss_weight=eikonal_loss_weight,
         laplace_loss_weight=laplace_loss_weight,
         patience=early_stopping_patience,
+        use_elevation=use_elevation,
     )
     status.update(
         "[magenta]Saving reconstructed dset to "
@@ -345,6 +350,7 @@ def run_single_experiment(
             eikonal_loss_weight=eikonal_loss_weight,
             laplace_loss_weight=laplace_loss_weight,
             patience=early_stopping_patience,
+            use_elevation=use_elevation,
         )
         status.update(
             "[magenta]Saving reconstructed dense dset to "
@@ -377,6 +383,7 @@ def run_single_experiment(
         "eikonal_loss_weight": eikonal_loss_weight,
         "laplace_loss_weight": laplace_loss_weight,
         "early_stopping_patience": early_stopping_patience,
+        "use_elevation": use_elevation,
         "opt_loss": best_loss,
     }
     if continuous_update:

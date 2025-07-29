@@ -272,7 +272,8 @@ def run_experiment():
                 PLOT_DIR / f"{d}_hist.png"
             )
             metrics = cmp.compute_report()
-            all_metrics[d] = metrics
+            metrics["dataset_id"] = d
+            all_metrics.append(metrics)
 
             hyperparams["dataset_id"].append(d)
             hyperparams["k"].append(k)
@@ -282,7 +283,7 @@ def run_experiment():
         status.update(
             "[magenta]Saving quality metrics...", spinner="bouncingBall"
         )
-        pd.DataFrame(all_metrics).transpose().to_csv(METRICS_PATH)
+        pd.DataFrame(all_metrics).to_csv(METRICS_PATH)
         status.update(
             "[magenta]Saving hyperparameters summary...",
             spinner="bouncingBall",

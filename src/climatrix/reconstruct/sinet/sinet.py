@@ -3,12 +3,11 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
 import numpy as np
 import torch
 import torch.nn as nn
-import xarray as xr
 from torch.utils.data import DataLoader
 
 from climatrix import BaseClimatrixDataset, Domain
@@ -33,7 +32,10 @@ class SiNETReconstructor(BaseReconstructor):
         dataset: BaseClimatrixDataset,
         target_domain: Domain,
         *,
-        mlp: list[int] | None = None,
+        layers: int = 2,
+        hidden_dim: int = 64,
+        sorting_group_size: int = 16,
+        scale: float = 1.5,
         lr: float = 3e-4,
         batch_size: int = 512,
         num_epochs: int = 5_000,
@@ -45,8 +47,7 @@ class SiNETReconstructor(BaseReconstructor):
         eikonal_loss_weight: float = 5e1,
         laplace_loss_weight: float = 1e2,
         use_elevation: bool = False,
-        use_slope: bool = False,
-        validation_portion: float = 0.2,
+        validation: float | BaseClimatrixDataset = 0.2,
         patience: int | None = None,
         overwrite_checkpoint: bool = False,
     ) -> None:
@@ -60,17 +61,27 @@ class SiNETReconstructor(BaseReconstructor):
             log.error("CUDA is not available on this machine")
             raise ValueError("CUDA is not available on this machine")
         self.device = torch.device(device)
-        self.datasets = SiNETDatasetGenerator(
-            dataset.domain.get_all_spatial_points(),
-            dataset.da.values,
-            target_coordinates=target_domain.get_all_spatial_points(),
-            degree=True,
-            radius=1,
+        self.datasets = self._configure_dataset_generator(
+            train_coords=dataset.domain.get_all_spatial_points(),
+            train_field=dataset.da.values,
+            target_coords=target_domain.get_all_spatial_points(),
+            val_portion=validation if isinstance(validation, float) else None,
+            val_coordinates=(
+                (validation.domain.get_all_spatial_points())
+                if isinstance(validation, BaseClimatrixDataset)
+                else None
+            ),
+            val_field=(
+                (validation.da.values)
+                if isinstance(validation, BaseClimatrixDataset)
+                else None
+            ),
             use_elevation=use_elevation,
-            use_slope=use_slope,
-            val_portion=validation_portion,
         )
-        self.mlp = mlp if mlp is not None else [32, 64, 128]
+        self.layers = layers
+        self.hidden_dim = hidden_dim
+        self.sorting_group_size = sorting_group_size
+        self.scale = scale
         self.num_workers = num_workers
         self.num_epochs = num_epochs
         self.lr = lr
@@ -90,6 +101,59 @@ class SiNETReconstructor(BaseReconstructor):
 
         self.patience = patience
 
+    @staticmethod
+    def _configure_dataset_generator(
+        train_coords: np.ndarray,
+        train_field: np.ndarray,
+        target_coords: np.ndarray,
+        val_portion: float | None = None,
+        val_coordinates: np.ndarray | None = None,
+        val_field: np.ndarray | None = None,
+        use_elevation: bool = False,
+    ) -> SiNETDatasetGenerator:
+        """
+        Configure the SiNET dataset generator.
+        """
+        log.debug("Configuring SiNET dataset generator...")
+        if val_portion is not None and (
+            val_coordinates is not None or val_field is not None
+        ):
+            log.error(
+                "Cannot use both `val_portion` and `val_coordinates`/`val_field`."
+            )
+            raise ValueError(
+                "Cannot use both `val_portion` and `val_coordinates`/`val_field`."
+            )
+        kwargs = {
+            "spatial_points": train_coords,
+            "field": train_field,
+            "target_coordinates": target_coords,
+            "degree": True,
+            "radius": 1.0,
+            "use_elevation": use_elevation,
+        }
+        if val_portion is not None:
+            if not (0 < val_portion < 1):
+                log.error("Validation portion must be in the range (0, 1).")
+                raise ValueError(
+                    "Validation portion must be in the range (0, 1)."
+                )
+            log.debug("Using validation portion: %0.2f", val_portion)
+            kwargs["val_portion"] = val_portion
+        elif val_coordinates is not None and val_field is not None:
+            log.debug("Using validation coordinates and field for validation.")
+            if val_coordinates.shape[0] != val_field.shape[0]:
+                log.error(
+                    "Validation coordinates and field must have the same number of points."
+                )
+                raise ValueError(
+                    "Validation coordinates and field must have the same number of points."
+                )
+            kwargs["validation_coordinates"] = val_coordinates
+            kwargs["validation_field"] = val_field
+
+        return SiNETDatasetGenerator(**kwargs)
+
     def _configure_optimizer(
         self, siren_model: torch.nn.Module
     ) -> torch.optim.Optimizer:
@@ -101,10 +165,14 @@ class SiNETReconstructor(BaseReconstructor):
 
     def _init_model(self) -> torch.nn.Module:
         log.info("Initializing SiNET model...")
-        # NOTE: we are using 3 input cooridnates as lat/lon are converted
-        # to cartesian coordinates on unit sphere
         return SiNET(
-            in_features=self.datasets.n_features, out_features=1, mlp=self.mlp
+            in_features=self.datasets.n_features,
+            out_features=1,
+            layers=self.layers,
+            hidden_dim=self.hidden_dim,
+            sorting_group_size=self.sorting_group_size,
+            scale=self.scale,
+            bias=True,
         ).to(self.device)
 
     def _maybe_clip_grads(self, siren_model: torch.nn.Module) -> None:
@@ -142,17 +210,17 @@ class SiNETReconstructor(BaseReconstructor):
             and checkpoint
             and checkpoint.exists()
         ):
-            log.info("Loading checkpoint from %s...", checkpoint)
+            log.debug("Loading checkpoint from %s...", checkpoint)
             try:
                 siren_model.load_state_dict(
                     torch.load(checkpoint, map_location=self.device)
                 )
                 self.is_model_loaded = True
-                log.info("Checkpoint loaded successfully.")
+                log.debug("Checkpoint loaded successfully.")
             except RuntimeError as e:
                 log.error("Error loading checkpoint: %s.", e)
                 raise e
-        log.info(
+        log.debug(
             "No checkpoint provided or checkpoint not found at %s.", checkpoint
         )
         return siren_model.to(self.device)
@@ -162,36 +230,34 @@ class SiNETReconstructor(BaseReconstructor):
     ) -> None:
         if checkpoint:
             if not checkpoint.parent.exists():
-                log.info(
+                log.debug(
                     "Creating checkpoint directory: %s", checkpoint.parent
                 )
                 checkpoint.parent.mkdir(parents=True, exist_ok=True)
-            log.info("Saving checkpoint to %s...", checkpoint)
+            log.debug("Saving checkpoint to %s...", checkpoint)
             try:
                 torch.save(siren_model.state_dict(), checkpoint)
-                log.info("Checkpoint saved successfully.")
+                log.debug("Checkpoint saved successfully.")
             except Exception as e:
                 log.error("Error saving checkpoint: %s", e)
         else:
-            log.info(
+            log.debug(
                 "Checkpoint saving skipped as no checkpoint path is provided."
             )
 
     @torch.no_grad()
     def _find_surface(self, siren_model, dataset) -> np.ndarray:
-        log.info("Finding surface using the trained INR model")
-        train_data_loader = DataLoader(
+        log.debug("Finding surface using the trained INR model")
+        data_loader = DataLoader(
             dataset,
             batch_size=50_000,
             shuffle=False,
         )
         all_z = []
         log.info("Creating mini-batches for surface reconstruction...")
-        for i, xy in enumerate(train_data_loader):
-            log.info(
-                "Processing mini-batch %d/%d...", i + 1, len(train_data_loader)
-            )
-            xy = xy[0].to(self.device)
+        for i, (xy, *_) in enumerate(data_loader):
+            log.info("Processing mini-batch %d/%d...", i + 1, len(data_loader))
+            xy = xy.to(self.device)
             z = siren_model(xy)
             all_z.append(z.cpu().numpy())
         log.info("Surface finding complete. Concatenating results.")
@@ -239,8 +305,8 @@ class SiNETReconstructor(BaseReconstructor):
             checkpoint_path=self.checkpoint,
         )
         if not self.is_model_loaded:
-            log.info("Training SiNET model...")
             optimizer = self._configure_optimizer(siren_model)
+            log.info("Training SiNET model...")
             train_data_loader = DataLoader(
                 self.datasets.train_dataset,
                 shuffle=True,
@@ -272,7 +338,7 @@ class SiNETReconstructor(BaseReconstructor):
                     siren_model=siren_model,
                     optimizer=None,
                 )
-                log.info(
+                log.debug(
                     "Epoch %d/%d: train loss = %0.4f | val loss = %0.4f",
                     epoch,
                     self.num_epochs,
@@ -280,7 +346,7 @@ class SiNETReconstructor(BaseReconstructor):
                     val_epoch_loss,
                 )
                 if val_epoch_loss < old_val_loss:
-                    log.info(
+                    log.debug(
                         "Validation loss improved from %0.4f to %0.4f",
                         old_val_loss,
                         val_epoch_loss,
@@ -294,13 +360,14 @@ class SiNETReconstructor(BaseReconstructor):
                     model=siren_model,
                 ):
                     self._was_early_stopped = True
-                    log.info(
+                    log.debug(
                         "Early stopping triggered at epoch %d/%d",
                         epoch,
                         self.num_epochs,
                     )
                     break
         siren_model.eval()
+        log.info("Reconstructing target domain...")
         values = self._find_surface(siren_model, self.datasets.target_dataset)
         unscaled_values = self.datasets.field_transformer.inverse_transform(
             values
