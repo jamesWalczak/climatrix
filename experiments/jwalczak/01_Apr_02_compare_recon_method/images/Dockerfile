@@ -17,11 +17,8 @@ RUN bash conf/setup.sh
 ENV VIRTUAL_ENV=/app/conf/exp1
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-RUN bash scripts/download_blend_mean_temperature.sh
-RUN python scripts/prepare_ecad_observations.py
-
-# Make sure results directory exists
 RUN mkdir -p /app/results
 
-# Default command: run experiments
-CMD ["bash", "scripts/run_experiments.sh"]
+CMD bash -c "scripts/download_blend_mean_temperature.sh && \
+             python scripts/prepare_ecad_observations.py && \
+             bash scripts/run_experiments.sh"

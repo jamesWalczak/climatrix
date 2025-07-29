@@ -11,8 +11,9 @@ It ensures that datasets are properly downloaded/prepared and that results are s
 ├── conf/                  # Configurations (YAML, JSON, etc.)
 │   └── setup.sh           # Script to create virtual environment & install deps
 ├── data/                  # Datasets (mounted from host)
-├── images/                # Dockerfile lives here
-│   └── Dockerfile
+├── images/                # Container definition files (Dockerfile, experiment.def)
+│   ├── Dockerfile
+│   └── experiment.def
 ├── src/                   # Source code (Python modules)
 ├── results/               # Experiment outputs (mounted from host)
 ├── notebook/              # Jupyter notebooks
@@ -54,6 +55,39 @@ docker run --rm \
 - `-v $(pwd)/../data:/app/data` → Mounts host `exp_dir/data` into container `/app/data`  
 - `-v $(pwd)/../results:/app/results` → Mounts host `exp_dir/results` into container `/app/results`  
 - `--rm` → Automatically removes the container after execution  
+
+---
+
+# 🛰️ Using Apptainer (Singularity)
+
+### 1. Build the Apptainer Image
+
+From inside the `images/` directory:
+
+```bash
+cd exp_dir/images
+apptainer build experiment.sif experiment.def
+```
+
+If you don’t have root privileges, you may need:
+```bash
+apptainer build --fakeroot experiment.sif experiment.def
+```
+
+---
+
+### 2. Run the Container
+
+```bash
+apptainer run \
+  --bind ../data:/app/data \
+  --bind ../results:/app/results \
+  experiment.sif
+```
+
+- `--bind ../data:/app/data` → Mounts host `exp_dir/data`  
+- `--bind ../results:/app/results` → Mounts host `exp_dir/results`  
+- Results will appear in your host `exp_dir/results`.
 
 ---
 
