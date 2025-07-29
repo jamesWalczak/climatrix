@@ -142,8 +142,71 @@ ______________________________________________________________________
   - **IDW** (Inverse Distance Weighting)
   - **Ordinary Kriging**
   - **SIREN** (Sinusoidal INR)
+  - **SiNET** (Spatial Interpolation NET)
 - 🧪 Tools to compare reconstruction results
 - 📈 Plotting utilities for visualizing inputs and outputs
+- 🔧 **Hyperparameter Optimization** via Bayesian optimization for all reconstruction methods
+
+______________________________________________________________________
+
+## 🔧 Hyperparameter Optimization
+
+Climatrix provides automated hyperparameter optimization for all reconstruction methods using Bayesian optimization. The `HParamFinder` class offers an intuitive interface for finding optimal parameters.
+
+### Quick Start
+
+```python
+from climatrix.optim import HParamFinder
+
+# Basic usage - optimize IDW parameters
+finder = HParamFinder(train_dataset, validation_dataset, method="idw")
+result = finder.optimize()
+best_params = result['best_params']
+
+# Use optimized parameters for reconstruction
+optimized_reconstruction = train_dataset.reconstruct(
+    target=test_domain,
+    method="idw", 
+    **best_params
+)
+```
+
+### Advanced Usage
+
+```python
+# Optimize specific parameters only
+finder = HParamFinder(
+    train_dataset, validation_dataset,
+    method="sinet",
+    include=["lr", "batch_size"],     # Only optimize these parameters
+    exclude=["k"],                    # Or exclude specific parameters  
+    metric="rmse",                    # Optimization metric (mae, mse, rmse)
+    explore=0.7,                      # Exploration vs exploitation (0-1)
+    n_iters=50,                       # Total optimization iterations
+    random_seed=123                   # For reproducible results
+)
+
+result = finder.optimize()
+print(f"Best parameters: {result['best_params']}")
+print(f"Best {result['metric_name']} score: {result['best_score']}")
+```
+
+### Supported Methods
+
+All reconstruction methods support hyperparameter optimization:
+
+- **IDW**: `power`, `k`, `k_min`
+- **Ordinary Kriging**: `nlags`, `weight`, `verbose`, `pseudo_inv`  
+- **SiNET**: `lr`, `batch_size`, `num_epochs`, `gradient_clipping_value`, `mse_loss_weight`, `eikonal_loss_weight`, `laplace_loss_weight`
+- **SIREN**: `lr`, `batch_size`, `num_epochs`, `hidden_dim`, `num_layers`, `gradient_clipping_value`
+
+### Installation
+
+The hyperparameter optimization feature requires the `bayesian-optimization` package:
+
+```bash
+pip install climatrix[optim]
+```
 
 ______________________________________________________________________
 

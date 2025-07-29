@@ -64,6 +64,7 @@ def example_basic_usage():
     
     print(f"Method: {finder.method}")
     print(f"Metric: {finder.metric}")
+    print(f"Random seed: {finder.random_seed}")
     print(f"Parameters to optimize: {list(finder.bounds.keys())}")
     print(f"Number of initialization points: {finder.n_init_points}")
     print(f"Number of optimization iterations: {finder.n_iter}")
@@ -88,11 +89,13 @@ def example_custom_parameters():
         include=["power", "k"],  # Only optimize these parameters
         explore=0.7,  # More exploitation vs exploration
         n_iters=50,   # Fewer iterations
-        bounds={"power": (1.0, 3.0), "k": (3, 10)}  # Custom bounds
+        bounds={"power": (1.0, 3.0), "k": (3, 10)},  # Custom bounds
+        random_seed=123  # Custom random seed
     )
     
     print(f"Method: {finder.method}")
     print(f"Metric: {finder.metric}")
+    print(f"Random seed: {finder.random_seed}")
     print(f"Parameters to optimize: {list(finder.bounds.keys())}")
     print(f"Custom bounds: {finder.bounds}")
     print(f"Exploration ratio: {finder.n_init_points / (finder.n_init_points + finder.n_iter)}")
@@ -113,8 +116,28 @@ def example_exclude_parameters():
     )
     
     print(f"Method: {finder.method}")
-    print(f"All IDW parameters: {list(HParamFinder.get_hparams_bounds('idw').keys())}")
+    print(f"All IDW parameters: {list(get_hparams_bounds('idw').keys())}")
     print(f"Parameters to optimize (excluding k_min): {list(finder.bounds.keys())}")
+    print()
+
+def example_include_exclude_both():
+    """Demonstrate usage with both include and exclude parameters."""
+    print("=== Include and Exclude Both Example ===")
+    
+    train_dset, val_dset = create_example_datasets()
+    
+    # Use both include and exclude (but no common parameters)
+    finder = HParamFinder(
+        train_dset,
+        val_dset,
+        method="idw", 
+        include=["power", "k", "k_min"],  # Start with these
+        exclude=["k_min"]  # But exclude this one
+    )
+    
+    print(f"Method: {finder.method}")
+    print(f"All IDW parameters: {list(get_hparams_bounds('idw').keys())}")
+    print(f"Final parameters to optimize: {list(finder.bounds.keys())}")
     print()
 
 def example_different_methods():
@@ -127,7 +150,7 @@ def example_different_methods():
     
     for method in methods:
         try:
-            bounds = HParamFinder.get_hparams_bounds(method)
+            bounds = get_hparams_bounds(method)
             print(f"{method.upper()} parameters: {list(bounds.keys())}")
             
             # Create finder for this method
@@ -173,11 +196,11 @@ if __name__ == "__main__":
     
     # Import the get_hparams_bounds function to make it available
     from climatrix.optim.bayesian import get_hparams_bounds
-    HParamFinder.get_hparams_bounds = staticmethod(get_hparams_bounds)
     
     example_basic_usage()
     example_custom_parameters()
     example_exclude_parameters()
+    example_include_exclude_both()
     example_different_methods()
     example_parameter_evaluation()
     
