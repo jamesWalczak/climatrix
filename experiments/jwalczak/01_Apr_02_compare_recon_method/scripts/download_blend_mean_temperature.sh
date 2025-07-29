@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Non-blended ECA dataset
 URL="https://knmi-ecad-assets-prd.s3.amazonaws.com/download/ECA_blend_tg.zip"
 ZIP_FILE="/tmp/ecad_blend.zip"
-TARGET_DIR="$SCRIPT_DIR/data/ecad_blend"
+TARGET_DIR="$SCRIPT_DIR/../data/ecad_blend"
 
 mkdir -p "$TARGET_DIR"
 

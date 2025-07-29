@@ -6,10 +6,19 @@ import xarray as xr
 import climatrix as cm
 
 SEED = 0
+
 EUROPE_BOUNDS = {"north": 71, "south": 36, "west": -24, "east": 35}
 EUROPE_DOMAIN = cm.Domain.from_lat_lon(
     lat=slice(EUROPE_BOUNDS["south"], EUROPE_BOUNDS["north"], 0.5),
     lon=slice(EUROPE_BOUNDS["west"], EUROPE_BOUNDS["east"], 0.5),
+    kind="dense",
+)
+
+
+EUROPE_BOUNDS = {"north": 90, "south": -90, "west": -90, "east": 90}
+EUROPE_DOMAIN = cm.Domain.from_lat_lon(
+    lat=slice(EUROPE_BOUNDS["south"], EUROPE_BOUNDS["north"], 1),
+    lon=slice(EUROPE_BOUNDS["west"], EUROPE_BOUNDS["east"], 1),
     kind="dense",
 )
 cm.seed_all(SEED)
@@ -35,7 +44,6 @@ dense = dset.reconstruct(
     patience=None,
     checkpoint="./sinet.ckpt",
     overwrite_checkpoint=True,
-    # use_slope=True,
     use_elevation=True,
 )
 dense.plot()

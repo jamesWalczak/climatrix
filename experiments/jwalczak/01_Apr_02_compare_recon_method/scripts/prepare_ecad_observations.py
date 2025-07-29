@@ -241,8 +241,7 @@ def prepare_splits():
 
 
 if __name__ == "__main__":
-    # sources, min_date, max_date = load_sources()
-    # time_index = get_time_range(min_date, max_date)
-    # process_in_chunks(sources, time_index)
-
+    sources, min_date, max_date = load_sources()
+    time_index = get_time_range(min_date, max_date)
+    process_in_chunks(sources, time_index)
     prepare_splits()
