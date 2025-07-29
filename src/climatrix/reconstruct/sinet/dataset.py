@@ -13,7 +13,6 @@ from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import Dataset
 
 from climatrix.decorators.runtime import log_input
-from climatrix.utils.download import download_zenodo_file
 
 if TYPE_CHECKING:
     pass
@@ -43,11 +42,8 @@ def load_elevation_dataset() -> np.ndarray:
         data = np.load(_ELEVATION_DATASET_PATH)
     except FileNotFoundError:
         log.info("Elevation dataset not found, downloading...")
-        download_zenodo_file(
-            "climatrix/reconstruct/sinet/resources/lat_lon_elevation.npy",
-            _ELEVATION_DATASET_PATH,
-            branch="f-68",
-        )
+        # TODO: download to be implemented
+        raise NotImplementedError
         log.info("Elevation dataset downloaded successfully.")
         data = np.load(_ELEVATION_DATASET_PATH)
     return data[:, :-1], MinMaxScaler((-1, 1)).fit_transform(
@@ -173,7 +169,7 @@ class SiNETDatasetGenerator:
         if use_elevation:
             coords, self.elevation = load_elevation_dataset()
             ckdtree = cKDTree(np.deg2rad(coords))
-            self._extend_input_featuers(ckdtree, self.elevation)
+            self._extend_input_features(ckdtree, self.elevation)
 
         # # Plot europe lat/lon
         # import cartopy.crs as ccrs
@@ -224,7 +220,7 @@ class SiNETDatasetGenerator:
         """
         return self.train_coordinates.shape[1]
 
-    def _extend_input_featuers(
+    def _extend_input_features(
         self, tree: cKDTree, values: np.ndarray
     ) -> np.ndarray:
         train_extra_feature = query_features(
