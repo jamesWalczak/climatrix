@@ -31,6 +31,6 @@ From: ubuntu:24.04
 
 %runscript
     echo "Running experiment pipeline..."
-    bash -c "scripts/download_blend_mean_temperature.sh && \
-             python scripts/prepare_ecad_observations.py && \
-             bash scripts/run_experiments.sh"
+    bash -c "/app/scripts/download_blend_mean_temperature.sh && \
+             python /app/scripts/prepare_ecad_observations.py && \
+             bash /app/scripts/run_experiments.sh"
