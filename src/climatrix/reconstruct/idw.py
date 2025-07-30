@@ -19,15 +19,9 @@ class IDWReconstructor(BaseReconstructor):
     """
     Inverse Distance Weighting Reconstructor
 
-    Attributes
-    ----------
-    k : int
-        The number of nearest neighbors to consider.
-    k_min : int
-        The minimum number of nearest neighbors to consider (if k < k_min)
-        NaN values will be put.
-    power : int
-        The power to raise the distance to
+    This class performs spatial interpolation using inverse distance weighting,
+    where the influence of each known data point on the interpolated value
+    decreases with distance according to a power function.
 
     Parameters
     ----------
@@ -35,13 +29,17 @@ class IDWReconstructor(BaseReconstructor):
         The input dataset to reconstruct.
     target_domain : Domain
         The target domain for reconstruction.
-    power : int, optional
-        The power to raise the distance to (default is 2).
+    power : float, optional
+        The power to raise the distance to (default is 2.0).
+        Controls the rate of decrease of influence with distance.
+        Type: float, bounds: (1e-10, 5.0), default: 2.0
     k : int, optional
         The number of nearest neighbors to consider (default is 5).
+        Type: int, bounds: (1, 50), default: 5
     k_min : int, optional
         The minimum number of nearest neighbors to consider (if k < k_min)
         NaN values will be put (default is 2).
+        Type: int, bounds: (1, 40), default: 2
 
     Raises
     ------
@@ -50,6 +48,13 @@ class IDWReconstructor(BaseReconstructor):
         supported for dynamic datasets.
     ValueError
         If k_min is greater than k or if k is less than 1.
+
+    Notes
+    -----
+    Hyperparameters for optimization:
+        - power: float in (1e-10, 5.0), default=2.0
+        - k: int in (1, 50), default=5  
+        - k_min: int in (1, 40), default=2
     """
 
     NAME: ClassVar[str] = "idw"

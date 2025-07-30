@@ -25,6 +25,78 @@ log = logging.getLogger(__name__)
 
 
 class SiNETReconstructor(BaseReconstructor):
+    """
+    Spatial Interpolation Network (SiNET) Reconstructor.
+
+    SiNET is a neural network-based method for spatial interpolation that
+    uses implicit neural representations to reconstruct continuous fields
+    from sparse observations.
+
+    Parameters
+    ----------
+    dataset : BaseClimatrixDataset
+        Source dataset to reconstruct from.
+    target_domain : Domain
+        Target domain to reconstruct onto.
+    layers : int, optional
+        Number of hidden layers in the network (default is 2).
+    hidden_dim : int, optional
+        Number of neurons in each hidden layer (default is 64).
+    sorting_group_size : int, optional
+        Size of sorting groups for data processing (default is 16).
+    scale : float, optional
+        Scaling factor for coordinates (default is 1.5).
+    lr : float, optional
+        Learning rate for optimization (default is 3e-4).
+        Type: float, bounds: (1e-5, 1e-2), default: 1e-3
+    batch_size : int, optional
+        Batch size for training (default is 512).
+        Type: int, bounds: (64, 1024), default: 128
+    num_epochs : int, optional
+        Number of training epochs (default is 5000).
+        Type: int, bounds: (10, 10_000), default: 5_000
+    num_workers : int, optional
+        Number of worker processes for data loading (default is 0).
+    device : str, optional
+        Device to run computation on (default is "cuda").
+    gradient_clipping_value : float | None, optional
+        Value for gradient clipping (default is None).
+        Type: float, bounds: (0.1, 10.0), default: 1.0
+    checkpoint : str | os.PathLike | Path | None, optional
+        Path to model checkpoint (default is None).
+    mse_loss_weight : float, optional
+        Weight for MSE loss component (default is 3e3).
+        Type: float, bounds: (1e1, 1e4), default: 1e2
+    eikonal_loss_weight : float, optional
+        Weight for Eikonal loss component (default is 5e1).
+        Type: float, bounds: (1e0, 1e3), default: 1e1
+    laplace_loss_weight : float, optional
+        Weight for Laplace loss component (default is 1e2).
+        Type: float, bounds: (1e1, 1e3), default: 1e2
+    validation : float | BaseClimatrixDataset, optional
+        Validation data or portion for training (default is 0.2).
+    patience : int | None, optional
+        Early stopping patience (default is None).
+    overwrite_checkpoint : bool, optional
+        Whether to overwrite existing checkpoints (default is False).
+
+    Raises
+    ------
+    ValueError
+        If SiNET is used with dynamic datasets or if CUDA is not available
+        when requested.
+
+    Notes
+    -----
+    Hyperparameters for optimization:
+        - lr: float in (1e-5, 1e-2), default=1e-3
+        - batch_size: int in (64, 1024), default=128
+        - num_epochs: int in (10, 10_000), default=5_000
+        - gradient_clipping_value: float in (0.1, 10.0), default=1.0
+        - mse_loss_weight: float in (1e1, 1e4), default=1e2
+        - eikonal_loss_weight: float in (1e0, 1e3), default=1e1
+        - laplace_loss_weight: float in (1e1, 1e3), default=1e2
+    """
     NAME: ClassVar[str] = "sinet"
 
     lr = Hyperparameter(float, bounds=(1e-5, 1e-2), default=1e-3)

@@ -249,32 +249,9 @@ This installs the required `bayesian-optimization` package dependency.
 
 ### Supported Methods and Parameters
 
-The hyperparameter optimizer supports the following reconstruction methods and their parameters:
+The hyperparameter optimizer supports all reconstruction methods available in Climatrix. For detailed information about each method's hyperparameters, including their types, bounds, and default values, see the [Reference](reference.md) documentation for each reconstruction class:
 
-#### IDW (Inverse Distance Weighting)
-- `power`: (0.5, 5.0) - Power parameter for distance weighting
-- `k`: (1, 20) - Number of nearest neighbors  
-- `k_min`: (1, 10) - Minimum number of neighbors required
-
-#### Ordinary Kriging
-- `nlags`: (4, 20) - Number of lags for variogram
-- `weight`: (0.0, 1.0) - Weight parameter
-- `verbose`: (0, 1) - Verbosity level (boolean)
-- `pseudo_inv`: (0, 1) - Use pseudo-inverse (boolean)
-
-#### SiNET (Spatial Interpolation NET)
-- `lr`: (1e-5, 1e-2) - Learning rate
-- `batch_size`: (64, 1024) - Batch size for training
-- `num_epochs`: (1000, 10000) - Number of training epochs
-- `gradient_clipping_value`: (0.1, 10.0) - Gradient clipping threshold
-- `mse_loss_weight`: (1e1, 1e4) - Weight for MSE loss
-- `eikonal_loss_weight`: (1e0, 1e3) - Weight for Eikonal loss
-- `laplace_loss_weight`: (1e1, 1e3) - Weight for Laplace loss
-
-#### SIREN (Sinusoidal INR)
-- `lr`: (1e-5, 1e-2) - Learning rate
-- `batch_size`: (64, 1024) - Batch size for training
-- `num_epochs`: (1000, 10000) - Number of training epochs
-- `hidden_dim`: (128, 512) - Hidden layer dimensions
-- `num_layers`: (3, 8) - Number of hidden layers
-- `gradient_clipping_value`: (0.1, 10.0) - Gradient clipping threshold   
+- [IDWReconstructor](reference.md#idwreconstructor) - Inverse Distance Weighting
+- [OrdinaryKrigingReconstructor](reference.md#ordinarykrigingreconstructor) - Ordinary Kriging  
+- [SiNETReconstructor](reference.md#sinetreconstructor) - Spatial Interpolation NET
+- [SIRENReconstructor](reference.md#sirenreconstructor) - Sinusoidal INR   
