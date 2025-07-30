@@ -136,8 +136,8 @@ plt.show()
 
 1. We explicitly import `matplotlib` to be able to run `plt.show()` and display figures. 
 
-![Map of differences](assets/diff.png){ align=left }
-![Histogram of signed differences](assets/diff_hist.png){ align=left }
+![Map of differences](assets/diff.png)
+![Histogram of signed differences](assets/diff_hist.png)
 
 ## 🎯 Step K: Optimize Hyperparameters
 
