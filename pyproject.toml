@@ -30,6 +30,7 @@ dependencies = [
     "rich",
     "setuptools",
     "scipy",
+    "tqdm"
 ]
 
 [project.optional-dependencies]

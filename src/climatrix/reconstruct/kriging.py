@@ -197,7 +197,6 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         *_, target_lon = self._normalize_longitude(
             self.target_domain.longitude.values
         )
-
         masked_values, _ = kriging.execute(
             recon_type,
             target_lon,

@@ -1,0 +1,36 @@
+Bootstrap: docker
+From: ubuntu:22.04
+
+%environment
+    export DEBIAN_FRONTEND=noninteractive
+    export VIRTUAL_ENV=/app/conf/exp1
+    export PATH="$VIRTUAL_ENV/bin:$PATH"
+
+%post
+    # Update packages and install dependencies
+    apt-get update && apt-get install -y \
+        python3 python3-pip python3-venv wget curl git bash git \
+        && rm -rf /var/lib/apt/lists/*
+
+    # Create working directory
+    mkdir -p /app
+    cd /app
+
+    # Copy project files from build context into the image
+    # In Apptainer, files are copied via %files section
+    chmod +x /app/scripts/*.sh
+
+    # Setup Python virtual environment
+    bash /app/conf/setup.sh
+
+    # Create results directory
+    mkdir -p /app/results
+
+%files
+    ../ /app
+
+%runscript
+    echo "Running experiment pipeline..."
+    bash -c "scripts/download_blend_mean_temperature.sh && \
+             python scripts/prepare_ecad_observations.py && \
+             bash scripts/run_experiments.sh"
