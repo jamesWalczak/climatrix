@@ -20,6 +20,33 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
     """
     Reconstruct a sparse dataset using Ordinary Kriging.
 
+    This class performs spatial interpolation using ordinary kriging,
+    a geostatistical method that provides optimal linear unbiased estimation
+    by modeling spatial correlation through variograms.
+
+    Parameters
+    ----------
+    dataset : SparseDataset
+        The sparse dataset to reconstruct.
+    target_domain : Domain
+        The target domain for reconstruction.
+    backend : Literal["vectorized", "loop"] | None, optional
+        The backend to use for kriging (default is None).
+    nlags : int | None, optional
+        Number of lags for variogram computation (default is 6).
+        Type: int, bounds: (4, 20), default: 6
+    anisotropy_scaling : float | None, optional
+        Anisotropy scaling factor (default is 1e-6).
+        Type: float, bounds: (1e-6, 5.0), default: 1e-6
+    coordinates_type : str | None, optional
+        Type of coordinate system (default is "euclidean").
+        Type: str, values: ["euclidean", "geographic"], default: "euclidean"
+    variogram_model : str | None, optional
+        Variogram model to use (default is "linear").
+        Type: str, values: ["linear", "power", "gaussian", "spherical", "exponential"], default: "linear"
+    pseudo_inv : bool, optional
+        Whether to use pseudo-inverse for matrix operations (default is False).
+
     Attributes
     ----------
     dataset : SparseDataset
@@ -35,16 +62,13 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         If the dataset is larger than this size, loop kriging
         will be used (if `backend` was not specified)
 
-    Parameters
-    ----------
-    dataset : SparseDataset
-        The sparse dataset to reconstruct.
-    target_domain : Domain
-        The target domain for reconstruction.
-    backend : Literal["vectorized", "loop"] | None, optional
-        The backend to use for kriging (default is None).
-    pykrige_kwargs : dict, optional
-        Additional keyword arguments to pass to pykrige.
+    Notes
+    -----
+    Hyperparameters for optimization:
+        - nlags: int in (4, 20), default=6
+        - anisotropy_scaling: float in (1e-6, 5.0), default=1e-6
+        - coordinates_type: str in ["euclidean", "geographic"], default="euclidean"
+        - variogram_model: str in ["linear", "power", "gaussian", "spherical", "exponential"], default="linear"
     """
 
     NAME: ClassVar[str] = "ok"

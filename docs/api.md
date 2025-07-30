@@ -222,4 +222,36 @@ The library contains a few public classes:
         - save_report
       scoped_crossrefs: true
       show_root_heading: true
-      show_source: false   
+      show_source: false
+
+## 🔧 Hyperparameter Optimization
+
+Climatrix provides automated hyperparameter optimization for all reconstruction methods using Bayesian optimization.
+
+### Installation
+
+To use hyperparameter optimization, install climatrix with the optimization extras:
+
+```bash
+pip install climatrix[optim]
+```
+
+This installs the required `bayesian-optimization` package dependency.
+
+### HParamFinder
+
+::: climatrix.optim.HParamFinder
+    handler: python
+    options:    
+      scoped_crossrefs: true
+      show_root_heading: true
+      show_source: false
+
+### Supported Methods and Parameters
+
+The hyperparameter optimizer supports all reconstruction methods available in Climatrix. For detailed information about each method's hyperparameters, including their types, bounds, and default values, see the [Reference](reference.md) documentation for each reconstruction class:
+
+- [IDWReconstructor](reference.md#idwreconstructor) - Inverse Distance Weighting
+- [OrdinaryKrigingReconstructor](reference.md#ordinarykrigingreconstructor) - Ordinary Kriging  
+- [SiNETReconstructor](reference.md#sinetreconstructor) - Spatial Interpolation NET
+- [SIRENReconstructor](reference.md#sirenreconstructor) - Sinusoidal INR   

@@ -32,6 +32,10 @@ class SIRENReconstructor(BaseReconstructor):
     """
     A reconstructor that uses SIREN to reconstruct fields.
 
+    SIREN (Sinusoidal Representation Networks) uses sinusoidal activation
+    functions to learn continuous implicit neural representations of 
+    spatial fields from sparse observations.
+
     Parameters
     ----------
     dataset : BaseClimatrixDataset
@@ -50,14 +54,26 @@ class SIRENReconstructor(BaseReconstructor):
         Frequency multiplier for hidden layers.
     lr : float, default=1e-4
         Learning rate for the optimizer.
+        Type: float, bounds: (1e-5, 1e-2), default: 1e-3
+    batch_size : int, default=256
+        Batch size for training.
+        Type: int, bounds: (64, 1024), default: 256
     num_epochs : int, default=100
         Number of epochs to train for.
+        Type: int, bounds: (100, 10_000), default: 5_000
+    hidden_dim : int, default=256
+        Hidden layer dimensions.
+        Type: int, bounds: (128, 512), default: 256
+    num_layers : int, default=4
+        Number of hidden layers.
+        Type: int, bounds: (3, 8), default: 4
     num_workers : int, default=0
         Number of worker processes for the dataloader.
     device : str, default="cuda"
         Device to run the model on ("cuda" or "cpu").
     gradient_clipping_value : float or None, default=None
         Value for gradient clipping (None to disable).
+        Type: float, bounds: (0.1, 10.0), default: 1.0
     checkpoint : str or os.PathLike or Path or None, default=None
         Path to save/load model checkpoint from.
     sdf_loss_weight : float, default=3000.0
@@ -73,7 +89,18 @@ class SIRENReconstructor(BaseReconstructor):
     ------
     NotImplementedError
         If trying to use SIREN with a dynamic dataset.
+
+    Notes
+    -----
+    Hyperparameters for optimization:
+        - lr: float in (1e-5, 1e-2), default=1e-3
+        - batch_size: int in (64, 1024), default=256
+        - num_epochs: int in (100, 10_000), default=5_000
+        - hidden_dim: int in (128, 512), default=256
+        - num_layers: int in (3, 8), default=4
+        - gradient_clipping_value: float in (0.1, 10.0), default=1.0
     """
+    NAME: ClassVar[str] = "siren"
 
     # Hyperparameter descriptors
     lr = Hyperparameter(float, bounds=(1e-5, 1e-2), default=1e-3)

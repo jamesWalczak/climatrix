@@ -25,6 +25,16 @@ pip install git+https://github.com/jamesWalczak/climatrix.git
 
     The project can be downloaded with `pip install climatrix`.
 
+#### Optional Dependencies
+
+For hyperparameter optimization functionality, install with the `optim` extra:
+
+```bash
+pip install climatrix[optim]
+```
+
+This enables automated hyperparameter tuning using Bayesian optimization.
+
 
 
 ## 🧪 Verifying the Installation
@@ -221,6 +231,35 @@ dense.plot(title="Reconstructed dataset")
 
 ???+ note
     You can pass extra reconstructor-specific arguments as the last (`recon_kwargs`) argument of the `reconstruct` method. To find definitions of these extra arguments, refer to [Reconstruction](https://jameswalczak.github.io/climatrix/latest/api/#reconstructors) section in [API reference](https://jameswalczak.github.io/climatrix/latest/api/).
+
+### Hyperparameter Optimization
+
+For optimal reconstruction results, you can use automated hyperparameter optimization:
+
+``` { .python .copy .annotate }
+from climatrix.optim import HParamFinder
+
+# Split your data for optimization
+train_dset = dset.sample_uniform(portion=0.7)  # Training data
+val_dset = dset.sample_uniform(portion=0.2)    # Validation data
+
+# Optimize IDW parameters
+finder = HParamFinder(train_dset, val_dset, method="idw")
+result = finder.optimize()
+
+print(f"Best parameters: {result['best_params']}")
+print(f"Best MAE score: {result['best_score']}")
+
+# Use optimized parameters for reconstruction
+optimized_reconstruction = sparse.reconstruct(
+    dset.domain, 
+    method="idw",
+    **result['best_params']
+)
+```
+
+???+ note
+    Hyperparameter optimization requires the `optim` extra: `pip install climatrix[optim]`
 
 ### Plotting
 
