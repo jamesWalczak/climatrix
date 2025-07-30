@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://jameswalczak.github.io/climatrix/v1.0a7/</loc>
+         <lastmod>2025-07-30</lastmod>
+    </url>
+    <url>
+         <loc>https://jameswalczak.github.io/climatrix/v1.0a7/CONTRIBUTING/</loc>
+         <lastmod>2025-07-30</lastmod>
+    </url>
+    <url>
+         <loc>https://jameswalczak.github.io/climatrix/v1.0a7/api/</loc>
+         <lastmod>2025-07-30</lastmod>
+    </url>
+    <url>
+         <loc>https://jameswalczak.github.io/climatrix/v1.0a7/cli/</loc>
+         <lastmod>2025-07-30</lastmod>
+    </url>
+    <url>
+         <loc>https://jameswalczak.github.io/climatrix/v1.0a7/getting_started/</loc>
+         <lastmod>2025-07-30</lastmod>
+    </url>
+    <url>
+         <loc>https://jameswalczak.github.io/climatrix/v1.0a7/hyperparameter_optimization/</loc>
+         <lastmod>2025-07-30</lastmod>
+    </url>
+    <url>
+         <loc>https://jameswalczak.github.io/climatrix/v1.0a7/license/</loc>
+         <lastmod>2025-07-30</lastmod>
+    </url>
+    <url>
+         <loc>https://jameswalczak.github.io/climatrix/v1.0a7/tutorial/</loc>
+         <lastmod>2025-07-30</lastmod>
+    </url>
+</urlset>
