@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 import torch
@@ -14,23 +14,25 @@ from torch.utils.data import DataLoader
 from climatrix import BaseClimatrixDataset, Domain
 from climatrix.decorators.runtime import log_input, raise_if_not_installed
 from climatrix.reconstruct.base import BaseReconstructor
-from climatrix.utils.hyperparameter import Hyperparameter
 from climatrix.reconstruct.sinet.dataset import (
     SiNETDatasetGenerator,
 )
 from climatrix.reconstruct.sinet.losses import LossEntity, compute_sdf_losses
 from climatrix.reconstruct.sinet.model import SiNET
+from climatrix.utils.hyperparameter import Hyperparameter
 
 log = logging.getLogger(__name__)
 
 
 class SiNETReconstructor(BaseReconstructor):
-    
-    # Hyperparameter descriptors
+    NAME: ClassVar[str] = "sinet"
+
     lr = Hyperparameter(float, bounds=(1e-5, 1e-2), default=1e-3)
     batch_size = Hyperparameter(int, bounds=(64, 1024), default=128)
-    num_epochs = Hyperparameter(int, bounds=(1000, 10000), default=5000)
-    gradient_clipping_value = Hyperparameter(float, bounds=(0.1, 10.0), default=1.0)
+    num_epochs = Hyperparameter(int, bounds=(10, 10_000), default=5_000)
+    gradient_clipping_value = Hyperparameter(
+        float, bounds=(0.1, 10.0), default=1.0
+    )
     mse_loss_weight = Hyperparameter(float, bounds=(1e1, 1e4), default=1e2)
     eikonal_loss_weight = Hyperparameter(float, bounds=(1e0, 1e3), default=1e1)
     laplace_loss_weight = Hyperparameter(float, bounds=(1e1, 1e3), default=1e2)

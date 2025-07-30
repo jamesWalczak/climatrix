@@ -23,11 +23,11 @@ class BaseReconstructor(ABC):
 
     """
 
-    __slots__ = ("dataset", "query_lat", "query_lon")
-    
+    __slots__ = ("dataset", "target_domain")
+
     # Class registry for reconstruction methods
     _registry: ClassVar[dict[str, type[BaseReconstructor]]] = {}
-
+    NAME: ClassVar[str] = "<not set>"
     dataset: BaseClimatrixDataset
 
     def __init__(
@@ -40,34 +40,39 @@ class BaseReconstructor(ABC):
     def __init_subclass__(cls, **kwargs):
         """Register subclasses automatically."""
         super().__init_subclass__(**kwargs)
-        # Register the class with a lowercase name derived from the class name
-        name = cls.__name__.lower().replace('reconstructor', '')
-        cls._registry[name] = cls
+        cls._registry[cls.NAME] = cls
 
     @classmethod
     def get(cls, method: str) -> type[BaseReconstructor]:
         """
         Get a reconstruction class by method name.
-        
+
         Parameters
         ----------
         method : str
             The reconstruction method name (e.g., 'idw', 'ok', 'sinet', 'siren').
-            
+
         Returns
         -------
         type[BaseReconstructor]
             The reconstruction class.
-            
+
         Raises
         ------
         ValueError
             If the method is not supported.
+
+        Notes
+        -----
+        The `method` parameter should reflect the `NAME` class attribute
+        of the selected reconstructor class.
         """
         method = method.lower().strip()
         if method not in cls._registry:
             available = ", ".join(cls._registry.keys())
-            raise ValueError(f"Unknown method '{method}'. Available methods: {available}")
+            raise ValueError(
+                f"Unknown method '{method}'. Available methods: {available}"
+            )
         return cls._registry[method]
 
     def _validate_types(self, dataset, domain: Domain) -> None:
@@ -98,10 +103,10 @@ class BaseReconstructor(ABC):
         raise NotImplementedError
 
     @classmethod
-    def hparams(cls) -> dict[str, dict[str, any]]:
+    def get_hparams(cls) -> dict[str, dict[str, any]]:
         """
         Get hyperparameter definitions from Hyperparameter descriptors.
-        
+
         Returns
         -------
         dict[str, dict[str, any]]
@@ -113,11 +118,22 @@ class BaseReconstructor(ABC):
             - 'default': default value (if defined)
         """
         result = {}
-        
-        # Look through the class attributes for Hyperparameter descriptors
+
         for attr_name in dir(cls):
             attr_value = getattr(cls, attr_name)
             if isinstance(attr_value, Hyperparameter):
                 result[attr_name] = attr_value.get_spec()
-                    
+
         return result
+
+    @classmethod
+    def get_available_methods(cls) -> list[str]:
+        """
+        Get a list of available reconstruction methods.
+
+        Returns
+        -------
+        list[str]
+            List of method names (e.g., 'idw', 'ok', 'sinet', 'siren').
+        """
+        return list(cls._registry.keys())

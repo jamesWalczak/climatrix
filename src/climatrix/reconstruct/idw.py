@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import ClassVar
 
 import numpy as np
 from scipy.spatial import cKDTree
@@ -50,8 +51,8 @@ class IDWReconstructor(BaseReconstructor):
     ValueError
         If k_min is greater than k or if k is less than 1.
     """
-    
-    # Hyperparameter descriptors
+
+    NAME: ClassVar[str] = "idw"
     power = Hyperparameter(float, bounds=(0.5, 5.0), default=2.0)
     k = Hyperparameter(int, bounds=(1, 20), default=5)
     k_min = Hyperparameter(int, bounds=(1, 10), default=2)
@@ -66,7 +67,7 @@ class IDWReconstructor(BaseReconstructor):
         k_min: int = None,
     ):
         super().__init__(dataset, target_domain)
-        
+
         # Set hyperparameter values using descriptors (will use defaults if None)
         if power is not None:
             self.power = power
@@ -74,7 +75,7 @@ class IDWReconstructor(BaseReconstructor):
             self.k = k
         if k_min is not None:
             self.k_min = k_min
-        
+
         for axis in dataset.domain.all_axes_types:
             if not dataset.domain.get_axis(axis).is_dimension:
                 continue
