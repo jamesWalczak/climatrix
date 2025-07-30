@@ -139,3 +139,53 @@ plt.show()
 ![Map of differences](assets/diff.png){ align=left }
 ![Histogram of signed differences](assets/diff_hist.png){ align=left }
 
+## 🎯 Step K: Optimize Hyperparameters
+
+To improve reconstruction quality, let's optimize the IDW hyperparameters. We'll split our sparse data for training and validation:
+
+``` { .python .annotate }
+from climatrix.optim import HParamFinder
+
+# Create training and validation datasets
+train_sparse = europe.sample_normal(number=300, center_point=WARSAW, sigma=1.5) # (1)!
+val_sparse = europe.sample_normal(number=200, center_point=WARSAW, sigma=1.5)   # (2)!
+
+# Find optimal hyperparameters
+finder = HParamFinder(train_sparse, val_sparse, method="idw", n_iters=20) # (3)!
+result = finder.optimize()
+
+print(f"Best parameters: {result['best_params']}")
+print(f"Best MAE score: {result['best_score']}")
+```
+
+1. Training data - used to fit the hyperparameter optimization
+2. Validation data - used to evaluate parameter combinations  
+3. Using fewer iterations for this tutorial example
+
+## 🚀 Step L: Apply Optimized Parameters
+
+Now let's reconstruct using the optimized parameters:
+
+``` { .python .annotate }
+# Reconstruct with optimized parameters
+optimized_idw = sparse.reconstruct(
+    europe.domain, 
+    method="idw", 
+    **result['best_params'] # (1)!
+)
+
+# Compare optimized vs default reconstruction
+optimized_cmp = cm.Comparison(europe, optimized_idw)
+default_cmp = cm.Comparison(europe, idw)
+
+print(f"Default IDW RMSE: {default_cmp.compute_rmse():.4f}")
+print(f"Optimized IDW RMSE: {optimized_cmp.compute_rmse():.4f}")
+
+optimized_idw.plot(title="Optimized IDW Reconstruction")
+```
+
+1. Apply the best parameters found by the optimizer
+
+???+ note
+    For hyperparameter optimization, make sure to install climatrix with: `pip install climatrix[optim]`
+
