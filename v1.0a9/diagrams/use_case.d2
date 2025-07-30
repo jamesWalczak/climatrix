@@ -1,0 +1,41 @@
+title: |md
+
+  # Use cases for Climatrix
+
+| {near: top-center}
+user: {
+    shape: person
+    width: 60
+  }
+
+user -> download dataset
+download dataset -> from CDS
+
+from CDS -> specify dataset
+from CDS -> specify date
+from CDS -> specify target
+
+user -> manage sparse dataset
+user -> manage dynamic dataset
+
+manage sparse dataset -> select by time
+manage dynamic dataset -> select by time
+
+manage dynamic dataset -> sample
+
+sample -> uniformly
+sample -> normally
+
+manage sparse dataset -> reconstruct
+
+reconstruct -> with IDW
+reconstruct -> with kiring
+reconstruct -> with INR
+
+with INR -> with SIREN
+
+user -> prepare train/test splits
+user -> evaluate
+evaluate -> plot map with signed distances
+evaluate -> plot histogram of signed distances
+evaluate -> return quality measures
