@@ -10,7 +10,7 @@ except ImportError:
         "Please install the required dependencies.",
         allow_module_level=True,
     )
-from tests.unit.utils import skip_on_error
+from tests.unit.test_utils import skip_on_error
 
 from ..test_base_interface import TestBaseReconstructor, parametrize_all
 

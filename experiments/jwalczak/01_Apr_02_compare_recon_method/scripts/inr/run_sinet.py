@@ -18,8 +18,6 @@ import climatrix as cm
 
 console = Console()
 
-use_elevation = {0: False, 1: True}
-
 INF_LOSS = -1e4
 
 # Setting up the experiment parameters
@@ -70,7 +68,6 @@ BOUNDS = {
     "eikonal_loss_weight": (0, 1e-2),
     "laplace_loss_weight": (0, 1e-2),
     "early_stopping_patience": (10, 200),
-    "use_elevation": ("0", "1"),  # 0 for False, 1 for True
 }
 console.print("[bold green]Hyperparameter bounds: [/bold green]", BOUNDS)
 
@@ -91,105 +88,6 @@ def clear_result_dir():
 
 def create_result_dir():
     PLOT_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def compute_criterion(
-    train_dset: cm.BaseClimatrixDataset,
-    val_dset: cm.BaseClimatrixDataset,
-    **hparams,
-) -> float:
-    lr = float(hparams["lr"])
-    num_epochs = int(hparams["num_epochs"])
-    gradient_clipping_value = float(hparams["gradient_clipping_value"])
-    batch_size = int(hparams["batch_size"])
-    mse_loss_weight = float(hparams["mse_loss_weight"])
-    eikonal_loss_weight = float(hparams["eikonal_loss_weight"])
-    laplace_loss_weight = float(hparams["laplace_loss_weight"])
-    early_stopping_patience = int(hparams["early_stopping_patience"])
-    use_elevation = bool(int(hparams["use_elevation"]))
-    recon_dset = train_dset.reconstruct(
-        val_dset.domain,
-        method="sinet",
-        lr=lr,
-        num_epochs=num_epochs,
-        batch_size=batch_size,
-        num_workers=0,
-        device="cuda",
-        gradient_clipping_value=gradient_clipping_value,
-        mse_loss_weight=mse_loss_weight,
-        eikonal_loss_weight=eikonal_loss_weight,
-        laplace_loss_weight=laplace_loss_weight,
-        patience=early_stopping_patience,
-        use_elevation=use_elevation,
-    )
-    metrics = cm.Comparison(
-        recon_dset, val_dset, map_nan_from_source=False
-    ).compute_report()
-    # NOTE: minus to force maximizing
-    return -metrics["MAE"]
-
-
-def find_hyperparameters(
-    train_dset: cm.BaseClimatrixDataset,
-    val_dset: cm.BaseClimatrixDataset,
-    func: Callable[
-        [cm.BaseClimatrixDataset, cm.BaseClimatrixDataset, dict], float
-    ],
-    bounds: dict[str, tuple],
-    n_init_points: int = 30,
-    n_iter: int = 200,
-    seed: int = 0,
-    verbose: int = 2,
-) -> tuple[float, dict[str, float]]:
-    """
-    Find hyperparameters using Bayesian Optimization.
-
-    Parameters
-    ----------
-    train_dset : cm.BaseClimatrixDataset
-        Training dataset.
-    val_dset : cm.BaseClimatrixDataset
-        Validation dataset.
-    func : Callable
-        Function to optimize.
-        It should take two datasets and a dictionary of hyperparameters,
-        and return a float score.
-    bounds : dict[str, tuple]
-        Dictionary of hyperparameter bounds.
-        Keys are hyperparameter names, values are tuples (min, max).
-    n_init_points : int, optional
-        Number of initial random points to sample, by default 30.
-    n_iter : int, optional
-        Number of iterations for optimization, by default 200.
-    seed : int, optional
-        Random seed for reproducibility, by default 0.
-    verbose : int, optional
-        Verbosity level of the optimizer, by default 2.
-
-    Returns
-    -------
-    tuple[float, dict[str, float]]
-        Best score and best hyperparameters found.
-    """
-    func = partial(func, train_dset=train_dset, val_dset=val_dset)
-    optimizer = BayesianOptimization(
-        f=func, pbounds=bounds, random_state=seed, verbose=verbose
-    )
-    optimizer.maximize(
-        init_points=n_init_points,
-        n_iter=n_iter,
-    )
-    return optimizer.max["target"], (
-        optimizer.max["params"]["lr"],
-        int(optimizer.max["params"]["num_epochs"]),
-        optimizer.max["params"]["gradient_clipping_value"],
-        int(optimizer.max["params"]["batch_size"]),
-        optimizer.max["params"]["mse_loss_weight"],
-        optimizer.max["params"]["eikonal_loss_weight"],
-        optimizer.max["params"]["laplace_loss_weight"],
-        int(optimizer.max["params"]["early_stopping_patience"]),
-        bool(int(optimizer.max["params"]["use_elevation"])),
-    )
 
 
 def get_all_dataset_idx() -> list[str]:
@@ -264,41 +162,53 @@ def run_single_experiment(
         f"({i + 1}/{all_samples})...",
         spinner="bouncingBall",
     )
-    best_loss, (
-        lr,
-        num_epochs,
-        gradient_clipping_value,
-        batch_size,
-        mse_loss_weight,
-        eikonal_loss_weight,
-        laplace_loss_weight,
-        early_stopping_patience,
-        use_elevation,
-    ) = find_hyperparameters(
+    finder = cm.optim.HParamFinder(
+        "idw",
         train_dset,
         val_dset,
-        compute_criterion,
-        BOUNDS,
-        n_init_points=OPTIM_INIT_POINTS,
-        n_iter=OPTIM_N_ITERS,
-        seed=SEED,
-        verbose=2,
+        metric="mae",
+        explore=0.3,
+        n_iters=OPTIM_N_ITERS,
+        bounds=BOUNDS,
+        random_seed=SEED,
     )
+    result = finder.optimize()
     console.print("[bold yellow]Optimized parameters:[/bold yellow]")
-    console.print("[yellow]Learning rate (lr):[/yellow]", lr)
-    console.print("[yellow]Number of epochs:[/yellow]", num_epochs)
     console.print(
-        "[yellow]Gradient clipping value:[/yellow]", gradient_clipping_value
+        "[yellow]Learning rate (lr):[/yellow]", result["best_params"]["lr"]
     )
-    console.print("[yellow]Batch size:[/yellow]", batch_size)
-    console.print("[yellow]MSE loss weight:[/yellow]", mse_loss_weight)
-    console.print("[yellow]Eikonal loss weight:[/yellow]", eikonal_loss_weight)
-    console.print("[yellow]Laplace loss weight:[/yellow]", laplace_loss_weight)
     console.print(
-        "[yellow]Early stopping patience:[/yellow]", early_stopping_patience
+        "[yellow]Number of epochs:[/yellow]",
+        result["best_params"]["num_epochs"],
     )
-    console.print("[yellow]Use elevation:[/yellow]", use_elevation)
-    console.print("[yellow]Best loss:[/yellow]", best_loss)
+    console.print(
+        "[yellow]Gradient clipping value:[/yellow]",
+        result["best_params"]["gradient_clipping_value"],
+    )
+    console.print(
+        "[yellow]Batch size:[/yellow]", result["best_params"]["batch_size"]
+    )
+    console.print(
+        "[yellow]MSE loss weight:[/yellow]",
+        result["best_params"]["mse_loss_weight"],
+    )
+    console.print(
+        "[yellow]Eikonal loss weight:[/yellow]",
+        result["best_params"]["eikonal_loss_weight"],
+    )
+    console.print(
+        "[yellow]Laplace loss weight:[/yellow]",
+        result["best_params"]["laplace_loss_weight"],
+    )
+    console.print(
+        "[yellow]Early stopping patience:[/yellow]",
+        result["best_params"]["early_stopping_patience"],
+    )
+    console.print(
+        "[yellow]Use elevation:[/yellow]",
+        result["best_params"]["use_elevation"],
+    )
+    console.print("[yellow]Best loss:[/yellow]", result["best_loss"])
     status.update(
         "[magenta]Reconstructing with optimised parameters...",
         spinner="bouncingBall",
@@ -311,17 +221,19 @@ def run_single_experiment(
     reconstructed_dset = train_val_dset.reconstruct(
         test_dset.domain,
         method="sinet",
-        lr=lr,
-        num_epochs=num_epochs,
-        batch_size=batch_size,
+        lr=result["best_params"]["lr"],
+        num_epochs=result["best_params"]["num_epochs"],
+        batch_size=result["best_params"]["batch_size"],
         num_workers=0,
         device="cuda",
-        gradient_clipping_value=gradient_clipping_value,
-        mse_loss_weight=mse_loss_weight,
-        eikonal_loss_weight=eikonal_loss_weight,
-        laplace_loss_weight=laplace_loss_weight,
-        patience=early_stopping_patience,
-        use_elevation=use_elevation,
+        gradient_clipping_value=result["best_params"][
+            "gradient_clipping_value"
+        ],
+        mse_loss_weight=result["best_params"]["mse_loss_weight"],
+        eikonal_loss_weight=result["best_params"]["eikonal_loss_weight"],
+        laplace_loss_weight=result["best_params"]["laplace_loss_weight"],
+        patience=result["best_params"]["early_stopping_patience"],
+        use_elevation=result["best_params"]["use_elevation"],
     )
     status.update(
         "[magenta]Saving reconstructed dset to "
@@ -340,17 +252,18 @@ def run_single_experiment(
         reconstructed_dense = train_val_dset.reconstruct(
             EUROPE_DOMAIN,
             method="sinet",
-            lr=lr,
-            num_epochs=num_epochs,
-            batch_size=batch_size,
+            lr=result["best_params"]["lr"],
+            num_epochs=result["best_params"]["num_epochs"],
+            batch_size=result["best_params"]["batch_size"],
             num_workers=0,
             device="cuda",
-            gradient_clipping_value=gradient_clipping_value,
-            mse_loss_weight=mse_loss_weight,
-            eikonal_loss_weight=eikonal_loss_weight,
-            laplace_loss_weight=laplace_loss_weight,
-            patience=early_stopping_patience,
-            use_elevation=use_elevation,
+            gradient_clipping_value=result["best_params"][
+                "gradient_clipping_value"
+            ],
+            mse_loss_weight=result["best_params"]["mse_loss_weight"],
+            eikonal_loss_weight=result["best_params"]["eikonal_loss_weight"],
+            laplace_loss_weight=result["best_params"]["laplace_loss_weight"],
+            patience=result["best_params"]["early_stopping_patience"],
         )
         status.update(
             "[magenta]Saving reconstructed dense dset to "
@@ -375,16 +288,19 @@ def run_single_experiment(
     metrics["dataset_id"] = d
     hyperparams = {
         "dataset_id": d,
-        "lr": lr,
-        "num_epochs": num_epochs,
-        "gradient_clipping_value": gradient_clipping_value,
-        "batch_size": batch_size,
-        "mse_loss_weight": mse_loss_weight,
-        "eikonal_loss_weight": eikonal_loss_weight,
-        "laplace_loss_weight": laplace_loss_weight,
-        "early_stopping_patience": early_stopping_patience,
-        "use_elevation": use_elevation,
-        "opt_loss": best_loss,
+        "lr": result["best_params"]["lr"],
+        "num_epochs": result["best_params"]["num_epochs"],
+        "gradient_clipping_value": result["best_params"][
+            "gradient_clipping_value"
+        ],
+        "batch_size": result["best_params"]["batch_size"],
+        "mse_loss_weight": result["best_params"]["mse_loss_weight"],
+        "eikonal_loss_weight": result["best_params"]["eikonal_loss_weight"],
+        "laplace_loss_weight": result["best_params"]["laplace_loss_weight"],
+        "early_stopping_patience": result["best_params"][
+            "early_stopping_patience"
+        ],
+        "opt_loss": result["best_score"],
     }
     if continuous_update:
         console.print("[bold green]Updating metrics file...[/bold green]")

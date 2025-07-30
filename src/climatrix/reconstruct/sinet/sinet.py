@@ -19,11 +19,23 @@ from climatrix.reconstruct.sinet.dataset import (
 )
 from climatrix.reconstruct.sinet.losses import LossEntity, compute_sdf_losses
 from climatrix.reconstruct.sinet.model import SiNET
+from climatrix.utils.hyperparameter import Hyperparameter
 
 log = logging.getLogger(__name__)
 
 
 class SiNETReconstructor(BaseReconstructor):
+    NAME: ClassVar[str] = "sinet"
+
+    lr = Hyperparameter(float, bounds=(1e-5, 1e-2), default=1e-3)
+    batch_size = Hyperparameter(int, bounds=(64, 1024), default=128)
+    num_epochs = Hyperparameter(int, bounds=(10, 10_000), default=5_000)
+    gradient_clipping_value = Hyperparameter(
+        float, bounds=(0.1, 10.0), default=1.0
+    )
+    mse_loss_weight = Hyperparameter(float, bounds=(1e1, 1e4), default=1e2)
+    eikonal_loss_weight = Hyperparameter(float, bounds=(1e0, 1e3), default=1e1)
+    laplace_loss_weight = Hyperparameter(float, bounds=(1e1, 1e3), default=1e2)
     _was_early_stopped: ClassVar[bool] = False
 
     @log_input(log, level=logging.DEBUG)

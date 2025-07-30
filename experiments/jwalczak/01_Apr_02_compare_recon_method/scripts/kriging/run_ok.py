@@ -19,14 +19,6 @@ import climatrix as cm
 console = Console()
 
 INF_LOSS = -1e4
-coordinates_type_mapping = {1: "euclidean", 2: "geographic"}
-variogram_model_mapping = {
-    1: "linear",
-    2: "power",
-    3: "gaussian",
-    4: "spherical",
-    5: "exponential",
-}
 
 # Setting up the experiment parameters
 NAN_POLICY = "resample"
@@ -68,8 +60,14 @@ console.print(
 BOUNDS = {
     "nlags": (2, 50),
     "anisotropy_scaling": (1e-5, 5.0),
-    "coordinates_type_code": ("1", "2"),
-    "variogram_model_code": ("1", "5"),
+    "coordinates_type": ("euclidean", "geographic"),
+    "variogram_model": (
+        "linear",
+        "power",
+        "gaussian",
+        "spherical",
+        "exponential",
+    ),
 }
 console.print("[bold green]Hyperparameter bounds: [/bold green]", BOUNDS)
 
@@ -90,104 +88,6 @@ def clear_result_dir():
 
 def create_result_dir():
     PLOT_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def compute_criterion(
-    train_dset: cm.BaseClimatrixDataset,
-    val_dset: cm.BaseClimatrixDataset,
-    **hparams,
-) -> float:
-    coordinates_type_code = int(hparams["coordinates_type_code"])
-    variogram_model_code = int(hparams["variogram_model_code"])
-    nlags = int(hparams["nlags"])
-    anisotropy_scaling = float(hparams["anisotropy_scaling"])
-    coordinates_type = coordinates_type_mapping[coordinates_type_code]
-    variogram_model = variogram_model_mapping[variogram_model_code]
-
-    try:
-        recon_dset = train_dset.reconstruct(
-            val_dset.domain,
-            method="ok",
-            nlags=int(nlags),
-            anisotropy_scaling=float(anisotropy_scaling),
-            coordinates_type=coordinates_type,
-            variogram_model=variogram_model,
-            backend="vectorized",
-        )
-    except Exception as e:
-        console.print(
-            f"[yellow]Error during reconstruction with parameters: "
-            f"{hparams}[/yellow]"
-        )
-        console.print(f"[yellow]{e}[/yellow]")
-        return INF_LOSS
-    metrics = cm.Comparison(
-        recon_dset, val_dset, map_nan_from_source=False
-    ).compute_report()
-    # NOTE: minus to force maximizing
-    return -metrics["MAE"]
-
-
-def find_hyperparameters(
-    train_dset: cm.BaseClimatrixDataset,
-    val_dset: cm.BaseClimatrixDataset,
-    func: Callable[
-        [cm.BaseClimatrixDataset, cm.BaseClimatrixDataset, dict], float
-    ],
-    bounds: dict[str, tuple],
-    n_init_points: int = 30,
-    n_iter: int = 200,
-    seed: int = 0,
-    verbose: int = 2,
-) -> tuple[float, dict[str, float]]:
-    """
-    Find hyperparameters using Bayesian Optimization.
-
-    Parameters
-    ----------
-    train_dset : cm.BaseClimatrixDataset
-        Training dataset.
-    val_dset : cm.BaseClimatrixDataset
-        Validation dataset.
-    func : Callable
-        Function to optimize.
-        It should take two datasets and a dictionary of hyperparameters,
-        and return a float score.
-    bounds : dict[str, tuple]
-        Dictionary of hyperparameter bounds.
-        Keys are hyperparameter names, values are tuples (min, max).
-    n_init_points : int, optional
-        Number of initial random points to sample, by default 30.
-    n_iter : int, optional
-        Number of iterations for optimization, by default 200.
-    seed : int, optional
-        Random seed for reproducibility, by default 0.
-    verbose : int, optional
-        Verbosity level of the optimizer, by default 2.
-
-    Returns
-    -------
-    tuple[float, dict[str, float]]
-        Best score and best hyperparameters found.
-    """
-    func = partial(func, train_dset=train_dset, val_dset=val_dset)
-    optimizer = BayesianOptimization(
-        f=func, pbounds=bounds, random_state=seed, verbose=verbose
-    )
-    optimizer.maximize(
-        init_points=n_init_points,
-        n_iter=n_iter,
-    )
-    return optimizer.max["target"], (
-        int(optimizer.max["params"]["nlags"]),
-        float(optimizer.max["params"]["anisotropy_scaling"]),
-        coordinates_type_mapping[
-            int(optimizer.max["params"]["coordinates_type_code"])
-        ],
-        variogram_model_mapping[
-            int(optimizer.max["params"]["variogram_model_code"])
-        ],
-    )
 
 
 def get_all_dataset_idx() -> list[str]:
@@ -257,34 +157,32 @@ def run_single_experiment(
         f"({i + 1}/{all_samples})...",
         spinner="bouncingBall",
     )
-    best_loss, (
-        nlags,
-        anisotroty_scaling,
-        coordinates_type,
-        variogram_model,
-    ) = find_hyperparameters(
+    finder = cm.optim.HParamFinder(
+        "ok",
         train_dset,
         val_dset,
-        compute_criterion,
-        BOUNDS,
-        n_init_points=OPTIM_INIT_POINTS,
-        n_iter=OPTIM_N_ITERS,
-        seed=SEED,
-        verbose=2,
+        metric="mae",
+        explore=0.3,
+        n_iters=OPTIM_N_ITERS,
+        bounds=BOUNDS,
+        random_seed=SEED,
     )
+    result = finder.optimize()
     console.print("[bold yellow]Optimized parameters:[/bold yellow]")
-    console.print("[yellow]Number of lags:[/yellow]", nlags)
+    console.print(
+        "[yellow]Number of lags:[/yellow]", result["best_params"]["nlags"]
+    )
     console.print(
         "[yellow]Anisotropy scaling factor:[/yellow]",
-        anisotroty_scaling,
+        result["best_params"]["anisotropy_scaling"],
     )
     console.print(
         "[yellow]Coordinates type:[/yellow]",
-        coordinates_type,
+        result["best_params"]["coordinates_type"],
     )
     console.print(
         "[yellow]Variogram model:[/yellow]",
-        variogram_model,
+        result["best_params"]["variogram_model"],
     )
     status.update(
         "[magenta]Reconstructing with optimised parameters...",
@@ -298,10 +196,10 @@ def run_single_experiment(
     reconstructed_dset = train_val_dset.reconstruct(
         test_dset.domain,
         method="ok",
-        nlags=nlags,
-        anisotropy_scaling=anisotroty_scaling,
-        coordinates_type=coordinates_type,
-        variogram_model=variogram_model,
+        nlags=result["best_params"]["nlags"],
+        anisotropy_scaling=result["best_params"]["anisotropy_scaling"],
+        coordinates_type=result["best_params"]["coordinates_type"],
+        variogram_model=result["best_params"]["variogram_model"],
         backend="vectorized",
         pseudo_inv=True,
     )
@@ -322,10 +220,10 @@ def run_single_experiment(
         reconstructed_dense = train_val_dset.reconstruct(
             EUROPE_DOMAIN,
             method="ok",
-            nlags=nlags,
-            anisotropy_scaling=anisotroty_scaling,
-            coordinates_type=coordinates_type,
-            variogram_model=variogram_model,
+            nlags=result["best_params"]["nlags"],
+            anisotropy_scaling=result["best_params"]["anisotropy_scaling"],
+            coordinates_type=result["best_params"]["coordinates_type"],
+            variogram_model=result["best_params"]["variogram_model"],
             backend="loop",
             pseudo_inv=True,
         )
@@ -352,11 +250,11 @@ def run_single_experiment(
     metrics["dataset_id"] = d
     hyperparams = {
         "dataset_id": d,
-        "nlags": nlags,
-        "anisotropy_scaling": anisotroty_scaling,
-        "coordinates_type": coordinates_type,
-        "variogram_model": variogram_model,
-        "opt_loss": best_loss,
+        "nlags": result["best_params"]["nlags"],
+        "anisotropy_scaling": result["best_params"]["anisotropy_scaling"],
+        "coordinates_type": result["best_params"]["coordinates_type"],
+        "variogram_model": result["best_params"]["variogram_model"],
+        "opt_loss": result["best_loss"],
     }
     if continuous_update:
         console.print("[bold green]Updating metrics file...[/bold green]")

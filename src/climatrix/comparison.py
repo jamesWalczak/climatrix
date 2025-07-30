@@ -26,7 +26,7 @@ class Comparison:
     """
     Class for comparing two datasets (dense or sparse).
 
-    For sparse domains, uses nearest neighbor matching with optional 
+    For sparse domains, uses nearest neighbor matching with optional
     distance thresholds to find corresponding observations.
 
     Attributes
@@ -77,8 +77,11 @@ class Comparison:
         self.true_dataset = true_dataset
         self.distance_threshold = distance_threshold
         self._assert_static()
-        if (predicted_dataset.domain.is_sparse or true_dataset.domain.is_sparse):
-            if predicted_dataset.domain.is_sparse and true_dataset.domain.is_sparse:
+        if predicted_dataset.domain.is_sparse or true_dataset.domain.is_sparse:
+            if (
+                predicted_dataset.domain.is_sparse
+                and true_dataset.domain.is_sparse
+            ):
                 self.diff = self._compute_sparse_diff()
             else:
                 raise ValueError(
@@ -107,48 +110,56 @@ class Comparison:
     def _compute_sparse_diff(self) -> BaseClimatrixDataset:
         """
         Compute differences between sparse datasets using nearest neighbor matching.
-        
+
         Returns
         -------
         BaseClimatrixDataset
             A sparse dataset containing differences between matched points.
         """
         from scipy.spatial import cKDTree
-        
+
         # Get spatial points for both datasets
         pred_points = self.predicted_dataset.domain.get_all_spatial_points()
         true_points = self.true_dataset.domain.get_all_spatial_points()
-        
+
         # Build KDTree for true dataset points
         tree = cKDTree(true_points)
-        
+
         # Find nearest neighbors for predicted dataset points
         if self.distance_threshold is not None:
             if self.distance_threshold == 0.0:
                 threshold = np.finfo(float).eps
             else:
                 threshold = self.distance_threshold
-            distances, indices = tree.query(pred_points, distance_upper_bound=threshold)
+            distances, indices = tree.query(
+                pred_points, distance_upper_bound=threshold
+            )
             valid_mask = distances < np.inf
         else:
             distances, indices = tree.query(pred_points)
             valid_mask = np.ones(len(distances), dtype=bool)
-        
+
         pred_values = self.predicted_dataset.da.values
         true_values = self.true_dataset.da.values
-        
+
         valid_indices = np.where(valid_mask)[0]
         if len(valid_indices) == 0:
-            log.warning("No valid point correspondences found within distance threshold")
-            empty_da = self.predicted_dataset.da.isel({self.predicted_dataset.domain.point.name: []})
+            log.warning(
+                "No valid point correspondences found within distance threshold"
+            )
+            empty_da = self.predicted_dataset.da.isel(
+                {self.predicted_dataset.domain.point.name: []}
+            )
             return type(self.predicted_dataset)(empty_da)
-        
+
         result_values = (pred_values - true_values[indices])[valid_indices]
-        
-        result_da = self.predicted_dataset.da.isel({self.predicted_dataset.domain.point.name: valid_indices})
+
+        result_da = self.predicted_dataset.da.isel(
+            {self.predicted_dataset.domain.point.name: valid_indices}
+        )
         result_da = result_da.copy()
         result_da.values = result_values
-        
+
         return type(self.predicted_dataset)(result_da)
 
     def _assert_static(self):
@@ -203,7 +214,9 @@ class Comparison:
         Axes
             The matplotlib axes containing the plot of the difference.
         """
-        return self.diff.plot(title=title, target=target, show=show, ax=ax, **kwargs)
+        return self.diff.plot(
+            title=title, target=target, show=show, ax=ax, **kwargs
+        )
 
     def plot_signed_diff_hist(
         self,
@@ -272,6 +285,50 @@ class Comparison:
             The mean absolute error between the source and target datasets.
         """
         return np.nanmean(np.abs(self.diff.da.values)).item()
+
+    def compute_mse(self) -> float:
+        """
+        Compute the MSE between the source and target datasets.
+
+        Returns
+        -------
+        float
+            The mean squared error between the source and target datasets.
+        """
+        return np.nanmean(np.power(self.diff.da.values, 2.0)).item()
+
+    def compute(self, metric: str) -> float:
+        """
+        Compute the specified metric.
+
+        Parameters
+        ----------
+        metric : str
+            The metric to compute. Supported values:
+            "mae", "mse", "rmse".
+
+        Returns
+        -------
+        float
+            The computed metric value.
+
+        Raises
+        ------
+        ValueError
+            If the metric is not supported.
+        """
+        metric = metric.lower().strip()
+        if metric == "mae":
+            return self.compute_mae()
+        elif metric == "mse":
+            return self.compute_mse()
+        elif metric == "rmse":
+            return self.compute_rmse()
+        else:
+            raise ValueError(
+                f"Unsupported metric: {metric}. "
+                "Supported metrics: mae, mse, rmse"
+            )
 
     @raise_if_not_installed("sklearn")
     def compute_r2(self):

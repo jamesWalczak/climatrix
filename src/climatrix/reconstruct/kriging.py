@@ -11,6 +11,7 @@ from climatrix.dataset.domain import Domain
 from climatrix.decorators import raise_if_not_installed
 from climatrix.decorators.runtime import log_input
 from climatrix.reconstruct.base import BaseReconstructor
+from climatrix.utils.hyperparameter import Hyperparameter
 
 log = logging.getLogger(__name__)
 
@@ -46,7 +47,21 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         Additional keyword arguments to pass to pykrige.
     """
 
+    NAME: ClassVar[str] = "ok"
     _MAX_VECTORIZED_SIZE: ClassVar[int] = 500_000
+
+    nlags = Hyperparameter(int, bounds=(4, 20), default=6)
+    anisotropy_scaling = Hyperparameter(
+        float, bounds=(1e-6, 5.0), default=1e-6
+    )
+    coordinates_type = Hyperparameter(
+        str, values=["euclidean", "geographic"], default="euclidean"
+    )
+    variogram_model = Hyperparameter(
+        str,
+        values=["linear", "power", "gaussian", "spherical", "exponential"],
+        default="linear",
+    )
 
     @log_input(log, level=logging.DEBUG)
     def __init__(
@@ -54,7 +69,11 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         dataset: BaseClimatrixDataset,
         target_domain: Domain,
         backend: Literal["vectorized", "loop"] | None = None,
-        **pykrige_kwargs,
+        nlags: int | None = None,
+        anisotropy_scaling: float | None = None,
+        coordinates_type: str | None = None,
+        variogram_model: str | None = None,
+        pseudo_inv: bool = False,
     ):
         super().__init__(dataset, target_domain)
         for axis in dataset.domain.all_axes_types:
@@ -81,8 +100,7 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
             raise NotImplementedError(
                 "Cannot carry out kriging for " "dense dataset."
             )
-        self.pykrige_kwargs = pykrige_kwargs or {}
-        if self.pykrige_kwargs.get("coordinates_type") == "geographic":
+        if coordinates_type == "geographic":
             log.info(
                 "Using geographic coordinates for kriging "
                 "reconstruction. Moving to positive-only "
@@ -163,7 +181,10 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
             x=lon,
             y=lat,
             z=values,
-            **self.pykrige_kwargs,
+            nlags=self.nlags,
+            anisotropy_scaling=self.anisotropy_scaling,
+            coordinates_type=self.coordinates_type,
+            variogram_model=self.variogram_model,
         )
         log.debug("Performing Ordinary Kriging reconstruction...")
         recon_type = "points" if self.target_domain.is_sparse else "grid"

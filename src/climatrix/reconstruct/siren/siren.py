@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader
 from climatrix.dataset.domain import Domain
 from climatrix.decorators.runtime import log_input, raise_if_not_installed
 from climatrix.reconstruct.base import BaseReconstructor
+from climatrix.utils.hyperparameter import Hyperparameter
 
 from .dataset import SIRENDataset
 from .losses import (
@@ -73,6 +74,16 @@ class SIRENReconstructor(BaseReconstructor):
     NotImplementedError
         If trying to use SIREN with a dynamic dataset.
     """
+
+    # Hyperparameter descriptors
+    lr = Hyperparameter(float, bounds=(1e-5, 1e-2), default=1e-3)
+    batch_size = Hyperparameter(int, bounds=(64, 1024), default=256)
+    num_epochs = Hyperparameter(int, bounds=(100, 10_000), default=5_000)
+    hidden_dim = Hyperparameter(int, bounds=(128, 512), default=256)
+    num_layers = Hyperparameter(int, bounds=(3, 8), default=4)
+    gradient_clipping_value = Hyperparameter(
+        float, bounds=(0.1, 10.0), default=1.0
+    )
 
     @log_input(log, level=logging.DEBUG)
     def __init__(
