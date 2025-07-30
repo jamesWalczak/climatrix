@@ -5,7 +5,7 @@ Hyperparameter descriptor for reconstruction methods.
 from __future__ import annotations
 
 import numbers
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any
 
 
 class Hyperparameter:

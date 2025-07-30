@@ -11,6 +11,7 @@ import numpy as np
 from climatrix.comparison import Comparison
 from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.decorators.runtime import raise_if_not_installed
+from climatrix.reconstruct.base import BaseReconstructor
 
 log = logging.getLogger(__name__)
 
@@ -94,10 +95,13 @@ class HParamFinder:
         random_seed: int = 42,
         verbose: int = 0,
     ):
+        self.mapping: dict[str, dict[int, str]] = {}
+        self.result: dict[str, Any] = {}
         self.train_dset = train_dset
         self.val_dset = val_dset
         self.metric = MetricType(metric.lower().strip())
         self.method = method.lower().strip()
+        self.method_hparams = BaseReconstructor.get(self.method).get_hparams()
         self.random_seed = random_seed
 
         self._validate_inputs(explore, n_iters)
@@ -135,7 +139,6 @@ class HParamFinder:
         """
         Compute parameter bounds for optimization.
 
-
         Notes
         -----
         - Handles properly categorical parameters.
@@ -150,15 +153,28 @@ class HParamFinder:
         bounds = {}
         for param_name, param_def in hparam_defs.items():
             if "bounds" in param_def:
-                if issubclass(param_def["type"], int):
-                    bounds[param_name] = tuple(param_def["bounds"]) + (int,)
-                bounds[param_name] = param_def["bounds"]
+                bounds[param_name] = tuple(param_def["bounds"])
+                method.update_bounds(bounds={param_name: param_def["bounds"]})
             elif "values" in param_def:
-                # NOTE: Handle properly categorical parameters
-                # as indicated in https://bayesian-optimization.github.io/BayesianOptimization/3.1.0/parameter_types.html
-                bounds[param_name] = list(param_def["values"])
+                self.mapping[param_name] = {
+                    i: v for i, v in enumerate(param_def["values"])
+                }
+                bounds[param_name] = ("0", str(len(param_def["values"]) - 1))
+                method.update_bounds(values={param_name: param_def["values"]})
         # NOTE: user-defined bounds override defaults
-        bounds.update(user_defined_bounds)
+        for param_name, param_value in user_defined_bounds.items():
+            if isinstance(param_value, tuple):
+                bounds[param_name] = tuple(param_value)
+            elif isinstance(param_value, list):
+                self.mapping[param_name] = {
+                    i: v for i, v in enumerate(param_value)
+                }
+                bounds[param_name] = ("0", str(len(param_value) - 1))
+            else:
+                raise TypeError(
+                    f"Invalid bounds for parameter '{param_name}': {param_value}"
+                )
+
         if not bounds:
             raise ValueError(f"No bounds defined for method '{self.method}'")
         self.bounds = bounds
@@ -210,6 +226,22 @@ class HParamFinder:
                         self.method,
                     )
 
+    def _map_bo_output_to_valid_params(
+        self, params: dict[str, Any]
+    ) -> dict[str, Any]:
+        valid_params = {}
+        for param_name, param_value in params.items():
+            if param_name in self.mapping:
+                valid_params[param_name] = self.mapping[param_name][
+                    int(param_value)
+                ]
+            else:
+                hparam = self.method_hparams.get(param_name)
+                if hparam is not None:
+                    valid_params[param_name] = hparam["type"](param_value)
+
+        return valid_params
+
     def _evaluate_params(self, **params) -> float:
         """
         Evaluate a set of hyperparameters.
@@ -224,6 +256,7 @@ class HParamFinder:
         float
             Negative metric value (since BayesianOptimization maximizes).
         """
+        params = self._map_bo_output_to_valid_params(params)
         try:
             log.debug("Evaluating parameters: %s", params)
             reconstructed = self.train_dset.reconstruct(
@@ -241,7 +274,7 @@ class HParamFinder:
             log.warning("Error evaluating parameters %s: %s", params, e)
             return DEFAULT_BAD_SCORE
 
-    @raise_if_not_installed("bayesian-optimization")
+    @raise_if_not_installed("bayes_opt")
     def optimize(self) -> dict[str, Any]:
         """
         Run Bayesian optimization to find optimal hyperparameters.
@@ -265,7 +298,6 @@ class HParamFinder:
             self.n_init_points,
             self.n_iter,
         )
-
         optimizer = BayesianOptimization(
             f=self._evaluate_params,
             pbounds=self.bounds,
@@ -277,14 +309,16 @@ class HParamFinder:
             init_points=self.n_init_points,
             n_iter=self.n_iter,
         )
+        optimizer.acquisition_function._fit_gp(optimizer._gp, optimizer.space)
 
         best_params = optimizer.max["params"]
+        best_params = self._map_bo_output_to_valid_params(best_params)
         best_score = optimizer.max["target"]
 
         log.info("Optimization completed. Best score: %f", best_score)
         log.info("Best parameters: %s", best_params)
 
-        return {
+        self.result = {
             "best_params": best_params,
             "best_score": best_score,
             "metric_name": self.metric.value,
@@ -294,3 +328,4 @@ class HParamFinder:
                 for res in optimizer.res
             ],
         }
+        return self.result

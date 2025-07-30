@@ -6,13 +6,10 @@ This module runs experiment of IDW method
 
 import shutil
 from collections import defaultdict
-from functools import partial
 from pathlib import Path
-from typing import Callable
 
 import pandas as pd
 import xarray as xr
-from bayes_opt import BayesianOptimization
 from rich.console import Console
 
 import climatrix as cm
@@ -30,12 +27,6 @@ console.print("[bold green]Using seed: [/bold green]", SEED)
 
 DSET_PATH = Path(__file__).parent.parent.parent.joinpath("data")
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
-
-OPTIM_INIT_POINTS: int = 50
-console.print(
-    "[bold green]Using nbr initial points for optimization: [/bold green]",
-    OPTIM_INIT_POINTS,
-)
 
 OPTIM_N_ITERS: int = 100
 console.print(
@@ -84,87 +75,6 @@ def create_result_dir():
     PLOT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def compute_criterion(
-    train_dset: cm.BaseClimatrixDataset,
-    val_dset: cm.BaseClimatrixDataset,
-    **hparams,
-) -> float:
-    k_min = int(hparams["k_min"])
-    k = int(hparams["k"])
-    power = float(hparams["power"])
-    if k_min > k:
-        return INF_LOSS
-    recon_dset = train_dset.reconstruct(
-        val_dset.domain,
-        method="idw",
-        k=k,
-        power=power,
-        k_min=k_min,
-    )
-    metrics = cm.Comparison(
-        recon_dset, val_dset, map_nan_from_source=False
-    ).compute_report()
-    # NOTE: minus to force maximizing
-    return -metrics["MAE"]
-
-
-def find_hyperparameters(
-    train_dset: cm.BaseClimatrixDataset,
-    val_dset: cm.BaseClimatrixDataset,
-    func: Callable[
-        [cm.BaseClimatrixDataset, cm.BaseClimatrixDataset, dict], float
-    ],
-    bounds: dict[str, tuple],
-    n_init_points: int = 30,
-    n_iter: int = 200,
-    seed: int = 0,
-    verbose: int = 2,
-) -> tuple[float, dict[str, float]]:
-    """
-    Find hyperparameters using Bayesian Optimization.
-
-    Parameters
-    ----------
-    train_dset : cm.BaseClimatrixDataset
-        Training dataset.
-    val_dset : cm.BaseClimatrixDataset
-        Validation dataset.
-    func : Callable
-        Function to optimize.
-        It should take two datasets and a dictionary of hyperparameters,
-        and return a float score.
-    bounds : dict[str, tuple]
-        Dictionary of hyperparameter bounds.
-        Keys are hyperparameter names, values are tuples (min, max).
-    n_init_points : int, optional
-        Number of initial random points to sample, by default 30.
-    n_iter : int, optional
-        Number of iterations for optimization, by default 200.
-    seed : int, optional
-        Random seed for reproducibility, by default 0.
-    verbose : int, optional
-        Verbosity level of the optimizer, by default 2.
-
-    Returns
-    -------
-    tuple[float, dict[str, float]]
-        Best score and best hyperparameters found.
-    """
-    func = partial(func, train_dset=train_dset, val_dset=val_dset)
-    optimizer = BayesianOptimization(
-        f=func, pbounds=bounds, random_state=seed, verbose=verbose
-    )
-    optimizer.maximize(
-        init_points=n_init_points,
-        n_iter=n_iter,
-    )
-    return optimizer.max["target"], (
-        optimizer.max["params"]["power"],
-        optimizer.max["params"]["k"],
-        optimizer.max["params"]["k_min"],
-    )
-
-
 def get_all_dataset_idx() -> list[str]:
     return sorted(
         list({path.stem.split("_")[-1] for path in DSET_PATH.glob("*.nc")})
@@ -196,20 +106,25 @@ def run_experiment():
                 f" ({i + 1}/{len(dset_idx)})...",
                 spinner="bouncingBall",
             )
-            best_loss, (power, k, k_min) = find_hyperparameters(
+            finder = cm.optim.HParamFinder(
+                "idw",
                 train_dset,
                 val_dset,
-                compute_criterion,
-                BOUNDS,
-                n_init_points=OPTIM_INIT_POINTS,
-                n_iter=OPTIM_N_ITERS,
-                seed=SEED,
-                verbose=0,
+                metric="mae",
+                explore=0.3,
+                n_iters=OPTIM_N_ITERS,
+                bounds=BOUNDS,
+                random_seed=SEED,
             )
+            result = finder.optimize()
             console.print("[bold yellow]Optimized parameters:[/bold yellow]")
-            console.print("[yellow]Power:[/yellow]", power)
-            console.print("[yellow]k:[/yellow]", k)
-            console.print("[yellow]k_min:[/yellow]", k_min)
+            console.print(
+                "[yellow]Power:[/yellow]", result["best_params"]["power"]
+            )
+            console.print("[yellow]k:[/yellow]", result["best_params"]["k"])
+            console.print(
+                "[yellow]k_min:[/yellow]", result["best_params"]["k_min"]
+            )
             status.update(
                 "[magenta]Reconstructing with optimised parameters...",
                 spinner="bouncingBall",
@@ -224,9 +139,9 @@ def run_experiment():
             reconstructed_dset = train_val_dset.reconstruct(
                 test_dset.domain,
                 method="idw",
-                k=k,
-                power=power,
-                k_min=k_min,
+                k=result["best_params"]["k"],
+                power=result["best_params"]["power"],
+                k_min=result["best_params"]["k_min"],
             )
             status.update(
                 "[magenta]Saving reconstructed dset to "
@@ -244,9 +159,9 @@ def run_experiment():
             reconstructed_dense = train_val_dset.reconstruct(
                 EUROPE_DOMAIN,
                 method="idw",
-                k=k,
-                power=power,
-                k_min=k_min,
+                k=result["best_params"]["k"],
+                power=result["best_params"]["power"],
+                k_min=result["best_params"]["k_min"],
             )
             status.update(
                 "[magenta]Saving reconstructed dense dset to "
@@ -276,10 +191,10 @@ def run_experiment():
             all_metrics.append(metrics)
 
             hyperparams["dataset_id"].append(d)
-            hyperparams["k"].append(k)
-            hyperparams["power"].append(power)
-            hyperparams["k_min"].append(k_min)
-            hyperparams["opt_loss"].append(best_loss)
+            hyperparams["k"].append(result["best_params"]["k"])
+            hyperparams["power"].append(result["best_params"]["power"])
+            hyperparams["k_min"].append(result["best_params"]["k_min"])
+            hyperparams["opt_loss"].append(result["best_score"])
         status.update(
             "[magenta]Saving quality metrics...", spinner="bouncingBall"
         )
@@ -292,6 +207,6 @@ def run_experiment():
 
 
 if __name__ == "__main__":
-    clear_result_dir()
+    # clear_result_dir()
     create_result_dir()
     run_experiment()

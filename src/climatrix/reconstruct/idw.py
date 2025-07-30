@@ -53,9 +53,9 @@ class IDWReconstructor(BaseReconstructor):
     """
 
     NAME: ClassVar[str] = "idw"
-    power = Hyperparameter(float, bounds=(0.5, 5.0), default=2.0)
-    k = Hyperparameter(int, bounds=(1, 20), default=5)
-    k_min = Hyperparameter(int, bounds=(1, 10), default=2)
+    power = Hyperparameter(float, bounds=(1e-10, 5.0), default=2.0)
+    k = Hyperparameter(int, bounds=(1, 50), default=5)
+    k_min = Hyperparameter(int, bounds=(1, 40), default=2)
 
     @log_input(log, level=logging.DEBUG)
     def __init__(
@@ -68,7 +68,6 @@ class IDWReconstructor(BaseReconstructor):
     ):
         super().__init__(dataset, target_domain)
 
-        # Set hyperparameter values using descriptors (will use defaults if None)
         if power is not None:
             self.power = power
         if k is not None:

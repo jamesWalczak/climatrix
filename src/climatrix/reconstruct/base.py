@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, ClassVar
 
@@ -8,6 +9,8 @@ from climatrix.utils.hyperparameter import Hyperparameter
 
 if TYPE_CHECKING:
     from climatrix.dataset.base import BaseClimatrixDataset
+
+log = logging.getLogger(__name__)
 
 
 class BaseReconstructor(ABC):
@@ -137,3 +140,53 @@ class BaseReconstructor(ABC):
             List of method names (e.g., 'idw', 'ok', 'sinet', 'siren').
         """
         return list(cls._registry.keys())
+
+    @classmethod
+    def update_bounds(
+        cls, bounds: dict | None = None, values: dict | None = None
+    ) -> None:
+        """
+        Update the bounds of hyperparameters in the class.
+
+        If bound is defined as tuple, it represents a range (min, max).
+        If as a list, it represents a set of valid values.
+
+        Parameters
+        ----------
+        **bounds : dict[str, tuple]
+            Keyword arguments where keys are hyperparameter names
+            and values are tuples defining new bounds.
+        """
+        if bounds is None:
+            bounds = {}
+        if values is None:
+            values = {}
+        if bounds is None and values is None:
+            return
+        if not isinstance(bounds, dict) or not isinstance(values, dict):
+            raise TypeError(
+                "bounds and values must be dictionaries mapping parameter names to tuples or lists"
+            )
+        hparams = cls.get_hparams()
+        for param_name, new_bounds in bounds.items():
+            if param_name not in hparams:
+                continue
+            hparam = getattr(cls, param_name, None)
+            if hparam is not None:
+                log.debug(
+                    "Updating bounds for parameter '%s' to %s",
+                    param_name,
+                    new_bounds,
+                )
+                hparam.bounds = new_bounds
+        for param_name, new_values in values.items():
+            if param_name not in hparams:
+                continue
+            hparam = getattr(cls, param_name, None)
+            if hparam is not None:
+                log.debug(
+                    "Updating values for parameter '%s' to %s",
+                    param_name,
+                    new_values,
+                )
+                hparam.values = new_values
