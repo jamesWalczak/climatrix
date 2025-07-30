@@ -6,7 +6,7 @@ import pytest
 import xarray as xr
 
 from climatrix import BaseClimatrixDataset
-from tests.unit.utils import skip_on_error
+from tests.unit.test_utils import skip_on_error
 
 parametrize_all = partial(
     pytest.mark.parametrize,

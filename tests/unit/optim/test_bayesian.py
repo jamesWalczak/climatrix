@@ -9,7 +9,7 @@ import xarray as xr
 from climatrix import BaseClimatrixDataset
 from climatrix.optim.bayesian import HParamFinder, MetricType
 from climatrix.reconstruct.base import BaseReconstructor
-from tests.unit.utils import skip_on_error
+from tests.unit.test_utils import skip_on_error
 
 
 class TestMetricType:
