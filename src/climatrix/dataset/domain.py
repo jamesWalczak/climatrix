@@ -120,6 +120,34 @@ class DomainBuilder:
     def __init__(self):
         self._axes_config = {}
 
+    def _add_axis(self, axis_type: AxisType, **kwargs) -> Self:
+        """
+        Add an axis to the domain configuration.
+        
+        Parameters
+        ----------
+        axis_type : AxisType
+            The type of axis to add.
+        **kwargs
+            Keyword arguments where the key is the axis name and the value
+            is the coordinate data (slice, list, or numpy array).
+            
+        Returns
+        -------
+        DomainBuilder
+            The builder instance for method chaining.
+            
+        Raises
+        ------
+        ValueError
+            If not exactly one keyword argument is provided.
+        """
+        if len(kwargs) != 1:
+            raise ValueError("Exactly one keyword argument must be provided")
+        name, values = next(iter(kwargs.items()))
+        self._axes_config[axis_type] = (name, values)
+        return self
+
     def vertical(self, **kwargs) -> Self:
         """
         Add a vertical axis to the domain.
@@ -140,11 +168,7 @@ class DomainBuilder:
         >>> builder.vertical(depth=slice(10, 100, 1))
         >>> builder.vertical(pressure=[1000, 850, 500, 250])
         """
-        if len(kwargs) != 1:
-            raise ValueError("Exactly one keyword argument must be provided")
-        name, values = next(iter(kwargs.items()))
-        self._axes_config[AxisType.VERTICAL] = (name, values)
-        return self
+        return self._add_axis(AxisType.VERTICAL, **kwargs)
 
     def lat(self, **kwargs) -> Self:
         """
@@ -166,11 +190,7 @@ class DomainBuilder:
         >>> builder.lat(latitude=[1, 2, 3, 4])
         >>> builder.lat(lat=slice(-90, 90, 1))
         """
-        if len(kwargs) != 1:
-            raise ValueError("Exactly one keyword argument must be provided")
-        name, values = next(iter(kwargs.items()))
-        self._axes_config[AxisType.LATITUDE] = (name, values)
-        return self
+        return self._add_axis(AxisType.LATITUDE, **kwargs)
 
     def lon(self, **kwargs) -> Self:
         """
@@ -192,11 +212,7 @@ class DomainBuilder:
         >>> builder.lon(longitude=[1, 2, 3, 4])
         >>> builder.lon(lon=slice(-180, 180, 1))
         """
-        if len(kwargs) != 1:
-            raise ValueError("Exactly one keyword argument must be provided")
-        name, values = next(iter(kwargs.items()))
-        self._axes_config[AxisType.LONGITUDE] = (name, values)
-        return self
+        return self._add_axis(AxisType.LONGITUDE, **kwargs)
 
     def time(self, **kwargs) -> Self:
         """
@@ -218,25 +234,26 @@ class DomainBuilder:
         >>> builder.time(time=['2020-01-01', '2020-01-02'])
         >>> builder.time(valid_time=slice('2020-01-01', '2020-12-31'))
         """
-        if len(kwargs) != 1:
-            raise ValueError("Exactly one keyword argument must be provided")
-        name, values = next(iter(kwargs.items()))
-        self._axes_config[AxisType.TIME] = (name, values)
-        return self
+        return self._add_axis(AxisType.TIME, **kwargs)
 
     def _convert_slice_to_array(self, values):
         """Convert slice objects to numpy arrays."""
         if isinstance(values, slice):
             if values.step is None:
                 raise ValueError("Slice step must be specified")
-            return np.arange(
+            result = np.arange(
                 values.start,
                 values.stop + values.step,
                 values.step,
             )
-        return np.array(values)
+        else:
+            result = np.array(values)
+        
+        if len(result) == 0:
+            raise ValueError("Resulting array is empty")
+        return result
 
-    def _validate_sparse_coordinates(self, coords):
+    def _validate_sparse_coordinates(self):
         """Validate that all coordinate arrays have the same length for sparse domains."""
         # Check that latitude and longitude are present
         if AxisType.LATITUDE not in self._axes_config:
@@ -273,7 +290,7 @@ class DomainBuilder:
         ValueError
             If coordinate arrays have different lengths or required axes are missing.
         """
-        self._validate_sparse_coordinates(self._axes_config)
+        self._validate_sparse_coordinates()
         
         # Convert configurations to coordinate arrays
         coords = {}
@@ -408,8 +425,16 @@ class Domain:
             
         Examples
         --------
-        >>> domain = Domain.from_axes().vertical(depth=slice(10, 100, 1)).lat(latitude=[1,2,3,4]).lon(longitude=[1,2,3,4]).sparse()
-        >>> domain = Domain.from_axes().lat(lat=slice(-90, 90, 1)).lon(lon=slice(-180, 180, 1)).time(time=['2020-01-01', '2020-01-02']).dense()
+        >>> domain = (Domain.from_axes()
+        ...           .vertical(depth=slice(10, 100, 1))
+        ...           .lat(latitude=[1,2,3,4])
+        ...           .lon(longitude=[1,2,3,4])
+        ...           .sparse())
+        >>> domain = (Domain.from_axes()
+        ...           .lat(lat=slice(-90, 90, 1))
+        ...           .lon(lon=slice(-180, 180, 1))
+        ...           .time(time=['2020-01-01', '2020-01-02'])
+        ...           .dense())
         """
         return DomainBuilder()
 
