@@ -15,6 +15,7 @@ def _configure_logger():
 _configure_logger()
 
 from . import optim as optim
+from . import plot as plot
 from .comparison import Comparison as Comparison
 from .dataset.axis import Axis as Axis
 from .dataset.axis import AxisType as AxisType
