@@ -5,7 +5,8 @@ import numpy as np
 import xarray as xr
 from unittest.mock import patch, MagicMock
 
-from climatrix.plot.core import Plot, MissingDependencyError, _check_plotting_dependencies
+from climatrix.plot.core import Plot, _check_plotting_dependencies
+from climatrix.exceptions import MissingDependencyError
 
 
 class TestPlotDependencies:
@@ -153,7 +154,7 @@ class TestPlotCore:
         # Mock plotly objects
         mock_fig = MagicMock()
         mock_go.Figure.return_value = mock_fig
-        mock_go.Heatmap = MagicMock()
+        mock_go.Scattergeo = MagicMock()
         
         with patch.dict('sys.modules', {
             'dash': MagicMock(),
@@ -163,12 +164,8 @@ class TestPlotCore:
         }):
             plot = Plot(simple_dataset, auto_open=False)
             
-            # Test 2D plot generation
-            fig = plot._generate_plot('2d')
-            assert fig is not None
-            
-            # Test 3D plot generation
-            fig = plot._generate_plot('3d')
+            # Test 2D plot generation with projection
+            fig = plot._generate_plot('equirectangular')
             assert fig is not None
     
     @patch('climatrix.plot.core._check_plotting_dependencies')
