@@ -18,7 +18,8 @@ The library contains a few public classes:
 | [`BaseClimatrixDataset`](#climatrix.dataset.base.BaseClimatrixDataset) | Base class for managing `xarray` data |
 | [`Domain`](#climatrix.dataset.domain.Domain) | Base class for domain-specific operations |
 | [`SparseDomain`](#climatrix.dataset.domain.SparseDomain) | Subclass of `Domain` aim at managing sparse representations | 
-| [`DenseDomain`](#climatrix.dataset.domain.DenseDomain) |  Subclass of `Domain` aim at managing dense representations | 
+| [`DenseDomain`](#climatrix.dataset.domain.DenseDomain) |  Subclass of `Domain` aim at managing dense representations |
+| [`Plot`](#climatrix.plot.core.Plot) | Interactive plotting utility for climate datasets | 
 
 
 ## 📈 Axes 
@@ -175,6 +176,18 @@ The library contains a few public classes:
       scoped_crossrefs: true
       show_root_heading: true
       show_source: false            
+
+## 📈 Interactive Plotting
+
+::: climatrix.plot.core.Plot
+    handler: python
+    options:   
+      scoped_crossrefs: true 
+      show_root_heading: true
+      show_source: false
+      members:
+        - show
+        - save_html
 
 ## 🌐 Reconstructors
 
