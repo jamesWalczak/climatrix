@@ -6,15 +6,12 @@ import logging
 import webbrowser
 from typing import TYPE_CHECKING, Any, Optional
 
+from climatrix.exceptions import MissingDependencyError
+
 if TYPE_CHECKING:
     from climatrix.dataset.base import BaseClimatrixDataset
 
 log = logging.getLogger(__name__)
-
-
-class MissingDependencyError(ImportError):
-    """Raised when required plotting dependencies are not installed."""
-    pass
 
 
 def _check_plotting_dependencies() -> None:
@@ -257,25 +254,29 @@ class Plot:
                 ], style={'margin': '20px 0'})
             )
         
-        # 2D/3D toggle
-        controls.append(
-            html.Div([
-                html.Label(
-                    "View Mode",
-                    style={'color': colors['text'], 'fontSize': '14px', 'fontWeight': '500'}
-                ),
-                dcc.RadioItems(
-                    id='view-mode',
-                    options=[
-                        {'label': ' 2D Flat', 'value': '2d'},
-                        {'label': ' 3D Globe', 'value': '3d'}
-                    ],
-                    value='2d',
-                    style={'color': colors['text']},
-                    labelStyle={'display': 'inline-block', 'marginRight': '20px'}
-                )
-            ], style={'margin': '20px 0'})
-        )
+        # Projection dropdown (only if we have geographic coordinates)
+        if 'lat' in self.coords and 'lon' in self.coords:
+            controls.append(
+                html.Div([
+                    html.Label(
+                        "Map Projection",
+                        style={'color': colors['text'], 'fontSize': '14px', 'fontWeight': '500'}
+                    ),
+                    dcc.Dropdown(
+                        id='projection-dropdown',
+                        options=[
+                            {'label': 'Plate Carrée (Equirectangular)', 'value': 'equirectangular'},
+                            {'label': 'Natural Earth', 'value': 'natural earth'},
+                            {'label': 'Mercator', 'value': 'mercator'},
+                            {'label': 'Robinson', 'value': 'robinson'},
+                            {'label': 'Mollweide', 'value': 'mollweide'}
+                        ],
+                        value='equirectangular',  # Default to Plate Carrée
+                        style={'color': colors['text']},
+                        clearable=False
+                    )
+                ], style={'margin': '20px 0'})
+            )
         
         # App layout
         self.app.layout = html.Div([
@@ -356,11 +357,17 @@ class Plot:
         import plotly.express as px
         
         # Determine inputs based on available dimensions
-        inputs = [Input('view-mode', 'value')]
+        inputs = []
+        if 'lat' in self.coords and 'lon' in self.coords:
+            inputs.append(Input('projection-dropdown', 'value'))
         if self.has_time:
             inputs.append(Input('time-slider', 'value'))
         if self.has_vertical:
             inputs.append(Input('vertical-slider', 'value'))
+            
+        # If no geographic coordinates, use a simple callback without projection
+        if not inputs:
+            inputs = [Input('main-plot', 'id')]  # Dummy input
             
         @self.app.callback(
             Output('main-plot', 'figure'),
@@ -368,11 +375,19 @@ class Plot:
         )
         def update_plot(*args):
             try:
-                view_mode = args[0]
-                time_idx = args[1] if self.has_time else None
-                vert_idx = args[2] if self.has_vertical else None
+                arg_idx = 0
+                projection = None
+                if 'lat' in self.coords and 'lon' in self.coords:
+                    projection = args[arg_idx]
+                    arg_idx += 1
+                    
+                time_idx = args[arg_idx] if self.has_time and arg_idx < len(args) else None
+                if self.has_time:
+                    arg_idx += 1
+                    
+                vert_idx = args[arg_idx] if self.has_vertical and arg_idx < len(args) else None
                 
-                return self._generate_plot(view_mode, time_idx, vert_idx)
+                return self._generate_plot(projection, time_idx, vert_idx)
                 
             except Exception as e:
                 log.error(f"Error updating plot: {e}")
@@ -387,7 +402,7 @@ class Plot:
                 )
                 return fig
     
-    def _generate_plot(self, view_mode: str, time_idx: Optional[int] = None, vert_idx: Optional[int] = None):
+    def _generate_plot(self, projection: Optional[str] = None, time_idx: Optional[int] = None, vert_idx: Optional[int] = None):
         """Generate the plot based on current settings."""
         import plotly.graph_objects as go
         import plotly.express as px
@@ -396,10 +411,8 @@ class Plot:
         # Get data subset based on current selection
         data = self._get_data_subset(time_idx, vert_idx)
         
-        if view_mode == '3d':
-            return self._create_3d_plot(data)
-        else:
-            return self._create_2d_plot(data)
+        # Always create 2D plot, with projection if geographic data is available
+        return self._create_2d_plot(data, projection)
     
     def _get_data_subset(self, time_idx: Optional[int] = None, vert_idx: Optional[int] = None):
         """Get data subset based on current slider positions."""
@@ -417,8 +430,8 @@ class Plot:
             
         return data
     
-    def _create_2d_plot(self, data):
-        """Create 2D flat plot."""
+    def _create_2d_plot(self, data, projection: Optional[str] = None):
+        """Create enhanced 2D plot with projection support and geographic features."""
         import plotly.graph_objects as go
         import plotly.express as px
         import numpy as np
@@ -435,7 +448,7 @@ class Plot:
                     y=[float(data.values)],
                     mode='markers',
                     name=data.name or 'Data',
-                    marker=dict(size=10)
+                    marker=dict(size=12, color='#1976d2')
                 ))
             else:
                 # Multi-dimensional data - flatten
@@ -444,22 +457,34 @@ class Plot:
                     x=list(range(len(values))),
                     y=values,
                     mode='lines+markers',
-                    name=data.name or 'Data'
+                    name=data.name or 'Data',
+                    line=dict(color='#1976d2', width=2),
+                    marker=dict(size=6, color='#1976d2')
                 ))
                 
             fig.update_layout(
-                title=f"{data.name or 'Data'} - Data Plot",
+                title=dict(
+                    text=f"{data.name or 'Data'} - Data Plot",
+                    font=dict(size=18, color='#212121')
+                ),
                 xaxis_title="Index",
                 yaxis_title="Value",
-                height=600
+                height=600,
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                font=dict(family="Roboto, Arial, sans-serif")
             )
             return fig
         
         lat_name = self.coords['lat']['name']
         lon_name = self.coords['lon']['name']
         
+        # Default to equirectangular projection (Plate Carrée)
+        if projection is None:
+            projection = 'equirectangular'
+        
         if self.is_sparse:
-            # Scatter plot for sparse data
+            # Scatter plot for sparse data on geographic projection
             lats = []
             lons = []
             values = []
@@ -503,7 +528,7 @@ class Plot:
                         xref="paper", yref="paper",
                         x=0.5, y=0.5,
                         showarrow=False,
-                        font=dict(size=16)
+                        font=dict(size=16, color='#757575')
                     )
                     return fig
                     
@@ -514,40 +539,32 @@ class Plot:
                 # Fallback to simple plot
                 return self._create_fallback_plot(data)
             
+            # Create scatter plot on geographic projection
             fig = go.Figure()
-            fig.add_trace(go.Scattermapbox(
+            
+            fig.add_trace(go.Scattergeo(
                 lat=lats,
                 lon=lons,
                 mode='markers',
                 marker=dict(
-                    size=8,
+                    size=10,
                     color=values,
                     colorscale='Viridis',
                     showscale=True,
-                    colorbar=dict(title=data.name or 'Value'),
+                    colorbar=dict(
+                        title=dict(text=data.name or 'Value', font=dict(size=14)),
+                        tickfont=dict(size=12)
+                    ),
                     cmin=min(values) if values else 0,
-                    cmax=max(values) if values else 1
+                    cmax=max(values) if values else 1,
+                    line=dict(width=1, color='white')
                 ),
                 text=[f"Value: {v:.3f}" for v in values],
                 hovertemplate="<b>Lat:</b> %{lat:.3f}<br><b>Lon:</b> %{lon:.3f}<br>%{text}<extra></extra>"
             ))
             
-            center_lat = np.mean(lats) if lats else 0
-            center_lon = np.mean(lons) if lons else 0
-            
-            fig.update_layout(
-                mapbox=dict(
-                    style='open-street-map',
-                    center=dict(lat=center_lat, lon=center_lon),
-                    zoom=2
-                ),
-                title=f"{data.name or 'Data'} - Sparse Data Points",
-                height=600,
-                margin=dict(l=0, r=0, t=30, b=0)
-            )
-            
         else:
-            # Heatmap for dense data
+            # Heatmap for dense data on geographic projection
             fig = go.Figure()
             
             try:
@@ -562,26 +579,65 @@ class Plot:
                                 data_subset = data_subset.isel({dim: 0})
                         data = data_subset
                 
-                # Create heatmap
-                fig.add_trace(go.Heatmap(
-                    z=data.values,
-                    x=data[lon_name].values,
-                    y=data[lat_name].values,
-                    colorscale='Viridis',
-                    colorbar=dict(title=data.name or 'Value'),
-                    hovertemplate="<b>Lat:</b> %{y:.3f}<br><b>Lon:</b> %{x:.3f}<br><b>Value:</b> %{z:.3f}<extra></extra>"
+                # For dense geographic data, use scattergeo with interpolated grid
+                lats = data[lat_name].values
+                lons = data[lon_name].values
+                
+                # Create mesh grid for visualization
+                lon_mesh, lat_mesh = np.meshgrid(lons, lats)
+                
+                fig.add_trace(go.Scattergeo(
+                    lat=lat_mesh.flatten(),
+                    lon=lon_mesh.flatten(),
+                    mode='markers',
+                    marker=dict(
+                        size=4,
+                        color=data.values.flatten(),
+                        colorscale='Viridis',
+                        showscale=True,
+                        colorbar=dict(
+                            title=dict(text=data.name or 'Value', font=dict(size=14)),
+                            tickfont=dict(size=12)
+                        ),
+                        opacity=0.8
+                    ),
+                    hovertemplate="<b>Lat:</b> %{lat:.3f}<br><b>Lon:</b> %{lon:.3f}<br><b>Value:</b> %{marker.color:.3f}<extra></extra>"
                 ))
                 
-                fig.update_layout(
-                    title=f"{data.name or 'Data'} - 2D Heatmap",
-                    xaxis_title="Longitude",
-                    yaxis_title="Latitude",
-                    height=600
-                )
-                
             except Exception as e:
-                log.warning(f"Error creating heatmap: {e}")
+                log.warning(f"Error creating geographic heatmap: {e}")
                 return self._create_fallback_plot(data)
+        
+        # Configure geographic layout with coastlines and country borders
+        fig.update_geos(
+            projection_type=projection,
+            showcoastlines=True,
+            coastlinecolor="RebeccaPurple",
+            coastlinewidth=1,
+            showland=True,
+            landcolor="LightGray",
+            showocean=True,
+            oceancolor="LightBlue",
+            showcountries=True,
+            countrycolor="DarkGray",
+            countrywidth=0.5,
+            showlakes=True,
+            lakecolor="LightBlue"
+        )
+        
+        # Enhanced layout styling
+        fig.update_layout(
+            title=dict(
+                text=f"{data.name or 'Data'} - Geographic Visualization",
+                font=dict(size=18, color='#212121'),
+                x=0.5,
+                xanchor='center'
+            ),
+            height=700,
+            font=dict(family="Roboto, Arial, sans-serif"),
+            paper_bgcolor='white',
+            margin=dict(l=0, r=0, t=50, b=0)
+        )
             
         return fig
     
@@ -613,152 +669,6 @@ class Plot:
         
         return fig
     
-    def _create_3d_plot(self, data):
-        """Create 3D globe plot."""
-        import plotly.graph_objects as go
-        import numpy as np
-        
-        if 'lat' not in self.coords or 'lon' not in self.coords:
-            # Fallback to 3D surface if no geo coordinates
-            fig = go.Figure()
-            
-            try:
-                if len(data.dims) >= 2:
-                    # Create 3D surface
-                    fig.add_trace(go.Surface(z=data.values))
-                    fig.update_layout(
-                        title="3D Surface Plot",
-                        scene=dict(
-                            xaxis_title="X",
-                            yaxis_title="Y",
-                            zaxis_title="Value"
-                        ),
-                        height=600
-                    )
-                else:
-                    # Fall back to 2D-style plot for 1D data
-                    return self._create_fallback_plot(data)
-            except Exception as e:
-                log.warning(f"Error creating 3D surface: {e}")
-                return self._create_fallback_plot(data)
-                
-            return fig
-        
-        lat_name = self.coords['lat']['name']
-        lon_name = self.coords['lon']['name']
-        
-        # Create 3D globe plot
-        if self.is_sparse:
-            # Scatter plot on globe
-            lats = []
-            lons = []
-            values = []
-            
-            try:
-                if data.dims == (lat_name, lon_name):
-                    for i in range(data.sizes[lat_name]):
-                        for j in range(data.sizes[lon_name]):
-                            val = data.isel({lat_name: i, lon_name: j}).values
-                            if not np.isnan(val):
-                                lats.append(float(data[lat_name].isel({lat_name: i}).values))
-                                lons.append(float(data[lon_name].isel({lon_name: j}).values))
-                                values.append(float(val))
-                elif len(data.dims) == 1:
-                    # 1D case - station data
-                    dim_name = data.dims[0]
-                    for i in range(data.sizes[dim_name]):
-                        val = data.isel({dim_name: i}).values
-                        if not np.isnan(val):
-                            lat_val = data[lat_name].isel({dim_name: i}).values
-                            lon_val = data[lon_name].isel({dim_name: i}).values
-                            lats.append(float(lat_val))
-                            lons.append(float(lon_val))
-                            values.append(float(val))
-                else:
-                    lats = [float(x) for x in data[lat_name].values.flatten()]
-                    lons = [float(x) for x in data[lon_name].values.flatten()]
-                    values = [float(x) for x in data.values.flatten()]
-                    
-                # Filter valid coordinates
-                valid_data = [(lat, lon, val) for lat, lon, val in zip(lats, lons, values) 
-                             if -90 <= lat <= 90 and -180 <= lon <= 180 and not np.isnan(val)]
-                
-                if not valid_data:
-                    fig = go.Figure()
-                    fig.add_annotation(
-                        text="No valid data points to display",
-                        xref="paper", yref="paper",
-                        x=0.5, y=0.5,
-                        showarrow=False,
-                        font=dict(size=16)
-                    )
-                    return fig
-                    
-                lats, lons, values = zip(*valid_data)
-                
-            except Exception as e:
-                log.warning(f"Error processing 3D sparse data: {e}")
-                return self._create_fallback_plot(data)
-            
-            fig = go.Figure()
-            fig.add_trace(go.Scattergeo(
-                lat=lats,
-                lon=lons,
-                mode='markers',
-                marker=dict(
-                    size=8,
-                    color=values,
-                    colorscale='Viridis',
-                    showscale=True,
-                    colorbar=dict(title=data.name or 'Value'),
-                    cmin=min(values) if values else 0,
-                    cmax=max(values) if values else 1
-                ),
-                text=[f"Value: {v:.3f}" for v in values],
-                hovertemplate="<b>Lat:</b> %{lat:.3f}<br><b>Lon:</b> %{lon:.3f}<br>%{text}<extra></extra>"
-            ))
-            
-        else:
-            # Dense data on globe (using contour)
-            fig = go.Figure()
-            
-            try:
-                # Ensure data is 2D
-                if len(data.dims) != 2 or data.dims != (lat_name, lon_name):
-                    # Select appropriate slice
-                    data_subset = data
-                    for dim in data.dims:
-                        if dim not in [lat_name, lon_name]:
-                            data_subset = data_subset.isel({dim: 0})
-                    data = data_subset
-                
-                fig.add_trace(go.Contour(
-                    z=data.values,
-                    x=data[lon_name].values,
-                    y=data[lat_name].values,
-                    colorscale='Viridis',
-                    showscale=True,
-                    colorbar=dict(title=data.name or 'Value')
-                ))
-                
-            except Exception as e:
-                log.warning(f"Error creating 3D contour: {e}")
-                return self._create_fallback_plot(data)
-            
-        fig.update_layout(
-            geo=dict(
-                projection_type='orthographic',
-                showland=True,
-                landcolor='rgb(243, 243, 243)',
-                coastlinecolor='rgb(204, 204, 204)',
-                showocean=True,
-                oceancolor='rgb(230, 245, 255)'
-            ),
-            title=f"{data.name or 'Data'} - 3D Globe View",
-            height=600
-        )
-        
-        return fig
     
     def show(self) -> None:
         """
