@@ -191,15 +191,6 @@ print(f"Best parameters: {result['best_params']}")
 print(f"Best {result['metric_name']} score: {result['best_score']}")
 ```
 
-### Supported Methods
-
-All reconstruction methods support hyperparameter optimization:
-
-- **IDW**: `power`, `k`, `k_min`
-- **Ordinary Kriging**: `nlags`, `weight`, `verbose`, `pseudo_inv`  
-- **SiNET**: `lr`, `batch_size`, `num_epochs`, `gradient_clipping_value`, `mse_loss_weight`, `eikonal_loss_weight`, `laplace_loss_weight`
-- **SIREN**: `lr`, `batch_size`, `num_epochs`, `hidden_dim`, `num_layers`, `gradient_clipping_value`
-
 ### Installation
 
 The hyperparameter optimization feature requires the `bayesian-optimization` package:
