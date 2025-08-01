@@ -52,13 +52,6 @@ docs = [
     "pymdown-extensions",   
     "mkdocstrings[python]"
 ]
-plot = [
-    "hvplot",
-    "panel",
-    "geoviews",
-    "plotly>=5.0.0",
-    "dash>=2.0.0"
-]
 ml = [
     "torch", 
     "scikit-learn",
