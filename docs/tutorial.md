@@ -231,3 +231,6 @@ That will run locally the server and enables you to conveniently explore the dat
 
 ???+ tip
     If the preview does not open, choose your faviourite web browser and open `[http://localhost:5000/](http://localhost:5000/)` if you selected port `5000`.
+
+???+ note
+    For interactive plotting, make sure to install climatrix with: `pip install climatrix[plot]`

@@ -56,6 +56,9 @@ ml = [
     "torch", 
     "scikit-learn",
 ]
+plot = [
+    "flask"
+]
 optim = [
     "bayesian-optimization"
 ]
@@ -64,10 +67,10 @@ ok = [
 ]
 all = [
     "climatrix[dev]", 
-    "climatrix[plot]",
     "climatrix[ml]",
     "climatrix[optim]",
-    "climatrix[ok]"
+    "climatrix[ok]",
+    "climatrix[plot]",
 ]
 
 [tool.setuptools]
