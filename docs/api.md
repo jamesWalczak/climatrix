@@ -188,7 +188,6 @@ The library contains a few public classes:
       show_source: false
       members:
         - show
-        - save_html
 
 ## 🌐 Reconstructors
 
