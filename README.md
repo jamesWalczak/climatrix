@@ -177,7 +177,6 @@ plot.show()  # Opens in browser
 - **🎨 Material Design Interface**: Clean, professional styling with responsive controls
 - **⏰ Time Animation**: Slider control for datasets with time dimensions
 - **📏 Vertical Levels**: Navigate through atmospheric/oceanic layers
-- **🌍 2D/3D Views**: Switch between flat maps and interactive 3D globe
 - **🔍 Smart Visualization**: Automatic selection of scatter plots for sparse data, heatmaps for dense data
 - **⚡ Performance Optimized**: Efficient rendering for large datasets
 - **🖱️ Interactive Controls**: Zoom, pan, and click-to-select regions
@@ -235,7 +234,6 @@ ______________________________________________________________________
   - **SiNET** (Spatial Interpolation NET)
 - 🧪 Tools to compare reconstruction results
 - 📈 **Interactive plotting utilities** for visualizing inputs and outputs
-- 🌐 **3D globe visualization** with time and vertical sliders
 - 🔧 **Hyperparameter Optimization** via Bayesian optimization for all reconstruction methods
 
 ______________________________________________________________________
