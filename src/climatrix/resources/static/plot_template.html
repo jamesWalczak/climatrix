@@ -252,8 +252,7 @@
                     Time
                 </div>
                 <div class="slider-container">
-                    <input type="range" class="slider" id="time-slider" min="0" max="XYZ" value="0"
-                           oninput="updateTimeValue(this.value)" onchange="onTimeChange(this.value)">
+                    <input type="range" class="slider" id="time-slider" min="0" max="1" value="0">
                     <div class="slider-value" id="time-value">-</div>
                 </div>
             </div>
@@ -264,8 +263,7 @@
                     <span id="vertical-label">Vertical</span>
                 </div>
                 <div class="slider-container">
-                    <input type="range" class="slider" id="vertical-slider" min="0" max="0" value="0"
-                           oninput="updateVerticalValue(this.value)" onchange="onVerticalChange(this.value)">
+                    <input type="range" class="slider" id="vertical-slider" min="0" max="0" value="0">
                     <div class="slider-value" id="vertical-value">-</div>
                 </div>
             </div>
@@ -319,6 +317,19 @@
         let currentTimeIndex = 0; // Keep track of current time index
         let currentVerticalIndex = 0; // Keep track of current vertical index
 
+        // *** NEW: Debounce function to limit how often a function can run ***
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
         // Initialize the application
         async function init() {
             try {
@@ -333,34 +344,54 @@
         }
 
         function setupControls() {
+            const timeSlider = document.getElementById('time-slider');
+            const verticalSlider = document.getElementById('vertical-slider');
+            const projectionDropdown = document.getElementById('projection');
+            
+            // Debounce the loadData function to avoid excessive calls
+            const debouncedLoadData = debounce(() => loadData(projectionDropdown.value), 300);
+
             // Setup time control
             if (metadata.has_time) {
                 document.getElementById('time-control').style.display = 'block';
-                const timeSlider = document.getElementById('time-slider');
                 timeSlider.max = metadata.time_count - 1;
                 currentTimeIndex = parseInt(timeSlider.value);
                 updateTimeValue(currentTimeIndex); // Initial update for display
+                
+                // *** MODIFIED: Add event listener for time slider ***
+                timeSlider.addEventListener('input', (event) => {
+                    const newIndex = parseInt(event.target.value);
+                    currentTimeIndex = newIndex;
+                    updateTimeValue(newIndex);
+                    debouncedLoadData(); // Fetch data after user stops sliding
+                });
             }
 
             // Setup vertical control
             if (metadata.has_vertical) {
                 document.getElementById('vertical-control').style.display = 'block';
                 document.getElementById('vertical-label').textContent = metadata.vertical_name || 'Vertical';
-                const verticalSlider = document.getElementById('vertical-slider');
                 verticalSlider.max = metadata.vertical_count - 1;
                 currentVerticalIndex = parseInt(verticalSlider.value);
                 updateVerticalValue(currentVerticalIndex); // Initial update for display
+
+                // *** MODIFIED: Add event listener for vertical slider ***
+                verticalSlider.addEventListener('input', (event) => {
+                    const newIndex = parseInt(event.target.value);
+                    currentVerticalIndex = newIndex;
+                    updateVerticalValue(newIndex);
+                    debouncedLoadData(); // Fetch data after user stops sliding
+                });
             }
 
             // Setup transparency slider
             const transparencySlider = document.getElementById('transparency-slider');
             const transparencyValue = document.getElementById('transparency-value');
             transparencySlider.value = transparency * 100; // Set initial value
-            transparencyValue.textContent = `${transparencySlider.value}%`; // Update display
-            // The oninput event is already in the HTML for this slider
+            transparencyValue.textContent = `${transparencySlider.value}%`;
 
             // Setup projection dropdown
-            document.getElementById('projection').addEventListener('change', onProjectionChange);
+            projectionDropdown.addEventListener('change', () => loadData(projectionDropdown.value));
 
             // Update stats
             document.getElementById('data-type').textContent = metadata.is_sparse ? 'Sparse (Points)' : 'Dense (Grid)';
@@ -376,25 +407,20 @@
             });
 
             // 1. Add a simple base layer (land/water context) to the default pane
-            // This layer has no borders or labels.
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors, © CARTO'
             }).addTo(map);
 
-            // 2. Create a dedicated pane for your data (e.g., a mesh or scatter plot)
-            // This pane sits on top of the base layer.
+            // 2. Create a dedicated pane for your data
             map.createPane('dataPane');
             map.getPane('dataPane').style.zIndex = 400;
 
             // 3. Create a top pane for borders and labels.
-            // This pane sits on top of everything else.
             map.createPane('overlaysPane');
             map.getPane('overlaysPane').style.zIndex = 650;
-            // Make this pane non-interactive so clicks and drags go "through" it to the map.
             map.getPane('overlaysPane').style.pointerEvents = 'none'; 
 
-            // 4. NEW: Fetch and add GeoJSON for coastlines and country borders
-            // This gives you full control over styling.
+            // 4. Fetch and add GeoJSON for coastlines and country borders
             fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
                 .then(response => response.json())
                 .then(geojsonData => {
@@ -411,23 +437,24 @@
                 .catch(error => console.error('Error loading GeoJSON data:', error));
 
 
-            // 5. Add the labels layer to the top pane, so they appear above everything.
+            // 5. Add the labels layer to the top pane
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors, © CARTO',
                 pane: 'overlaysPane'
             }).addTo(map);
         }
 
-
         async function loadData(projection = 'EPSG:4326') {
             showLoading(true);
 
             try {
-                // Use the globally tracked current indices
                 const timeIdx = currentTimeIndex;
                 const verticalIdx = currentVerticalIndex;
 
                 const response = await fetch(`/api/data?time_idx=${timeIdx}&vertical_idx=${verticalIdx}&projection=${projection}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
                 const data = await response.json();
 
                 updateVisualization(data);
@@ -462,9 +489,9 @@
                     fillColor: color,
                     color: '#fff',
                     weight: 1,
-                    opacity: transparency, // Apply transparency
+                    opacity: transparency,
                     fillOpacity: transparency,
-                    pane: 'dataPane' // Ensure it's in the data pane
+                    pane: 'dataPane'
                 }).bindPopup(`Value: ${data.values[i].toFixed(3)}<br>Lat: ${data.lats[i].toFixed(3)}<br>Lon: ${data.lons[i].toFixed(3)}`);
 
                 markers.push(marker);
@@ -479,7 +506,7 @@
         }
 
         function updateMeshPlot(data) {
-            const rects = []; // Renamed from markers for clarity
+            const rects = [];
             const colorScale = getColorScale(data.min_val, data.max_val);
 
             const latStep = data.lats.length > 1 ? (data.lats[1] - data.lats[0]) : 1;
@@ -490,7 +517,6 @@
                     const value = data.values[i][j];
                     if (value != null && !isNaN(value)) {
                         const color = getColor(value, data.min_val, data.max_val, colorScale);
-                        // Calculate actual bounds for each cell
                         const cellLat = data.lats[i];
                         const cellLon = data.lons[j];
 
@@ -503,8 +529,8 @@
                             color: color,
                             fillColor: color,
                             weight: 0,
-                            fillOpacity: transparency, // Apply transparency
-                            pane: 'dataPane' // Ensure it's in the data pane
+                            fillOpacity: transparency,
+                            pane: 'dataPane'
                         }).bindPopup(`Value: ${value.toFixed(3)}<br>Lat: ${cellLat.toFixed(3)}<br>Lon: ${cellLon.toFixed(3)}`);
 
                         rects.push(rect);
@@ -543,29 +569,24 @@
             }
             document.getElementById('point-count').textContent = pointCount.toLocaleString();
         }
-
-        // Function called by the HTML onchange event for time slider (data fetch)
+        
+        // This function is no longer needed as a separate event handler but is kept
+        // because it's called by the new combined event listeners.
         function onTimeChange(value) {
             currentTimeIndex = parseInt(value);
-            loadData(document.getElementById('projection').value); // Reload data for the new time
+            loadData(document.getElementById('projection').value);
         }
-
-        // Function called by the HTML onchange event for vertical slider (data fetch)
+        
+        // This function is no longer needed as a separate event handler but is kept
+        // because it's called by the new combined event listeners.
         function onVerticalChange(value) {
             currentVerticalIndex = parseInt(value);
-            loadData(document.getElementById('projection').value); // Reload data for the new vertical level
-        }
-
-        function onProjectionChange(event) {
-            const projection = event.target.value;
-            console.log('Projection changed to:', event.target.value);
-            loadData(projection);
+            loadData(document.getElementById('projection').value);
         }
 
         function onTransparencyChange(event) {
             transparency = parseFloat(event.target.value) / 100;
             document.getElementById('transparency-value').textContent = `${event.target.value}%`;
-            // Re-render the visualization with new transparency
             if (currentLayer) {
                 currentLayer.eachLayer(function(layer) {
                     if (layer instanceof L.CircleMarker || layer instanceof L.Rectangle) {
