@@ -243,7 +243,7 @@ class DomainBuilder:
                 raise ValueError("Slice step must be specified")
             result = np.arange(
                 values.start,
-                values.stop + values.step,
+                values.stop,
                 values.step,
             )
         else:
