@@ -61,7 +61,7 @@ class TestDomainBuilder:
         """Test that slices are properly converted to arrays."""
         builder = DomainBuilder()
         result = builder._convert_slice_to_array(slice(1, 10, 2))
-        expected = np.array([1, 3, 5, 7, 9, 11])
+        expected = np.array([1, 3, 5, 7, 9])
         np.testing.assert_array_equal(result, expected)
 
     def test_custom_axis_names(self):
