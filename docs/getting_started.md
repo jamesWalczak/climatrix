@@ -88,6 +88,53 @@ dset = xarray_dataset.cm
 ???+ warning
     When using `climatrix` as accessor, remember to import `climatrix` first!
 
+### Creating Domains with `from_axes()`
+
+The [`Domain`](api.md#climatrix.dataset.domain.Domain) class provides a flexible builder pattern for creating domains with multiple axis types using the `from_axes()` method:
+
+```python
+from climatrix.dataset.domain import Domain
+
+# Create a sparse domain with vertical, latitude, longitude, and time
+domain = (Domain.from_axes()
+          .vertical(depth=slice(10, 100, 10))
+          .lat(latitude=[1, 2, 3, 4])
+          .lon(longitude=[5, 6, 7, 8])
+          .time(time=['2020-01-01', '2020-01-02'])
+          .sparse())
+
+# Create a dense domain with custom axis names  
+domain = (Domain.from_axes()
+          .vertical(pressure=[1000, 850, 500])
+          .lat(lat=slice(-90, 90, 1))
+          .lon(lon=slice(-180, 180, 1))
+          .dense())
+```
+
+???+ info "Flexible Axis Configuration"
+    The builder pattern supports:
+    
+    - **Custom axis names**: Use any parameter name (e.g., `depth=...`, `pressure=...`)
+    - **Multiple data types**: Accepts slices, lists, and numpy arrays
+    - **Method chaining**: Configure multiple axes in a fluent interface
+    - **Both domain types**: Create sparse or dense domains with `.sparse()` or `.dense()`
+
+???+ note "Vertical Axis Independence"
+    Currently, vertical axes can be independent dimensions. In future versions,
+    vertical coordinates will support sparse coordinate structure like lat/lon
+    (e.g., `lat(point)`, `lon(point)`, `vertical(point)`).
+
+For simple lat/lon domains, you can still use the traditional approach:
+
+```python
+# Traditional method for lat/lon only
+domain = Domain.from_lat_lon(
+    lat=slice(-90, 90, 1), 
+    lon=slice(-180, 180, 1), 
+    kind="dense"
+)
+```
+
 ### Accessing spatio-temporal axes
 
 By using [Climatrix](https://jameswalczak.github.io/climatrix/latest), you can easily acces spatio temporal axis. 

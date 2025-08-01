@@ -103,6 +103,36 @@ sparse.plot()
 ???+ warning
     Plotting requires downloading coastline and border data, so it may take longer the first time.
 
+## 🏗️ Step H.1: Creating Custom Domains (Optional)
+
+You can create custom domains with multiple axis types using the builder pattern. This is especially useful when working with vertical levels or custom time series:
+
+``` { .python .annotate }
+from climatrix.dataset.domain import Domain
+
+# Create a domain with vertical levels around Warsaw
+custom_domain = (Domain.from_axes()
+                 .vertical(pressure=[1000, 850, 700, 500])  # (1)!
+                 .lat(latitude=[51.5, 52.0, 52.5])
+                 .lon(longitude=[20.5, 21.0, 21.5]) 
+                 .time(time=['2018-10-12T00:00', '2018-10-12T06:00'])
+                 .sparse())  # (2)!
+
+print(f"Custom domain size: {custom_domain.size}")
+print(f"Has vertical axis: {custom_domain.has_axis('vertical')}")
+```
+
+1. Define pressure levels as the vertical coordinate
+2. Create as sparse domain - vertical and time are independent dimensions
+
+???+ note "Domain Builder Features"
+    The `from_axes()` builder supports:
+    
+    - **Vertical axes**: `pressure`, `depth`, `level`, etc.
+    - **Time axes**: Various time coordinate names
+    - **Custom names**: Any parameter name for each axis type
+    - **Flexible inputs**: Slices, lists, or numpy arrays
+
 
 ## 🔁 Step I: Reconstruct Using IDW
 We’ll reconstruct a dense field from the sparse data using Inverse Distance Weighting (IDW):

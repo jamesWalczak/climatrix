@@ -109,6 +109,224 @@ class SamplingNaNPolicy(StrEnum):
             raise ValueError(f"Unknown Nan policy: {value}")
 
 
+class DomainBuilder:
+    """
+    Builder class for creating domains with various axes.
+    
+    Supports a fluent interface for configuring domain axes
+    and creating sparse or dense domains.
+    """
+
+    def __init__(self):
+        self._axes_config = {}
+
+    def _add_axis(self, axis_type: AxisType, **kwargs) -> Self:
+        """
+        Add an axis to the domain configuration.
+        
+        Parameters
+        ----------
+        axis_type : AxisType
+            The type of axis to add.
+        **kwargs
+            Keyword arguments where the key is the axis name and the value
+            is the coordinate data (slice, list, or numpy array).
+            
+        Returns
+        -------
+        DomainBuilder
+            The builder instance for method chaining.
+            
+        Raises
+        ------
+        ValueError
+            If not exactly one keyword argument is provided.
+        """
+        if len(kwargs) != 1:
+            raise ValueError("Exactly one keyword argument must be provided")
+        name, values = next(iter(kwargs.items()))
+        self._axes_config[axis_type] = (name, values)
+        return self
+
+    def vertical(self, **kwargs) -> Self:
+        """
+        Add a vertical axis to the domain.
+        
+        Parameters
+        ----------
+        **kwargs
+            Keyword arguments where the key is the axis name and the value
+            is the coordinate data (slice, list, or numpy array).
+            
+        Returns
+        -------
+        DomainBuilder
+            The builder instance for method chaining.
+            
+        Examples
+        --------
+        >>> builder.vertical(depth=slice(10, 100, 1))
+        >>> builder.vertical(pressure=[1000, 850, 500, 250])
+        """
+        return self._add_axis(AxisType.VERTICAL, **kwargs)
+
+    def lat(self, **kwargs) -> Self:
+        """
+        Add a latitude axis to the domain.
+        
+        Parameters
+        ----------
+        **kwargs
+            Keyword arguments where the key is the axis name and the value
+            is the coordinate data (slice, list, or numpy array).
+            
+        Returns
+        -------
+        DomainBuilder
+            The builder instance for method chaining.
+            
+        Examples
+        --------
+        >>> builder.lat(latitude=[1, 2, 3, 4])
+        >>> builder.lat(lat=slice(-90, 90, 1))
+        """
+        return self._add_axis(AxisType.LATITUDE, **kwargs)
+
+    def lon(self, **kwargs) -> Self:
+        """
+        Add a longitude axis to the domain.
+        
+        Parameters
+        ----------
+        **kwargs
+            Keyword arguments where the key is the axis name and the value
+            is the coordinate data (slice, list, or numpy array).
+            
+        Returns
+        -------
+        DomainBuilder
+            The builder instance for method chaining.
+            
+        Examples
+        --------
+        >>> builder.lon(longitude=[1, 2, 3, 4])
+        >>> builder.lon(lon=slice(-180, 180, 1))
+        """
+        return self._add_axis(AxisType.LONGITUDE, **kwargs)
+
+    def time(self, **kwargs) -> Self:
+        """
+        Add a time axis to the domain.
+        
+        Parameters
+        ----------
+        **kwargs
+            Keyword arguments where the key is the axis name and the value
+            is the coordinate data (slice, list, or numpy array).
+            
+        Returns
+        -------
+        DomainBuilder
+            The builder instance for method chaining.
+            
+        Examples
+        --------
+        >>> builder.time(time=['2020-01-01', '2020-01-02'])
+        >>> builder.time(valid_time=slice('2020-01-01', '2020-12-31'))
+        """
+        return self._add_axis(AxisType.TIME, **kwargs)
+
+    def _convert_slice_to_array(self, values):
+        """Convert slice objects to numpy arrays."""
+        if isinstance(values, slice):
+            if values.step is None:
+                raise ValueError("Slice step must be specified")
+            result = np.arange(
+                values.start,
+                values.stop,
+                values.step,
+            )
+        else:
+            result = np.array(values)
+        
+        if len(result) == 0:
+            raise ValueError("Resulting array is empty")
+        return result
+
+    def _validate_sparse_coordinates(self):
+        """Validate that all coordinate arrays have the same length for sparse domains."""
+        # Check that latitude and longitude are present
+        if AxisType.LATITUDE not in self._axes_config:
+            raise ValueError("Latitude axis is required")
+        if AxisType.LONGITUDE not in self._axes_config:
+            raise ValueError("Longitude axis is required")
+        
+        # Get coordinate array lengths for spatial coordinates only
+        # Vertical and time can be separate dimensions
+        spatial_sizes = {}
+        for axis_type, (name, values) in self._axes_config.items():
+            if axis_type in [AxisType.LATITUDE, AxisType.LONGITUDE]:
+                coord_array = self._convert_slice_to_array(values)
+                spatial_sizes[axis_type] = len(coord_array)
+        
+        # Check that lat and lon have the same length
+        if len(set(spatial_sizes.values())) > 1:
+            raise ValueError(
+                f"For sparse domain, latitude and longitude arrays must have the same length. "
+                f"Got sizes: {spatial_sizes}"
+            )
+
+    def sparse(self):
+        """
+        Create a sparse domain from the configured axes.
+        
+        Returns
+        -------
+        Domain
+            A sparse domain instance.
+            
+        Raises
+        ------
+        ValueError
+            If coordinate arrays have different lengths or required axes are missing.
+        """
+        self._validate_sparse_coordinates()
+        
+        # Convert configurations to coordinate arrays
+        coords = {}
+        for axis_type, (name, values) in self._axes_config.items():
+            coord_array = self._convert_slice_to_array(values)
+            if axis_type in [AxisType.TIME, AxisType.VERTICAL]:
+                # Time and vertical are typically dimensions in sparse domains
+                coords[name] = coord_array
+            else:
+                # Spatial coordinates (lat/lon) are indexed by point dimension
+                coords[name] = ("point", coord_array)
+        
+        # Create xarray Dataset and return Domain
+        ds = xr.Dataset(coords=coords)
+        return Domain(ds)
+
+    def dense(self):
+        """
+        Create a dense domain from the configured axes.
+        
+        Returns
+        -------
+        Domain
+            A dense domain instance.
+        """
+        # Convert configurations to coordinate arrays
+        coords = {}
+        for axis_type, (name, values) in self._axes_config.items():
+            coord_array = self._convert_slice_to_array(values)
+            coords[name] = coord_array
+        
+        # Create xarray Dataset and return Domain
+        ds = xr.Dataset(coords=coords)
+        return Domain(ds)
+
+
 class Domain:
     """
     Base class for domain objects.
@@ -222,6 +440,31 @@ class Domain:
             )
         else:
             raise ValueError(f"Unknown kind: {kind}")
+
+    @classmethod
+    def from_axes(cls) -> DomainBuilder:
+        """
+        Create a domain builder for configuring domains with multiple axes.
+        
+        Returns
+        -------
+        DomainBuilder
+            A builder instance for creating domains with various axes.
+            
+        Examples
+        --------
+        >>> domain = (Domain.from_axes()
+        ...           .vertical(depth=slice(10, 100, 1))
+        ...           .lat(latitude=[1,2,3,4])
+        ...           .lon(longitude=[1,2,3,4])
+        ...           .sparse())
+        >>> domain = (Domain.from_axes()
+        ...           .lat(lat=slice(-90, 90, 1))
+        ...           .lon(lon=slice(-180, 180, 1))
+        ...           .time(time=['2020-01-01', '2020-01-02'])
+        ...           .dense())
+        """
+        return DomainBuilder()
 
     @property
     def latitude(self) -> Axis:

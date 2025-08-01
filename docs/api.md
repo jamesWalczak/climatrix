@@ -111,6 +111,7 @@ The library contains a few public classes:
     options:
       members:
         - from_lat_lon
+        - from_axes
         - dims
         - latitude
         - longitude
