@@ -219,3 +219,18 @@ optimized_idw.plot(title="Optimized IDW Reconstruction")
 ???+ note
     For hyperparameter optimization, make sure to install climatrix with: `pip install climatrix[optim]`
 
+## 🌍 Step M: Interactive plotting
+
+You can interactively plot the resulting dataset. Just run
+
+```python
+cm.plot.Plot(dataset=cm_ds).show(port=5000)
+```
+
+That will run locally the server and enables you to conveniently explore the dataset via web browser.
+
+???+ tip
+    If the preview does not open, choose your faviourite web browser and open `[http://localhost:5000/](http://localhost:5000/)` if you selected port `5000`.
+
+???+ note
+    For interactive plotting utility, make sure to install climatrix with: `pip install climatrix[plot]`

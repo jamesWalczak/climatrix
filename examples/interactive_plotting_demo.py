@@ -133,4 +133,4 @@ if __name__ == "__main__":
         exit(1)
 
     plot = cm.plot.Plot(dset)
-    plot.show()
+    plot.show(port=5000)
