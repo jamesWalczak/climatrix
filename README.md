@@ -62,6 +62,7 @@ ______________________________________________________________________
 - [📦 Installation](#-installation)
 - [⚙️ Usage](#%EF%B8%8F-usage)
 - [🧪 Examples](#-examples)
+- [📈 Interactive Plotting](#-interactive-plotting)
 - [🛠️ Features](#%EF%B8%8F-features)
 - [📄 License](#-license)
 - [🙏 Citation](#-citation)
@@ -132,6 +133,95 @@ europe = cm_dset.cm.subset(north=71, south=36, west=-24, east=35)
 
 </details>
 
+<details>
+<summary>🌐 Interactive plotting</summary>
+
+```python
+import climatrix as cm
+import xarray as xr
+
+# Load your dataset
+my_dataset = "/file/to/netcdf.nc"
+cm_dset = xr.open_dataset(my_dataset).cm
+
+# Create interactive plot
+plot = cm.plot.Plot(cm_dset)
+plot.show()  # Opens in browser with interactive controls
+```
+
+</details>
+
+______________________________________________________________________
+
+## 📈 Interactive Plotting
+
+Climatrix provides a powerful interactive plotting utility built with Plotly and Dash that creates beautiful, web-based visualizations of your climate data.
+
+### Quick Start
+
+```python
+import climatrix as cm
+import xarray as xr
+
+# Load your climate dataset
+ds = xr.open_dataset("your_data.nc")
+cm_ds = ds.cm
+
+# Create and launch interactive plot
+plot = cm.plot.Plot(cm_ds)
+plot.show()  # Opens in browser
+```
+
+### Features
+
+- **🎨 Material Design Interface**: Clean, professional styling with responsive controls
+- **⏰ Time Animation**: Slider control for datasets with time dimensions
+- **📏 Vertical Levels**: Navigate through atmospheric/oceanic layers
+- **🌍 2D/3D Views**: Switch between flat maps and interactive 3D globe
+- **🔍 Smart Visualization**: Automatic selection of scatter plots for sparse data, heatmaps for dense data
+- **⚡ Performance Optimized**: Efficient rendering for large datasets
+- **🖱️ Interactive Controls**: Zoom, pan, and click-to-select regions
+- **💾 Export Options**: Save static HTML versions of your plots
+
+### Installation
+
+Install the plotting dependencies:
+
+```bash
+pip install climatrix[plot]
+# or manually:
+pip install plotly dash
+```
+
+### Advanced Usage
+
+```python
+# Customize the plot
+plot = cm.plot.Plot(
+    dataset=cm_ds,
+    port=8050,          # Custom port
+    host='0.0.0.0',     # Make accessible on network
+    auto_open=False,    # Don't auto-open browser
+    debug=True          # Enable debug mode
+)
+
+# Save static version
+plot.save_html("my_climate_plot.html")
+
+# Launch server
+plot.show()
+```
+
+### Example Script
+
+Run the complete demonstration:
+
+```bash
+python examples/interactive_plotting_demo.py
+```
+
+This creates sample datasets and demonstrates all plotting features including time series, sparse station data, and 3D atmospheric data.
+
 ______________________________________________________________________
 
 ## 🛠️ Features
@@ -144,7 +234,8 @@ ______________________________________________________________________
   - **SIREN** (Sinusoidal INR)
   - **SiNET** (Spatial Interpolation NET)
 - 🧪 Tools to compare reconstruction results
-- 📈 Plotting utilities for visualizing inputs and outputs
+- 📈 **Interactive plotting utilities** for visualizing inputs and outputs
+- 🌐 **3D globe visualization** with time and vertical sliders
 - 🔧 **Hyperparameter Optimization** via Bayesian optimization for all reconstruction methods
 
 ______________________________________________________________________

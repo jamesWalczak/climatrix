@@ -24,3 +24,8 @@ class AxisMatchingError(ValueError):
 
 class DomainMismatchError(ValueError):
     pass
+
+
+class MissingDependencyError(ImportError):
+    """Raised when required plotting dependencies are not installed."""
+    pass
