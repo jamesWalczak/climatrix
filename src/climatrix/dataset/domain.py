@@ -180,6 +180,22 @@ class Domain:
                 lon.stop + lon.step,
                 lon.step,
             )
+        
+        # Check if slices produced empty arrays
+        if len(lat) == 0:
+            raise ValueError(
+                "Latitude slice produced an empty array. "
+                "Check that the slice parameters (start, stop, step) are valid. "
+                "For example, slice(10, 100, -1) would be invalid because "
+                "you cannot go from 10 to 100 with a negative step."
+            )
+        if len(lon) == 0:
+            raise ValueError(
+                "Longitude slice produced an empty array. "
+                "Check that the slice parameters (start, stop, step) are valid. "
+                "For example, slice(10, 100, -1) would be invalid because "
+                "you cannot go from 10 to 100 with a negative step."
+            )
         if kind == "dense":
             return cls(xr.Dataset(coords={"lat": lat, "lon": lon}))
         elif kind == "sparse":
