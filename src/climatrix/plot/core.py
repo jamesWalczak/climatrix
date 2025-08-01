@@ -96,14 +96,8 @@ class Plot:
             )
         if self.dataset.domain.has_axis(AxisType.VERTICAL):
             if len(data_slice.shape) > 1:
-                data_slice = (
-                    data_slice.isel(
-                        {self.dataset.domain.vertical.name: vertical_idx}
-                    )
-                    if not self.dataset.domain.has_axis(AxisType.TIME)
-                    else data_slice.isel(
-                        {self.dataset.domain.vertical.name: vertical_idx}
-                    )
+                data_slice = data_slice.isel(
+                    {self.dataset.domain.vertical.name: vertical_idx}
                 )
 
         return {
@@ -128,14 +122,8 @@ class Plot:
             )
         if self.dataset.domain.has_axis(AxisType.VERTICAL):
             if len(data_slice.shape) > 2:
-                data_slice = (
-                    data_slice.isel(
-                        {self.dataset.domain.vertical.name: vertical_idx}
-                    )
-                    if not self.dataset.domain.has_axis(AxisType.TIME)
-                    else data_slice.isel(
-                        {self.dataset.domain.vertical.name: vertical_idx}
-                    )
+                data_slice = data_slice.isel(
+                    {self.dataset.domain.vertical.name: vertical_idx}
                 )
         return {
             "type": "mesh",
