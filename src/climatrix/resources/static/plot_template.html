@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Climate Data Visualization</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4/2.9.0/proj4.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+            background: white;
+            border-radius: 12px;
+            margin: 10px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 320px;
+            background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 24px;
+            border-right: 1px solid #dee2e6;
+            overflow-y: auto;
+        }
+        
+        .logo-container {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        
+        .logo-placeholder {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 50%;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 32px;
+        }
+        
+        .control-group {
+            margin-bottom: 28px;
+        }
+        
+        .control-label {
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .control-label .material-icons {
+            margin-right: 8px;
+            font-size: 18px;
+        }
+        
+        .slider-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e9ecef;
+            outline: none;
+            -webkit-appearance: none;
+            margin: 12px 0;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        
+        .slider-value {
+            text-align: center;
+            font-weight: 500;
+            color: #667eea;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+        
+        .dropdown {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            background: white;
+            font-size: 14px;
+            color: #495057;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .dropdown:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            background: rgba(255,255,255,0.95);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            display: none;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .stats-panel {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-top: 20px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+        }
+        
+        .stat-value {
+            font-weight: 500;
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="logo-container">
+                <img src="{{ logo_url }}" alt="Logo" style="width: 50%; height: 50%; border-radius: 50%;">
+            </div>
+            
+            <div class="control-group">
+                <div class="control-label">
+                    <i class="material-icons">map</i>
+                    Projection
+                </div>
+                <select class="dropdown" id="projection">
+                    <option value="EPSG:4326">Plate Carrée (Geographic)</option>
+                    <!-- <option value="EPSG:3857">Web Mercator</option>
+                    <option value="EPSG:3395">World Mercator</option>
+                    <option value="EPSG:54030">Robinson</option> -->
+                </select>
+            </div>
+            
+            <div class="control-group" id="time-control" style="display: none;">
+                <div class="control-label">
+                    <i class="material-icons">schedule</i>
+                    Time
+                </div>
+                <div class="slider-container">
+                    <input type="range" class="slider" id="time-slider" min="0" max="0" value="0">
+                    <div class="slider-value" id="time-value">-</div>
+                </div>
+            </div>
+            
+            <div class="control-group" id="vertical-control" style="display: none;">
+                <div class="control-label">
+                    <i class="material-icons">height</i>
+                    <span id="vertical-label">Vertical</span>
+                </div>
+                <div class="slider-container">
+                    <input type="range" class="slider" id="vertical-slider" min="0" max="0" value="0">
+                    <div class="slider-value" id="vertical-value">-</div>
+                </div>
+            </div>
+            
+            <div class="stats-panel" id="stats-panel">
+                <div class="stat-item">
+                    <span class="stat-label">Data Type:</span>
+                    <span class="stat-value" id="data-type">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Min Value:</span>
+                    <span class="stat-value" id="min-value">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Max Value:</span>
+                    <span class="stat-value" id="max-value">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Points:</span>
+                    <span class="stat-value" id="point-count">-</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div>Loading data...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let map;
+        let currentLayer;
+        let metadata = {};
+        
+        // Initialize the application
+        async function init() {
+            try {
+                const response = await fetch('/api/metadata');
+                metadata = await response.json();
+                
+                setupControls();
+                initMap();
+                loadData();
+            } catch (error) {
+                console.error('Failed to initialize:', error);
+            }
+        }
+        
+        function setupControls() {
+            // Setup time control
+            if (metadata.has_time) {
+                document.getElementById('time-control').style.display = 'block';
+                const timeSlider = document.getElementById('time-slider');
+                timeSlider.max = metadata.time_count - 1;
+                timeSlider.addEventListener('input', onTimeChange);
+                updateTimeValue(0);
+            }
+            
+            // Setup vertical control
+            if (metadata.has_vertical) {
+                document.getElementById('vertical-control').style.display = 'block';
+                document.getElementById('vertical-label').textContent = metadata.vertical_name || 'Vertical';
+                const verticalSlider = document.getElementById('vertical-slider');
+                verticalSlider.max = metadata.vertical_count - 1;
+                verticalSlider.addEventListener('input', onVerticalChange);
+                updateVerticalValue(0);
+            }
+            
+            // Setup projection dropdown
+            document.getElementById('projection').addEventListener('change', onProjectionChange);
+            
+            // Update stats
+            document.getElementById('data-type').textContent = metadata.is_sparse ? 'Sparse (Points)' : 'Dense (Grid)';
+        }
+        
+        function initMap() {
+            map = L.map('map', {
+                center: [0, 0],
+                zoom: 2,
+                zoomControl: true
+            });
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+        }
+        
+        async function loadData(projection='EPSG:4326') {
+            showLoading(true);
+            
+            try {
+                const timeIdx = metadata.has_time ? document.getElementById('time-slider').value : 0;
+                const verticalIdx = metadata.has_vertical ? document.getElementById('vertical-slider').value : 0;
+
+                const response = await fetch(`/api/data?time_idx=${timeIdx}&vertical_idx=${verticalIdx}&projection=${projection}`);
+                const data = await response.json();
+                
+                updateVisualization(data);
+                updateStats(data);
+            } catch (error) {
+                console.error('Failed to load data:', error);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        function updateVisualization(data) {
+            if (currentLayer) {
+                map.removeLayer(currentLayer);
+            }
+            
+            if (data.type === 'scatter') {
+                updateScatterPlot(data);
+            } else {
+                updateMeshPlot(data);
+            }
+        }
+        
+        function updateScatterPlot(data) {
+            const markers = [];
+            const colorScale = getColorScale(data.min_val, data.max_val);
+            
+            for (let i = 0; i < data.lats.length; i++) {
+                const color = getColor(data.values[i], data.min_val, data.max_val, colorScale);
+                const marker = L.circleMarker([data.lats[i], data.lons[i]], {
+                    radius: 4,
+                    fillColor: color,
+                    color: '#fff',
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).bindPopup(`Value: ${data.values[i].toFixed(3)}<br>Lat: ${data.lats[i].toFixed(3)}<br>Lon: ${data.lons[i].toFixed(3)}`);
+                
+                markers.push(marker);
+            }
+            
+            currentLayer = L.layerGroup(markers).addTo(map);
+            
+            if (markers.length > 0) {
+                const group = new L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.1));
+            }
+        }
+        
+        function updateMeshPlot(data) {
+            const markers = [];
+            const colorScale = getColorScale(data.min_val, data.max_val);
+            
+            const latStep = data.lats.length > 1 ? (data.lats[1] - data.lats[0]) : 1;
+            const lonStep = data.lons.length > 1 ? (data.lons[1] - data.lons[0]) : 1;
+            
+            for (let i = 0; i < data.lats.length; i++) {
+                for (let j = 0; j < data.lons.length; j++) {
+                    const value = data.values[i][j];
+                    if (value != null && !isNaN(value)) {
+                        const color = getColor(value, data.min_val, data.max_val, colorScale);
+                        const bounds = [
+                            [data.lats[i] - latStep/2, data.lons[j] - lonStep/2],
+                            [data.lats[i] + latStep/2, data.lons[j] + lonStep/2]
+                        ];
+                        
+                        const rect = L.rectangle(bounds, {
+                            color: color,
+                            fillColor: color,
+                            weight: 0,
+                            fillOpacity: 0.7
+                        }).bindPopup(`Value: ${value.toFixed(3)}<br>Lat: ${data.lats[i].toFixed(3)}<br>Lon: ${data.lons[j].toFixed(3)}`);
+                        
+                        markers.push(rect);
+                    }
+                }
+            }
+            
+            currentLayer = L.layerGroup(markers).addTo(map);
+            
+            if (markers.length > 0) {
+                const latBounds = [Math.min(...data.lats), Math.max(...data.lats)];
+                const lonBounds = [Math.min(...data.lons), Math.max(...data.lons)];
+                map.fitBounds([[latBounds[0], lonBounds[0]], [latBounds[1], lonBounds[1]]]);
+            }
+        }
+        
+        function getColorScale(min, max) {
+            return ['#313695', '#4575b4', '#74add1', '#abd9e9', '#e0f3f8', '#ffffcc', '#fee090', '#fdae61', '#f46d43', '#d73027', '#a50026'];
+        }
+        
+        function getColor(value, min, max, colorScale) {
+            const normalized = (value - min) / (max - min);
+            const index = Math.floor(normalized * (colorScale.length - 1));
+            return colorScale[Math.max(0, Math.min(colorScale.length - 1, index))];
+        }
+        
+        function updateStats(data) {
+            document.getElementById('min-value').textContent = data.min_val.toFixed(3);
+            document.getElementById('max-value').textContent = data.max_val.toFixed(3);
+            
+            let pointCount;
+            if (data.type === 'scatter') {
+                pointCount = data.lats.length;
+            } else {
+                pointCount = data.lats.length * data.lons.length;
+            }
+            document.getElementById('point-count').textContent = pointCount.toLocaleString();
+        }
+        
+        function onTimeChange(event) {
+            const index = parseInt(event.target.value);
+            updateTimeValue(index);
+            loadData();
+        }
+        
+        function onVerticalChange(event) {
+            const index = parseInt(event.target.value);
+            updateVerticalValue(index);
+            loadData();
+        }
+        
+        function onProjectionChange(event) {
+            const projection = event.target.value;
+            console.log('Projection changed to:', event.target.value);
+            loadData(projection);
+        }
+        
+        function updateTimeValue(index) {
+            if (metadata.time_values && metadata.time_values[index]) {
+                document.getElementById('time-value').textContent = metadata.time_values[index];
+            }
+        }
+        
+        function updateVerticalValue(index) {
+            if (metadata.vertical_values && metadata.vertical_values[index] !== undefined) {
+                const value = metadata.vertical_values[index];
+                const unit = metadata.vertical_name?.toLowerCase().includes('pressure') ? 'hPa' : 'm';
+                document.getElementById('vertical-value').textContent = `${value} ${unit}`;
+            }
+        }
+        
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

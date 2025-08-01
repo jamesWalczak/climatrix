@@ -91,6 +91,8 @@ where = ["src"]
     "resources/*.ini", 
     "resources/**/*.sh", 
     "resources/**/*.toml",
+    "resources/**/*.svg",
+    "resources/**/*.html",
     "LICENSE",
     "CONTRIBUTING.md",
 ]

@@ -140,6 +140,18 @@ class Domain:
         domain._axes = axis_mapping
         return domain
 
+    @property
+    def axes(self) -> dict[AxisType, Axis]:
+        """
+        Get the axes of the domain.
+
+        Returns
+        -------
+        dict[AxisType, Axis]
+            A dictionary mapping `AxisType` to the corresponding `Axis` object.
+        """
+        return self._axes
+
     @classmethod
     def from_lat_lon(
         cls,
