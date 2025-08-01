@@ -1,15 +1,11 @@
 import importlib
 import importlib.resources
-import json
 import logging
 import threading
 import time
 import webbrowser
-from datetime import datetime, timedelta
-from enum import Enum
 
 import numpy as np
-import xarray as xr
 from flask import (
     Flask,
     jsonify,
@@ -18,11 +14,7 @@ from flask import (
     send_from_directory,
     url_for,
 )
-from flask.logging import create_logger
-from geoviews import output
-from plotly import data
 
-import climatrix as cm
 from climatrix.dataset.domain import AxisType
 
 
