@@ -78,6 +78,7 @@ class Plot:
 
     def prepare_data(self, time_idx=0, vertical_idx=0):
         """Prepare data for visualization"""
+
         if self.dataset.domain.is_sparse:
             return self.prepare_sparse_data(time_idx, vertical_idx)
         else:
@@ -98,6 +99,11 @@ class Plot:
                 data_slice = data_slice.isel(
                     {self.dataset.domain.vertical.name: vertical_idx}
                 )
+
+        valid_idx = np.isfinite(data_slice.values)
+        lats = lats[valid_idx]
+        lons = lons[valid_idx]
+        data_slice = data_slice.where(valid_idx, drop=True)
 
         return {
             "type": "scatter",
@@ -123,11 +129,16 @@ class Plot:
                 data_slice = data_slice.isel(
                     {self.dataset.domain.vertical.name: vertical_idx}
                 )
+
+        values = data_slice.values
+
+        values_cleaned = np.where(np.isnan(values), None, values).tolist()
+
         return {
             "type": "mesh",
             "lats": lats.tolist(),
             "lons": lons.tolist(),
-            "values": data_slice.values.tolist(),
+            "values": values_cleaned,
             "min_val": float(np.min(data_slice)),
             "max_val": float(np.max(data_slice)),
         }
