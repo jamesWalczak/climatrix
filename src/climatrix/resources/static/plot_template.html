@@ -20,20 +20,20 @@
         body {
             font-family: 'Roboto', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            height: 100vh; /* Use height instead of min-height for a fixed viewport */
+            height: 100vh;
             color: #333;
-            display: flex; /* Use flexbox for body to ensure container takes full height */
-            overflow: hidden; /* Prevent body from scrolling */
+            display: flex;
+            overflow: hidden;
         }
 
         .container {
             display: flex;
-            flex: 1; /* Allow container to grow and fill available space */
+            flex: 1;
             background: white;
             border-radius: 12px;
             margin: 10px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.1);
-            overflow: hidden; /* Prevent content from overflowing the rounded corners */
+            overflow: hidden;
         }
 
         .sidebar {
@@ -41,20 +41,20 @@
             background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
             padding: 24px;
             border-right: 1px solid #dee2e6;
-            overflow-y: auto; /* Keep scrolling for sidebar */
-            display: flex; /* Flex container for sidebar content */
-            flex-direction: column; /* Arrange items vertically */
-            min-height: 0; /* CRITICAL FIX: Allows the sidebar to shrink and enable its own scrollbar */
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
         }
 
         .logo-container {
             text-align: center;
             margin-bottom: 30px;
-            padding: 20px;
+            padding: 5px;
             background: white;
             border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            flex-shrink: 0; /* Prevent logo from shrinking */
+            box-shadow: 5px 4px 12px rgba(0,0,0,0.05);
+            flex-shrink: 0;
         }
 
         .logo-placeholder {
@@ -62,7 +62,7 @@
             height: 80px;
             background: linear-gradient(45deg, #667eea, #764ba2);
             border-radius: 50%;
-            margin: 0 auto 16px;
+            margin: 0 auto 5px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -71,8 +71,8 @@
         }
 
         .control-group {
-            margin-bottom: 28px;
-            flex-shrink: 0; /* Prevent control groups from shrinking */
+            margin-top: 28px;
+            flex-shrink: 0;
         }
 
         .control-label {
@@ -158,11 +158,11 @@
         .map-container {
             flex: 1;
             position: relative;
-            min-height: 0; /* Allow map to shrink if needed */
+            min-height: 0;
         }
 
         #map {
-            height: 100%; /* Make map fill its container */
+            height: 100%;
             width: 100%;
         }
 
@@ -199,8 +199,9 @@
             padding: 16px;
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            margin-top: auto; /* Pushes stats to the bottom */
-            flex-shrink: 0; /* Prevent stats from shrinking */
+            margin-top: auto;
+            flex-shrink: 0;
+            margin-bottom: 0px;
         }
 
         .stat-item {
@@ -219,13 +220,97 @@
             color: #495057;
         }
 
-        /* Attribution control styling */
         .leaflet-control-attribution {
-            font-size: 11px; /* Make text slightly smaller */
+            font-size: 11px;
             line-height: 1.2;
             padding: 0 5px;
-            background: rgba(255,255,255,0.7); /* Add a slight background for readability */
+            background: rgba(255,255,255,0.7);
             border-radius: 4px;
+        }
+
+        .footer {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-top: 20px;
+            flex-shrink: 0;
+            font-size: 11px;
+            color: #6c757d;
+            text-align: center;
+            line-height: 1.4;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .help-icon {
+            font-size: 12px;
+            color: #6c757d;
+            margin-left: 4px;
+            cursor: help;
+            position: relative;
+            display: inline-block;
+        }
+
+        .help-icon:hover {
+            color: #667eea;
+        }
+
+        .help-icon::after {
+            content: "?";
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background-color: #6c757d;
+            color: white;
+            text-align: center;
+            line-height: 14px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .help-icon:hover::after {
+            background-color: #667eea;
+        }
+
+        .tooltip {
+            visibility: hidden;
+            width: 160px;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 6px;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -80px;
+            font-size: 10px;
+            line-height: 1.2;
+        }
+
+        .tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: rgba(0, 0, 0, 0.9) transparent transparent transparent;
+        }
+
+        .help-icon:hover .tooltip {
+            visibility: visible;
         }
     </style>
 </head>
@@ -233,23 +318,56 @@
     <div class="container">
         <div class="sidebar">
             <div class="logo-container">
-                <img src="{{ logo_url }}" alt="Logo" style="width: 80%; height: 80%; border-radius: 50%;">
+                <img src="{{ logo_url }}" alt="Logo" style="width: 100%; height: 100%; border-radius: 50%;">
             </div>
 
-            <div class="control-group">
+            <div class="stats-panel" id="stats-panel">
+                <div class="stat-item" id="loading-status" style="display: none;">
+                    <span class="stat-label">Status:</span>
+                    <span class="stat-value" id="loading-text">Loading data...</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Data Type<span class="help-icon">
+                        <span class="tooltip">If dataset is dense or sparse</span>
+                    </span>:</span>
+                    <span class="stat-value" id="data-type">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Min Value<span class="help-icon">
+                        <span class="tooltip">Minimum value across the entire dataset, not just the current view</span>
+                    </span>:</span>
+                    <span class="stat-value" id="min-value">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Max Value<span class="help-icon">
+                        <span class="tooltip">Maximum value across the entire dataset, not just the current view</span>
+                    </span>:</span>
+                    <span class="stat-value" id="max-value">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Points<span class="help-icon">
+                        <span class="tooltip">Number of loaded points in the current view</span>
+                    </span>:</span>
+                    <span class="stat-value" id="point-count">-</span>
+                </div>
+            </div>            
+
+            <div class="control-group" style="display: none;">
                 <div class="control-label">
                     <i class="material-icons">map</i>
                     Projection
                 </div>
                 <select class="dropdown" id="projection">
                     <option value="EPSG:4326">Plate Carrée (Geographic)</option>
-                    </select>
+                </select>
             </div>
 
             <div class="control-group" id="time-control" style="display: none;">
                 <div class="control-label">
                     <i class="material-icons">schedule</i>
-                    Time
+                    Time<span class="help-icon">
+                        <span class="tooltip">Navigate through different time steps in the dataset</span>
+                    </span>
                 </div>
                 <div class="slider-container">
                     <input type="range" class="slider" id="time-slider" min="0" max="1" value="0">
@@ -271,7 +389,9 @@
             <div class="control-group">
                 <div class="control-label">
                     <i class="material-icons">opacity</i>
-                    Transparency
+                    Transparency<span class="help-icon">
+                        <span class="tooltip">Adjust the opacity of the data visualization overlay</span>
+                    </span>
                 </div>
                 <div class="slider-container">
                     <input type="range" class="slider" id="transparency-slider" min="0" max="100" value="80"
@@ -280,25 +400,13 @@
                 </div>
             </div>
 
-            <div class="stats-panel" id="stats-panel">
-                <div class="stat-item">
-                    <span class="stat-label">Data Type:</span>
-                    <span class="stat-value" id="data-type">-</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Min Value:</span>
-                    <span class="stat-value" id="min-value">-</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Max Value:</span>
-                    <span class="stat-value" id="max-value">-</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Points:</span>
-                    <span class="stat-value" id="point-count">-</span>
-                </div>
+            <div class="footer">
+                © <span id="current-year"></span> <a href="https://jameswalczak.github.io/climatrix/latest/">Climatrix</a>. Made with ❤️ by Climatrix contributors.<br>
+                <small>Visualization tool for climate data analysis</small>
             </div>
         </div>
+
+
 
         <div class="map-container">
             <div id="map"></div>
@@ -312,17 +420,43 @@
         let map;
         let currentLayer;
         let metadata = {};
-        let transparency = 0.8; // Initial transparency
-        let osmLayer; // Define osmLayer for the base map
-        let currentTimeIndex = 0; // Keep track of current time index
-        let currentVerticalIndex = 0; // Keep track of current vertical index
+        let transparency = 0.8;
+        let osmLayer;
+        let currentTimeIndex = 0;
+        let currentVerticalIndex = 0;
+        let mapInitialized = false;
+        let lastZoom = null;
+        let lastBounds = null;
+        let dataLoadingInProgress = false;
+        let lastDataLoadTime = 0;
+        let isFirstDataLoad = true;
+        const MIN_LOAD_INTERVAL = 300;
 
-        // *** NEW: Debounce function to limit how often a function can run ***
+        // *** NEW: Enhanced debounce function with loading state management ***
         function debounce(func, wait) {
             let timeout;
             return function executedFunction(...args) {
                 const later = () => {
                     clearTimeout(timeout);
+                    
+                    // Check if enough time has passed since last load
+                    const now = Date.now();
+                    const timeSinceLastLoad = now - lastDataLoadTime;
+                    
+                    if (timeSinceLastLoad < MIN_LOAD_INTERVAL) {
+                        // Schedule another attempt after the remaining time
+                        timeout = setTimeout(later, MIN_LOAD_INTERVAL - timeSinceLastLoad);
+                        return;
+                    }
+                    
+                    // Check if data loading is already in progress
+                    if (dataLoadingInProgress) {
+                        // Reschedule for later
+                        timeout = setTimeout(later, wait);
+                        return;
+                    }
+                    
+                    lastDataLoadTime = now;
                     func(...args);
                 };
                 clearTimeout(timeout);
@@ -330,14 +464,21 @@
             };
         }
 
-        // Initialize the application
         async function init() {
             try {
+                document.getElementById('current-year').textContent = new Date().getFullYear();
+                
                 const response = await fetch('/api/metadata');
                 metadata = await response.json();
                 setupControls();
                 initMap();
-                loadData(); // Initial data load
+                
+                setTimeout(() => {
+                    mapInitialized = true;
+                    lastZoom = map.getZoom();
+                    lastBounds = map.getBounds();
+                    loadData();
+                }, 100);
             } catch (error) {
                 console.error('Failed to initialize:', error);
             }
@@ -348,110 +489,167 @@
             const verticalSlider = document.getElementById('vertical-slider');
             const projectionDropdown = document.getElementById('projection');
             
-            // Debounce the loadData function to avoid excessive calls
-            const debouncedLoadData = debounce(() => loadData(projectionDropdown.value), 300);
+            const debouncedLoadData = debounce(() => {
+                if (!mapInitialized) return;
+                const projection = projectionDropdown ? projectionDropdown.value : 'EPSG:4326';
+                loadData(projection);
+            }, 600);
 
-            // Setup time control
             if (metadata.has_time) {
                 document.getElementById('time-control').style.display = 'block';
                 timeSlider.max = metadata.time_count - 1;
                 currentTimeIndex = parseInt(timeSlider.value);
-                updateTimeValue(currentTimeIndex); // Initial update for display
+                updateTimeValue(currentTimeIndex);
                 
-                // *** MODIFIED: Add event listener for time slider ***
                 timeSlider.addEventListener('input', (event) => {
                     const newIndex = parseInt(event.target.value);
                     currentTimeIndex = newIndex;
                     updateTimeValue(newIndex);
-                    debouncedLoadData(); // Fetch data after user stops sliding
+                    debouncedLoadData();
                 });
             }
 
-            // Setup vertical control
             if (metadata.has_vertical) {
                 document.getElementById('vertical-control').style.display = 'block';
                 document.getElementById('vertical-label').textContent = metadata.vertical_name || 'Vertical';
                 verticalSlider.max = metadata.vertical_count - 1;
                 currentVerticalIndex = parseInt(verticalSlider.value);
-                updateVerticalValue(currentVerticalIndex); // Initial update for display
+                updateVerticalValue(currentVerticalIndex);
 
-                // *** MODIFIED: Add event listener for vertical slider ***
                 verticalSlider.addEventListener('input', (event) => {
                     const newIndex = parseInt(event.target.value);
                     currentVerticalIndex = newIndex;
                     updateVerticalValue(newIndex);
-                    debouncedLoadData(); // Fetch data after user stops sliding
+                    debouncedLoadData();
                 });
             }
 
-            // Setup transparency slider
             const transparencySlider = document.getElementById('transparency-slider');
             const transparencyValue = document.getElementById('transparency-value');
-            transparencySlider.value = transparency * 100; // Set initial value
+            transparencySlider.value = transparency * 100;
             transparencyValue.textContent = `${transparencySlider.value}%`;
 
-            // Setup projection dropdown
-            projectionDropdown.addEventListener('change', () => loadData(projectionDropdown.value));
+            if (projectionDropdown) {
+                projectionDropdown.addEventListener('change', () => {
+                    if (mapInitialized) {
+                        loadData(projectionDropdown.value);
+                    }
+                });
+            }
 
-            // Update stats
             document.getElementById('data-type').textContent = metadata.is_sparse ? 'Sparse (Points)' : 'Dense (Grid)';
         }
 
         function initMap() {
-            // Initialize map view
             map = L.map('map', {
-                center: [20, 0], // Centered to better see the world
-                zoom: 2,         // Default zoom
+                center: [20, 0],
+                zoom: 2,
                 zoomControl: false,
                 minZoom: 2
             });
 
-            // 1. Add a simple base layer (land/water context) to the default pane
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors, © CARTO'
             }).addTo(map);
 
-            // 2. Create a dedicated pane for your data
             map.createPane('dataPane');
             map.getPane('dataPane').style.zIndex = 400;
 
-            // 3. Create a top pane for borders and labels.
             map.createPane('overlaysPane');
             map.getPane('overlaysPane').style.zIndex = 650;
             map.getPane('overlaysPane').style.pointerEvents = 'none'; 
 
-            // 4. Fetch and add GeoJSON for coastlines and country borders
             fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
                 .then(response => response.json())
                 .then(geojsonData => {
                     L.geoJSON(geojsonData, {
                         style: {
-                            color: "#555",      // Border color
-                            weight: 1,        // Border weight in pixels
-                            opacity: 0.8,     // Border opacity
-                            fillOpacity: 0    // We don't want to fill the countries with color
+                            color: "#555",
+                            weight: 1,
+                            opacity: 0.8,
+                            fillOpacity: 0
                         },
-                        pane: 'overlaysPane' // Add this layer to the top pane
+                        pane: 'overlaysPane'
                     }).addTo(map);
                 })
                 .catch(error => console.error('Error loading GeoJSON data:', error));
 
 
-            // 5. Add the labels layer to the top pane
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors, © CARTO',
                 pane: 'overlaysPane'
             }).addTo(map);
+
+            const debouncedMapLoadData = debounce(() => {
+                if (!mapInitialized) return;
+                
+                const currentZoom = map.getZoom();
+                const currentBounds = map.getBounds();
+                
+                const zoomChanged = lastZoom === null || Math.abs(currentZoom - lastZoom) >= 0.5;
+                const boundsChanged = lastBounds === null || !boundsEqual(currentBounds, lastBounds, 0.01);
+                
+                if (zoomChanged || boundsChanged) {
+                    lastZoom = currentZoom;
+                    lastBounds = currentBounds;
+                    
+                    const projectionElement = document.getElementById('projection');
+                    const projection = projectionElement ? projectionElement.value : 'EPSG:4326';
+                    loadData(projection);
+                }
+            }, 800);
+            
+            map.on('zoomstart movestart', () => {
+                if (mapInitialized) {
+                    showLoadingSpinner(true);
+                }
+            });
+            
+            map.on('zoomend', debouncedMapLoadData);
+            map.on('moveend', debouncedMapLoadData);
+            
+            setTimeout(() => {
+                console.log('Map stabilization complete');
+            }, 1500);
+        }
+
+        function boundsEqual(bounds1, bounds2, tolerance = 0.01) {
+            if (!bounds1 || !bounds2) return false;
+            
+            return Math.abs(bounds1.getNorth() - bounds2.getNorth()) < tolerance &&
+                   Math.abs(bounds1.getSouth() - bounds2.getSouth()) < tolerance &&
+                   Math.abs(bounds1.getEast() - bounds2.getEast()) < tolerance &&
+                   Math.abs(bounds1.getWest() - bounds2.getWest()) < tolerance;
         }
 
         async function loadData(projection = 'EPSG:4326') {
+            if (dataLoadingInProgress) {
+                console.log('Data loading already in progress, skipping...');
+                return;
+            }
+            
+            dataLoadingInProgress = true;
+            const loadingStartTime = Date.now();
             showLoading(true);
 
             try {
                 const timeIdx = currentTimeIndex;
                 const verticalIdx = currentVerticalIndex;
 
-                const response = await fetch(`/api/data?time_idx=${timeIdx}&vertical_idx=${verticalIdx}&projection=${projection}`);
+                const zoom = map ? map.getZoom() : 2;
+                const bounds = map ? map.getBounds() : null;
+                
+                let url = `/api/data?time_idx=${timeIdx}&vertical_idx=${verticalIdx}&projection=${projection}&zoom=${zoom}`;
+                
+                if (bounds) {
+                    const latMin = bounds.getSouth();
+                    const latMax = bounds.getNorth();
+                    const lonMin = bounds.getWest();
+                    const lonMax = bounds.getEast();
+                    url += `&lat_min=${latMin}&lat_max=${latMax}&lon_min=${lonMin}&lon_max=${lonMax}`;
+                }
+
+                const response = await fetch(url);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -462,7 +660,20 @@
             } catch (error) {
                 console.error('Failed to load data:', error);
             } finally {
-                showLoading(false);
+                const loadingDuration = Date.now() - loadingStartTime;
+                const minLoadingTime = 500;
+                
+                if (loadingDuration < minLoadingTime) {
+                    setTimeout(() => {
+                        dataLoadingInProgress = false;
+                        showLoading(false);
+                        showLoadingSpinner(false);
+                    }, minLoadingTime - loadingDuration);
+                } else {
+                    dataLoadingInProgress = false;
+                    showLoading(false);
+                    showLoadingSpinner(false);
+                }
             }
         }
 
@@ -499,9 +710,10 @@
 
             currentLayer = L.layerGroup(markers).addTo(map);
 
-            if (markers.length > 0) {
+            if (markers.length > 0 && isFirstDataLoad) {
                 const group = new L.featureGroup(markers);
                 map.fitBounds(group.getBounds().pad(0.1));
+                isFirstDataLoad = false;
             }
         }
 
@@ -540,10 +752,11 @@
 
             currentLayer = L.layerGroup(rects).addTo(map);
 
-            if (rects.length > 0) {
+            if (rects.length > 0 && isFirstDataLoad) {
                 const latBounds = [Math.min(...data.lats), Math.max(...data.lats)];
                 const lonBounds = [Math.min(...data.lons), Math.max(...data.lons)];
                 map.fitBounds([[latBounds[0] - latStep, lonBounds[0] - lonStep], [latBounds[1] + latStep, lonBounds[1] + lonStep]]);
+                isFirstDataLoad = false;
             }
         }
 
@@ -570,18 +783,20 @@
             document.getElementById('point-count').textContent = pointCount.toLocaleString();
         }
         
-        // This function is no longer needed as a separate event handler but is kept
-        // because it's called by the new combined event listeners.
         function onTimeChange(value) {
+            if (!mapInitialized) return;
             currentTimeIndex = parseInt(value);
-            loadData(document.getElementById('projection').value);
+            const projectionElement = document.getElementById('projection');
+            const projection = projectionElement ? projectionElement.value : 'EPSG:4326';
+            loadData(projection);
         }
         
-        // This function is no longer needed as a separate event handler but is kept
-        // because it's called by the new combined event listeners.
         function onVerticalChange(value) {
+            if (!mapInitialized) return;
             currentVerticalIndex = parseInt(value);
-            loadData(document.getElementById('projection').value);
+            const projectionElement = document.getElementById('projection');
+            const projection = projectionElement ? projectionElement.value : 'EPSG:4326';
+            loadData(projection);
         }
 
         function onTransparencyChange(event) {
@@ -611,7 +826,50 @@
         }
 
         function showLoading(show) {
-            document.getElementById('loading').style.display = show ? 'block' : 'none';
+            console.log('showLoading called with:', show);
+            const loadingElement = document.getElementById('loading');
+            const loadingStatus = document.getElementById('loading-status');
+            const loadingText = document.getElementById('loading-text');
+            
+            loadingElement.style.display = show ? 'block' : 'none';
+            loadingStatus.style.display = show ? 'block' : 'none';
+            
+            if (loadingText && show) {
+                loadingText.textContent = 'Loading data...';
+                console.log('Loading text set to: Loading data...');
+            }
+            
+            if (map) {
+                if (show) {
+                    map.getContainer().style.cursor = 'wait';
+                    map.getContainer().style.opacity = '0.8';
+                } else {
+                    map.getContainer().style.cursor = '';
+                    map.getContainer().style.opacity = '1';
+                }
+            }
+        }
+
+        function showLoadingSpinner(show, message = 'Preparing data...') {
+            console.log('showLoadingSpinner called with:', show, message); // Debug logging
+            const loadingStatus = document.getElementById('loading-status');
+            const loadingText = document.getElementById('loading-text');
+            
+            // Show/hide the sidebar loading indicator
+            loadingStatus.style.display = show ? 'block' : 'none';
+            if (loadingText && show) {
+                loadingText.textContent = message;
+                console.log('Loading text set to:', message); // Debug logging
+            }
+            
+            // Add visual feedback to the map during interaction
+            if (map && show) {
+                map.getContainer().style.cursor = 'wait';
+                map.getContainer().style.opacity = '0.9';
+            } else if (map && !show && !dataLoadingInProgress) {
+                map.getContainer().style.cursor = '';
+                map.getContainer().style.opacity = '1';
+            }
         }
 
         // Initialize when page loads
