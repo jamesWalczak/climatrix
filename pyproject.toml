@@ -12,7 +12,7 @@ authors = [
 
 description = "Tool for climate data research"
 readme = "./README-pypi.md"
-license = {file = "./LICENSE"}
+license-files= ["./LICENSE"]
 
 keywords = [
     "climate data",
@@ -81,7 +81,6 @@ all = [
 include-package-data = true
 
 [tool.setuptools.dynamic]
-version = {attr = "climatrix._version.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -110,3 +109,7 @@ preview = true
 
 [project.scripts]
 cm = "climatrix.cli.main:cm"
+
+[tool.setuptools_scm]
+version_scheme = "release-branch-semver"
+version_file = "src/climatrix/_version.py"
