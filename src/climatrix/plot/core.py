@@ -88,7 +88,6 @@ class Plot:
         lats = self.dataset.domain.latitude.values
         lons = self.dataset.domain.longitude.values
 
-        # Get data values for specific time/vertical slice if applicable
         data_slice = self.dataset.da
         if self.dataset.domain.has_axis(AxisType.TIME):
             data_slice = data_slice.isel(
@@ -114,7 +113,6 @@ class Plot:
         lats = self.dataset.domain.latitude.values
         lons = self.dataset.domain.longitude.values
 
-        # Get data values for specific time/vertical slice
         data_slice = self.dataset.da
         if self.dataset.domain.has_axis(AxisType.TIME):
             data_slice = data_slice.isel(
@@ -149,12 +147,10 @@ class Plot:
                 host="localhost", port=port, debug=debug, use_reloader=False
             )
 
-        # Start server in a separate thread
         server_thread = threading.Thread(target=run_server)
         server_thread.daemon = True
         server_thread.start()
 
-        # Wait a moment for server to start, then open browser
         time.sleep(1)
         webbrowser.open(f"http://localhost:{port}")
 
@@ -164,7 +160,6 @@ class Plot:
         print("Press Ctrl+C to stop the server")
 
         try:
-            # Keep the main thread alive
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
