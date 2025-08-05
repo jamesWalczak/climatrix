@@ -217,7 +217,6 @@ class Plot:
         else:
             total_points = len(values)
 
-        # NOTE: switched off due to potential error
         if total_points <= LOD_THRESHOLD:
             return lats, lons, values
 

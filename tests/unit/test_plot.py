@@ -49,7 +49,7 @@ def sample_sparse_dataset():
 @pytest.fixture
 def sample_dataset_with_vertical():
     lat = np.array([-45.0, 0.0, 45.0])
-    lon = np.array([0.0, 180.0, 360.0])
+    lon = np.array([0.0, 180.0, -180.0])
     time = np.array(["2020-01-01", "2020-01-02"], dtype="datetime64")
     level = np.array([850, 500, 200])
     data = np.random.rand(2, 3, 3, 3)
@@ -65,7 +65,7 @@ def sample_dataset_with_vertical():
 @pytest.fixture
 def sample_static_dense_dataset():
     lat = np.array([-45.0, 0.0, 45.0])
-    lon = np.array([0.0, 180.0, 360.0])
+    lon = np.array([0.0, 180.0, -180])
     data = np.random.rand(3, 3)
 
     da = xr.DataArray(
@@ -81,7 +81,10 @@ class TestPlotInitialization:
     def test_plot_initialization_with_dataset(self, sample_dense_dataset):
         plot = Plot(sample_dense_dataset)
 
-        assert plot.dataset == sample_dense_dataset
+        np.testing.assert_allclose(
+            plot.dataset.da.values,
+            sample_dense_dataset.to_signed_longitude().da.values,
+        )
         assert plot.app is not None
         assert plot.app.name == "climatrix.plot.core"
 
@@ -174,7 +177,7 @@ class TestDataPreparation:
             mock_dense.return_value = {"type": "mesh"}
             result = plot.prepare_data(time_idx=1, vertical_idx=0)
 
-            mock_dense.assert_called_once_with(1, 0)
+            mock_dense.assert_called_once_with(1, 0, 1, None, None, None, None)
             assert result["type"] == "mesh"
 
     def test_prepare_sparse_data_structure(self, sample_sparse_dataset):
@@ -275,7 +278,7 @@ class TestDataPreparation:
         plot = Plot(sample_dense_dataset)
         result = plot.prepare_dense_data(time_idx=0, vertical_idx=0)
 
-        data_slice = sample_dense_dataset.da.isel(time=0)
+        data_slice = sample_dense_dataset.da.values
         expected_min = float(np.min(data_slice))
         expected_max = float(np.max(data_slice))
 
@@ -479,7 +482,9 @@ class TestPlotIntegrationWithDataset:
         plot = Plot(sample_static_dense_dataset)
         result = plot.prepare_dense_data(time_idx=0, vertical_idx=0)
 
-        original_values = sample_static_dense_dataset.da.values
+        original_values = (
+            sample_static_dense_dataset.to_signed_longitude().da.values
+        )
         result_values = np.array(result["values"])
 
         np.testing.assert_array_equal(original_values, result_values)
