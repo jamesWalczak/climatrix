@@ -287,7 +287,7 @@ class Plot:
         return (
             importlib.resources.files("climatrix.resources")
             .joinpath("static", "plot_template.html")
-            .read_text()
+            .read_text(encoding="utf8")
         )
 
     def show(self, port=5000, debug=False):
