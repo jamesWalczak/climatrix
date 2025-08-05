@@ -7,30 +7,33 @@ From: ubuntu:24.04
     export PATH="$VIRTUAL_ENV/bin:$PATH"
 
 %post
-    # Update packages and install dependencies
     apt-get update && apt-get install -y \
-        python3 python3-pip python3-venv wget curl git bash git \
+        python3 python3-pip python3-venv wget curl git unzip bash \
         && rm -rf /var/lib/apt/lists/*
 
-    # Create working directory
-    mkdir -p /app
-    cd /app
-
-    # Copy project files from build context into the image
-    # In Apptainer, files are copied via %files section
-    chmod +x /app/scripts/*.sh
-
-    # Setup Python virtual environment
-    bash /app/conf/setup.sh
-
-    # Create results directory
     mkdir -p /app/results
 
 %files
     ../ /app
 
+%post
+    # Make sure scripts are executable after being copied
+    chmod +x /app/scripts/*.sh
+    chmod +x /app/conf/*.sh
+
+    # Setup Python virtual environment
+    bash /app/conf/setup.sh
+
 %runscript
-    echo "Running experiment pipeline..."
-    bash -c "/app/scripts/download_blend_mean_temperature.sh && \
-             python /app/scripts/prepare_ecad_observations.py && \
-             bash /app/scripts/run_experiments.sh"
+#!/bin/bash
+echo "Running experiment pipeline..."
+source /app/conf/exp1/bin/activate
+echo "Using virtual environment at: $VIRTUAL_ENV"
+echo "Python path: $(which python)"
+echo "Python version: $(python --version)"
+echo "Pip packages installed:"
+python -m pip list
+
+bash /app/scripts/download_blend_mean_temperature.sh
+python /app/scripts/prepare_ecad_observations.py
+bash /app/scripts/run_experiments.sh
