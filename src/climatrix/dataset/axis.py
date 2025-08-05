@@ -326,7 +326,7 @@ class Vertical(Axis):
 
     _regex = re.compile(
         r"^(z|lv_|bottom_top|sigma|h(ei)?ght|altitude|depth|"
-        r"isobaric|pres|isotherm)[a-z_]*[0-9]*$"
+        r"isobaric|pres|level|isotherm)[a-z_]*[0-9]*$"
     )
     type = AxisType.VERTICAL
     dtype: ClassVar[np.dtype] = np.dtype("float32")
