@@ -24,19 +24,16 @@ From: ubuntu:24.04
 %post
     find /app -name "*.sh" -type f -exec chmod +x {} \;
     
-    pip install -r /app/conf/requirements.txt
-    python3 -c "import climatrix; print('Climatrix package available')" || exit 1
-
 %runscript
 #!/bin/bash
 echo "Running experiment pipeline..."
-
 # Set working directory
 cd /app
 
 echo "Using system Python: $(which python3)"
 echo "Python version: $(python3 --version)"
 echo "Key packages check:"
+python3 -m pip install -r /app/conf/requirements.txt --break-system-packages
 python3 -c "import numpy as np; print(f'numpy: {np.__version__}')"
 python3 -c "import pandas as pd; print(f'pandas: {pd.__version__}')"
 python3 -c "import xarray as xr; print(f'xarray: {xr.__version__}')"

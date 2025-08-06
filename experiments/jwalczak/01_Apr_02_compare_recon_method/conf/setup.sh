@@ -24,7 +24,7 @@ function activate_venv() {
 
 function install_dependencies() {
   echo "Installing dependencies from requirements.txt"
-  pip install -r requirements.txt
+  ${VENV_NAME}/bin/pip install -r requirements.txt
   if [ $? -ne 0 ]; then
     echo "Error installing dependencies."
     exit 1
