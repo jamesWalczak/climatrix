@@ -2,23 +2,31 @@ FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y \
-    python3 python3-pip python3-venv wget curl git bash \
-    && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
 
-COPY ../ /app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3-dev \
+    python3-venv \
+    build-essential \
+    wget curl git unzip bash \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN chmod +x scripts/*.sh
+COPY conf ./conf/
+RUN bash ./conf/setup.sh
 
-RUN bash conf/setup.sh
+ENV PATH="/app/conf/exp1/bin:$PATH"
 
-ENV VIRTUAL_ENV=/app/conf/exp1
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r ./conf/requirements.txt
+
+COPY images/ ./images/
+COPY scripts/ ./scripts/
 
 RUN mkdir -p /app/results
 
-CMD bash -c "scripts/download_blend_mean_temperature.sh && \
-             python scripts/prepare_ecad_observations.py && \
-             bash scripts/run_experiments.sh"
+RUN chmod +x ./images/scripts/entrypoint.sh && \
+    find . -name "*.sh" -type f -exec chmod +x {} +
+
+ENTRYPOINT ["./entrypoint.sh"]

@@ -8,20 +8,21 @@ It ensures that datasets are properly downloaded/prepared and that results are s
 
 ```
 01_Apr_02_compare_recon_method/
-├── conf/                  # Configurations (YAML, JSON, etc.)
+├── conf/                  # Configurations 
 │   └── setup.sh           # Script to create virtual environment & install deps
+│   └── requirements.txt   # Dependencies to install
 ├── data/                  # Datasets (mounted from host)
 ├── images/                # Container definition files (Dockerfile, experiment.def)
+│   ├── scripts/           # Container utility scripts
+│       └── entrypoint.sh 
 │   ├── Dockerfile
 │   └── experiment.def
 ├── src/                   # Source code (Python modules)
 ├── results/               # Experiment outputs (mounted from host)
 ├── notebook/              # Jupyter notebooks
 ├── scripts/               # Utility scripts
-│   ├── create_venv.sh
 │   ├── download_blend_mean_temperature.sh
 │   ├── prepare_ecad_observations.py
-│   └── run_experiments.sh
 ```
 
 ---
@@ -33,8 +34,8 @@ It ensures that datasets are properly downloaded/prepared and that results are s
 From inside the `images/` directory:
 
 ```bash
-cd 01_Apr_02_compare_recon_method/images
-docker build -t my-experiments .
+cd 01_Apr_02_compare_recon_method
+docker build -t my-experiments -f images/Dockerfile .
 ```
 
 This creates an image named `my-experiments`.
