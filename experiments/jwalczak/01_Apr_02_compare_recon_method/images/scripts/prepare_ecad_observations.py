@@ -13,13 +13,11 @@ from rich.progress import track
 import climatrix as cm
 
 SEED: int = 0
-DATA_DIR = importlib.resources.files("climatrix").joinpath(
-    "..", "..", "data", "ecad_blend"
-)
+DATA_DIR = Path(__file__).parent.parent.parent / "data" / "ecad_blend"
 STATIONS_DEF_PATH = DATA_DIR / "sources.txt"
 TARGET_FILE = DATA_DIR / "ecad_blend.nc"
 
-EXP_DIR = Path(__file__).parent.parent
+EXP_DIR = Path(__file__).parent.parent.parent
 TRAIN_DSET_PATH = EXP_DIR / ".." / "data" / "ecad_obs_europe_train.nc"
 VALIDATION_DSET_PATH = EXP_DIR / ".." / "data" / "ecad_obs_europe_val.nc"
 TEST_DSET_PATH = EXP_DIR / ".." / "data" / "ecad_obs_europe_test.nc"
