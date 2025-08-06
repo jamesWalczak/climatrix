@@ -283,17 +283,6 @@ main() {
     # Setup system Python environment
     setup_system_python
     
-    # Setup phase - handle container-specific setup
-    log "=== Setup Phase ==="
-    setup_script="$SCRIPT_DIR/../conf/setup.sh"
-    
-    if [[ -f "$setup_script" ]]; then
-        run_setup_script "$setup_script"
-    else
-        log "WARNING: Setup script not found: $setup_script"
-        log "Continuing without setup script..."
-    fi
-    
     # Download data
     log "=== Download Phase ==="
     download_script="$SCRIPT_DIR/download_blend_mean_temperature.sh"

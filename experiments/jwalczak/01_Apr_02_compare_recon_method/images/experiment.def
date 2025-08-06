@@ -19,7 +19,9 @@ From: ubuntu:24.04
     mkdir -p /app/results
 
 %files
-    ../ /app
+    ../conf/requirements.txt /app/conf/requirements.txt
+    . /app/images
+    ../scripts /app/scripts
 
 %post
     find /app -name "*.sh" -type f -exec chmod +x {} \;
@@ -45,4 +47,4 @@ bash /app/scripts/download_blend_mean_temperature.sh
 python3 /app/scripts/prepare_ecad_observations.py
 
 # Run the rest of the pipeline
-bash /app/scripts/run_experiments.sh
+bash /app/images/scripts/run_containerized_experiments.sh
