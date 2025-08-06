@@ -1,6 +1,6 @@
 #!/bin/bash
-
-VENV_NAME="exp1"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_NAME="${SCRIPT_DIR}/exp1"
 
 function create_venv() {
   echo "Creating virtual environment: $VENV_NAME"
@@ -23,11 +23,10 @@ function activate_venv() {
 }
 
 function install_dependencies() {
-  echo "Installing pip dependencies..."
-  pip install climatrix[plot,ml,optim,ok] pandas
+  echo "Installing dependencies from requirements.txt"
+  pip install -r requirements.txt
   if [ $? -ne 0 ]; then
     echo "Error installing dependencies."
-    deactivate
     exit 1
   fi
   echo "Dependencies installed successfully."

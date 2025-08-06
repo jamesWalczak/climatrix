@@ -3,37 +3,49 @@ From: ubuntu:24.04
 
 %environment
     export DEBIAN_FRONTEND=noninteractive
-    export VIRTUAL_ENV=/app/conf/exp1
-    export PATH="$VIRTUAL_ENV/bin:$PATH"
+    export PYTHONPATH=/app:$PYTHONPATH
 
 %post
+    # Update and install system dependencies
     apt-get update && apt-get install -y \
-        python3 python3-pip python3-venv wget curl git unzip bash \
+        python3 python3-pip python3-venv python3-dev \
+        python3-numpy python3-pandas python3-matplotlib \
+        python3-scipy python3-h5py python3-netcdf4 \
+        wget curl git unzip bash \
+        build-essential \
         && rm -rf /var/lib/apt/lists/*
-
+    
+    # Create directories
     mkdir -p /app/results
 
 %files
     ../ /app
 
 %post
-    # Make sure scripts are executable after being copied
-    chmod +x /app/scripts/*.sh
-    chmod +x /app/conf/*.sh
-
-    # Setup Python virtual environment
-    bash /app/conf/setup.sh
+    find /app -name "*.sh" -type f -exec chmod +x {} \;
+    
+    pip install -r /app/conf/requirements.txt
+    python3 -c "import climatrix; print('Climatrix package available')" || exit 1
 
 %runscript
 #!/bin/bash
 echo "Running experiment pipeline..."
-source /app/conf/exp1/bin/activate
-echo "Using virtual environment at: $VIRTUAL_ENV"
-echo "Python path: $(which python)"
-echo "Python version: $(python --version)"
-echo "Pip packages installed:"
-python -m pip list
 
+# Set working directory
+cd /app
+
+echo "Using system Python: $(which python3)"
+echo "Python version: $(python3 --version)"
+echo "Key packages check:"
+python3 -c "import numpy as np; print(f'numpy: {np.__version__}')"
+python3 -c "import pandas as pd; print(f'pandas: {pd.__version__}')"
+python3 -c "import xarray as xr; print(f'xarray: {xr.__version__}')"
+
+# Download data first
 bash /app/scripts/download_blend_mean_temperature.sh
-python /app/scripts/prepare_ecad_observations.py
+
+# Run Python scripts directly
+python3 /app/scripts/prepare_ecad_observations.py
+
+# Run the rest of the pipeline
 bash /app/scripts/run_experiments.sh

@@ -5,7 +5,7 @@ set -euo pipefail
 
 # Script directory and paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV_PATH="/app/conf/exp1"
+VENV_PATH="${SCRIPT_DIR}/conf/exp1"
 
 # Logging function
 log() {
