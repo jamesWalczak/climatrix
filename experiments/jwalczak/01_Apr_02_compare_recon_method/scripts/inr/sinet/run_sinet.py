@@ -27,7 +27,8 @@ console.print("[bold green]Using NaN policy: [/bold green]", NAN_POLICY)
 SEED = 1
 console.print("[bold green]Using seed: [/bold green]", SEED)
 
-DSET_PATH = Path(__file__).parent.parent.parent.joinpath("data")
+#DSET_PATH = Path(__file__).parent.parent.parent.joinpath("data")
+DSET_PATH = Path("/app/data")
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
 OPTIM_INIT_POINTS: int = 50
@@ -42,7 +43,7 @@ console.print(
 )
 
 RESULT_DIR: Path = (
-    Path(__file__).parent.parent.parent / "results" / "inr" / "sinet"
+    Path("/app") / "results" / "inr" / "sinet"
 )
 PLOT_DIR: Path = RESULT_DIR / "plots"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)

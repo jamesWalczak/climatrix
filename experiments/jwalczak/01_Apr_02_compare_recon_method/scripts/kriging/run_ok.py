@@ -27,7 +27,8 @@ console.print("[bold green]Using NaN policy: [/bold green]", NAN_POLICY)
 SEED = 1
 console.print("[bold green]Using seed: [/bold green]", SEED)
 
-DSET_PATH = Path(__file__).parent.parent.parent.joinpath("data")
+#DSET_PATH = Path(__file__).parent.parent.parent.joinpath("data")
+DSET_PATH = Path("/app/data")
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
 OPTIM_INIT_POINTS: int = 50
@@ -41,7 +42,7 @@ console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
 
-RESULT_DIR: Path = Path(__file__).parent.parent.parent / "results" / "ok"
+RESULT_DIR: Path = Path("/app") / "results" / "ok"
 PLOT_DIR: Path = RESULT_DIR / "plots"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
 console.print("[bold green]Plots will be saved to: [/bold green]", PLOT_DIR)

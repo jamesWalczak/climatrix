@@ -13,14 +13,14 @@ from rich.progress import track
 import climatrix as cm
 
 SEED: int = 0
-DATA_DIR = Path(__file__).parent.parent.parent / "data" / "ecad_blend"
+DATA_DIR = Path("/app") / "data" / "ecad_blend"
 STATIONS_DEF_PATH = DATA_DIR / "sources.txt"
 TARGET_FILE = DATA_DIR / "ecad_blend.nc"
 
-EXP_DIR = Path(__file__).parent.parent.parent
-TRAIN_DSET_PATH = EXP_DIR / ".." / "data" / "ecad_obs_europe_train.nc"
-VALIDATION_DSET_PATH = EXP_DIR / ".." / "data" / "ecad_obs_europe_val.nc"
-TEST_DSET_PATH = EXP_DIR / ".." / "data" / "ecad_obs_europe_test.nc"
+EXP_DIR = Path("/app")
+TRAIN_DSET_PATH = EXP_DIR / "data" / "ecad_obs_europe_train.nc"
+VALIDATION_DSET_PATH = EXP_DIR / "data" / "ecad_obs_europe_val.nc"
+TEST_DSET_PATH = EXP_DIR / "data" / "ecad_obs_europe_test.nc"
 NBR_SAMPLES: int = 100
 
 np.random.seed(SEED)
@@ -142,6 +142,9 @@ def get_time_range(min_date, max_date):
 def process_in_chunks(metadata_df, time_index):
     """Process stations in chunks to reduce memory usage"""
     num_stations = len(metadata_df)
+    if TARGET_FILE.exists():
+        print("Target file exists. Skipping...")
+        return
     ds = xr.Dataset(
         data_vars={
             "mean_temperature": (
@@ -192,7 +195,6 @@ def process_in_chunks(metadata_df, time_index):
     ds.to_netcdf(TARGET_FILE, mode="w")
 
 
-# TODO: sample train/val/test datasets
 def prepare_splits():
     TRAIN_PORTION = 0.6
     VALIDATION_PORTION = 0.2
