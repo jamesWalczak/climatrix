@@ -1,12 +1,17 @@
 #!/bin/bash
 
-# Get the directory of the script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -z "$EXP_DIR" ]; then
+	echo "Error: The EXP_DIR environment variable is not set." >&2
+	echo "Please set it before running the script, for example:" >&2
+	echo "export EXP_DIR=\"/path/to/your/directory\"" >&2
+	echo "Refer to the experiment README.md file" >&2
+	exit 1
+ fi
 
 # Define variables
 URL="https://knmi-ecad-assets-prd.s3.amazonaws.com/download/ECA_blend_tg.zip"
 ZIP_FILE="/tmp/ecad_blend.zip"
-TARGET_DIR="$SCRIPT_DIR/../data/ecad_blend"
+TARGET_DIR="$EXP_DIR/data/ecad_blend"
 
 # Create the target directory if it doesn't exist
 mkdir -p "$TARGET_DIR"
@@ -15,7 +20,7 @@ mkdir -p "$TARGET_DIR"
 # If the target directory already has files, we assume the work is done and exit.
 if [ -n "$(ls -A "$TARGET_DIR")" ]; then
 	  echo "Data is already present in $TARGET_DIR. Nothing to do. ✅"
-	    exit 0
+	  exit 0
     fi
 
     # If we reach here, the target directory is empty and we need to fetch the data.
