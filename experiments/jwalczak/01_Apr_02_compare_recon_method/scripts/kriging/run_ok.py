@@ -5,13 +5,12 @@ This module runs experiment of OK method
 """
 
 import csv
+import os
 import shutil
-from functools import partial
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import xarray as xr
-from bayes_opt import BayesianOptimization
 from rich.console import Console
 
 import climatrix as cm
@@ -27,8 +26,13 @@ console.print("[bold green]Using NaN policy: [/bold green]", NAN_POLICY)
 SEED = 1
 console.print("[bold green]Using seed: [/bold green]", SEED)
 
-#DSET_PATH = Path(__file__).parent.parent.parent.joinpath("data")
-DSET_PATH = Path("/app/data")
+CLIMATRIX_EXP_DIR = os.environ.get("CLIMATRIX_EXP_DIR")
+if CLIMATRIX_EXP_DIR is None:
+    raise ValueError(
+        "CLIMATRIX_EXP_DIR environment variable is not set. "
+        "Please set it to the path of your experiment directory."
+    )
+DSET_PATH = Path(CLIMATRIX_EXP_DIR) / "data"
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
 OPTIM_INIT_POINTS: int = 50
@@ -42,7 +46,7 @@ console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
 
-RESULT_DIR: Path = Path("/app") / "results" / "ok"
+RESULT_DIR: Path = Path(CLIMATRIX_EXP_DIR) / "results" / "ok"
 PLOT_DIR: Path = RESULT_DIR / "plots"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
 console.print("[bold green]Plots will be saved to: [/bold green]", PLOT_DIR)

@@ -1,29 +1,115 @@
 import gc
-import importlib.resources
 import os
 import warnings
-from datetime import datetime
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import requests
 import xarray as xr
 from rich.progress import track
 
 import climatrix as cm
 
 SEED: int = 0
-DATA_DIR = Path("/app") / "data" / "ecad_blend"
+CLIMATRIX_EXP_DIR = os.environ.get("CLIMATRIX_EXP_DIR")
+if CLIMATRIX_EXP_DIR is None:
+    raise ValueError(
+        "CLIMATRIX_EXP_DIR environment variable is not set. "
+        "Please set it to the path of your experiment directory."
+    )
+
+URL = "https://knmi-ecad-assets-prd.s3.amazonaws.com/download/ECA_blend_tg.zip"
+ZIP_FILE = Path("/tmp/ecad_blend.zip")
+
+DATA_DIR = Path(CLIMATRIX_EXP_DIR) / "data" / "ecad_blend"
 STATIONS_DEF_PATH = DATA_DIR / "sources.txt"
 TARGET_FILE = DATA_DIR / "ecad_blend.nc"
 
-EXP_DIR = Path("/app")
-TRAIN_DSET_PATH = EXP_DIR / "data" / "ecad_obs_europe_train.nc"
-VALIDATION_DSET_PATH = EXP_DIR / "data" / "ecad_obs_europe_val.nc"
-TEST_DSET_PATH = EXP_DIR / "data" / "ecad_obs_europe_test.nc"
 NBR_SAMPLES: int = 100
 
 np.random.seed(SEED)
+
+
+def download_file(url, filename):
+    try:
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+
+        with open(filename, "wb") as file:
+            for chunk in response.iter_content(chunk_size=8192):
+                file.write(chunk)
+
+        return True
+    except requests.exceptions.RequestException as e:
+        print(f"Error downloading file: {e}")
+        return False
+
+
+def prepare_ecad_data():
+    train_files = list(DATA_DIR.parent.glob("ecad_obs_europe_train_*.nc"))
+    train_files_present = val_files_present = test_files_present = False
+    if len(train_files) >= NBR_SAMPLES:
+        train_files_present = True
+    val_files = list(DATA_DIR.parent.glob("ecad_obs_europe_val_*.nc"))
+    if len(val_files) >= NBR_SAMPLES:
+        val_files_present = True
+    test_files = list(DATA_DIR.parent.glob("ecad_obs_europe_test_*.nc"))
+    if len(test_files) >= NBR_SAMPLES:
+        test_files_present = True
+
+    if train_files_present and val_files_present and test_files_present:
+        print("ECAD data already prepared. Skipping preparation.")
+        return
+
+    # If we have source data unzipped but not process, process them
+    if (
+        (DATA_DIR / "sources.txt").exists()
+        and (DATA_DIR / "stations.txt").exists()
+        and DATA_DIR.glob("TG_STAID*.txt")
+    ):
+        print("ECAD data already downloaded and unzipped. Skipping download.")
+        sources, min_date, max_date = load_sources()
+        time_index = get_time_range(min_date, max_date)
+        process_in_chunks(sources, time_index)
+        prepare_splits()
+        return
+
+    # If we already have the zip file, let us extract it and use
+    if ZIP_FILE.exists():
+        print(f"Extracting {ZIP_FILE} to {DATA_DIR}")
+        import zipfile
+
+        with zipfile.ZipFile(ZIP_FILE, "r") as zip_ref:
+            zip_ref.extractall(DATA_DIR)
+        print("Extraction completed.")
+        sources, min_date, max_date = load_sources()
+        time_index = get_time_range(min_date, max_date)
+        process_in_chunks(sources, time_index)
+        prepare_splits()
+        return
+
+    # If we do not have the zip file, we download it
+    print(f"Downloading ECAD data from {URL} to {ZIP_FILE}")
+    if not download_file(URL, ZIP_FILE):
+        raise RuntimeError(
+            f"Failed to download ECAD data from {URL} to {ZIP_FILE}"
+        )
+
+    print(
+        f"Downloaded ECAD data to {ZIP_FILE}. Now extracting it to {DATA_DIR}"
+    )
+    import zipfile
+
+    with zipfile.ZipFile(ZIP_FILE, "r") as zip_ref:
+        zip_ref.extractall(DATA_DIR)
+    print("Extraction completed.")
+
+    # After extraction, we can process the data
+    sources, min_date, max_date = load_sources()
+    time_index = get_time_range(min_date, max_date)
+    process_in_chunks(sources, time_index)
+    prepare_splits()
 
 
 def lon_dms_to_decimal(dms_str):
@@ -207,13 +293,19 @@ def prepare_splits():
         dset = full_dset.isel(valid_time=date_id)
         date = pd.to_datetime(dset.valid_time.values)
         TRAIN_DSET_PATH = (
-            EXP_DIR / f"data/ecad_obs_europe_train_{date:%Y%m%d}.nc"
+            CLIMATRIX_EXP_DIR
+            / "data"
+            / f"ecad_obs_europe_train_{date:%Y%m%d}.nc"
         )
         VALIDATION_DSET_PATH = (
-            EXP_DIR / f"data/ecad_obs_europe_val_{date:%Y%m%d}.nc"
+            CLIMATRIX_EXP_DIR
+            / "data"
+            / f"ecad_obs_europe_val_{date:%Y%m%d}.nc"
         )
         TEST_DSET_PATH = (
-            EXP_DIR / f"data/ecad_obs_europe_test_{date:%Y%m%d}.nc"
+            CLIMATRIX_EXP_DIR
+            / "data"
+            / f"ecad_obs_europe_test_{date:%Y%m%d}.nc"
         )
 
         dset = dset.dropna(dim="point", how="all")
@@ -241,7 +333,4 @@ def prepare_splits():
 
 
 if __name__ == "__main__":
-    sources, min_date, max_date = load_sources()
-    time_index = get_time_range(min_date, max_date)
-    process_in_chunks(sources, time_index)
-    prepare_splits()
+    prepare_ecad_data()

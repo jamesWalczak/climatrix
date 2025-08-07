@@ -1,10 +1,17 @@
 #!/bin/bash
 
-# Enable strict error handling
 set -euo pipefail
 
-# Script directory and paths
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -z "$CLIMATRIX_EXP_DIR" ]; then
+	echo "Error: The CLIMATRIX_EXP_DIR environment variable is not set." >&2
+	echo "Please set it before running the script, for example:" >&2
+	echo "export CLIMATRIX_EXP_DIR=\"/path/to/your/directory\"" >&2
+	echo "Refer to the experiment README.md file" >&2
+	exit 1
+ fi
+
+# Virtual environment path
+VENV_PATH="$CLIMATRIX_EXP_DIR/conf/exp1"
 
 # Logging function
 log() {
@@ -63,15 +70,52 @@ check_python_script() {
     log "$description found: $script"
 }
 
-# Function to setup system Python environment with detailed logging
-setup_system_python() {
-    log "=== System Python Environment Setup ==="
+# Function to setup and activate virtual environment
+setup_virtual_environment() {
+    log "=== Virtual Environment Setup ==="
+    log "Target venv path: $VENV_PATH"
+    
+    # Check if virtual environment exists
+    if [[ ! -d "$VENV_PATH" ]]; then
+        error_exit "Virtual environment directory does not exist: $VENV_PATH"
+    fi
+    
+    # Check for activation script
+    local activate_script="$VENV_PATH/bin/activate"
+    if [[ ! -f "$activate_script" ]]; then
+        error_exit "Virtual environment activation script not found: $activate_script"
+    fi
+    
+    log "Found virtual environment at: $VENV_PATH"
+    
+    # Source the virtual environment
+    log "Activating virtual environment..."
+    set +u  # Temporarily disable undefined variable checking for venv activation
+    source "$activate_script"
+    set -u  # Re-enable undefined variable checking
+    
+    # Verify activation
+    if [[ -z "${VIRTUAL_ENV:-}" ]]; then
+        error_exit "Failed to activate virtual environment"
+    fi
+    
+    log "Virtual environment activated: $VIRTUAL_ENV"
+    
+    return 0
+}
+
+# Function to setup Python environment with virtual environment support
+setup_python_environment() {
+    log "=== Python Environment Setup ==="
     
     # Detect container environment
     local container_env=$(detect_container)
     log "Container environment detected: $container_env"
     
-    # Find Python binary
+    # Setup and activate virtual environment
+    setup_virtual_environment
+    
+    # Find Python binary (should now be from venv)
     local python_cmd=""
     for cmd in python3 python; do
         if command -v "$cmd" >/dev/null 2>&1; then
@@ -87,6 +131,16 @@ setup_system_python() {
     log "Python command: $python_cmd"
     log "Python binary location: $(which $python_cmd)"
     log "Python version: $($python_cmd --version)"
+    
+    # Verify we're using the venv Python
+    local python_executable=$($python_cmd -c "import sys; print(sys.executable)")
+    if [[ "$python_executable" != "$VENV_PATH"* ]]; then
+        log "WARNING: Python executable is not from expected venv path"
+        log "Expected: $VENV_PATH/bin/python*"
+        log "Actual: $python_executable"
+    else
+        log "✓ Confirmed using venv Python: $python_executable"
+    fi
     
     # Check pip availability
     local pip_cmd=""
@@ -108,6 +162,14 @@ setup_system_python() {
     log "Pip command: $pip_cmd"
     log "Pip version: $($pip_cmd --version)"
     
+    # Verify pip is using the venv
+    local pip_location=$($pip_cmd --version | grep -o '/[^[:space:]]*' | head -1 || echo "unknown")
+    if [[ "$pip_location" != "unknown" && "$pip_location" == "$VENV_PATH"* ]]; then
+        log "✓ Confirmed using venv pip: $pip_location"
+    elif [[ "$pip_location" != "unknown" ]]; then
+        log "WARNING: Pip location may not be from venv: $pip_location"
+    fi
+    
     # Set environment variables for consistent Python usage
     export PYTHON_CMD="$python_cmd"
     export PIP_CMD="$pip_cmd"
@@ -116,40 +178,12 @@ setup_system_python() {
     local site_packages=$($python_cmd -c "import site; print(site.getsitepackages()[0])" 2>/dev/null || echo "unknown")
     log "Python site-packages directory: $site_packages"
     
-    # Check user site-packages directory
-    local user_site=$($python_cmd -c "import site; print(site.getusersitepackages())" 2>/dev/null || echo "unknown")
-    log "Python user site-packages directory: $user_site"
+    # For venv, we typically install directly (no --user needed)
+    export PIP_INSTALL_ARGS="--no-cache-dir"
+    log "Pip install arguments: ${PIP_INSTALL_ARGS}"
     
-    # Container-specific adjustments
-    case "$container_env" in
-        "docker")
-            log "=== Docker Container Configuration ==="
-            log "Running in Docker container"
-            # In Docker, we typically have root access and can install system-wide
-            export PIP_INSTALL_ARGS="--no-cache-dir"
-            ;;
-        "apptainer")
-            log "=== Apptainer Container Configuration ==="
-            log "Running in Apptainer/Singularity container"
-            # In Apptainer, filesystem is typically read-only except for bind mounts
-            # Use user site-packages if possible
-            export PIP_INSTALL_ARGS="--user --no-cache-dir"
-            export PYTHONUSERBASE="${HOME}/.local"
-            # Ensure user site-packages is in Python path
-            export PYTHONPATH="${PYTHONUSERBASE}/lib/python$($python_cmd -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')/site-packages:${PYTHONPATH:-}"
-            ;;
-        "none")
-            log "=== Native System Configuration ==="
-            log "Running on native system (not in container)"
-            # Use user install to avoid system conflicts
-            export PIP_INSTALL_ARGS="--user --no-cache-dir"
-            ;;
-    esac
-    
-    log "Pip install arguments: ${PIP_INSTALL_ARGS:-none}"
-    
-    # List currently installed packages
-    log "=== Currently Installed Python Packages ==="
+    # List currently installed packages in venv
+    log "=== Currently Installed Python Packages in venv ==="
     $python_cmd -m pip list 2>/dev/null | head -20 || log "Could not list packages"
     local package_count=$($python_cmd -m pip list 2>/dev/null | wc -l || echo "0")
     if [[ "$package_count" -gt 0 ]]; then
@@ -158,7 +192,7 @@ setup_system_python() {
     
     # Check for specific required packages
     log "=== Checking Required Packages ==="
-    local required_packages=("xarray" "numpy" "pandas" "matplotlib" "scipy")
+    local required_packages=("climatrix")
     local missing_packages=()
     
     for package in "${required_packages[@]}"; do
@@ -173,17 +207,11 @@ setup_system_python() {
     
     # Install missing packages if any
     if [[ ${#missing_packages[@]} -gt 0 ]]; then
-        log "=== Installing Missing Packages ==="
+        log "=== Installing Missing Packages to venv ==="
         log "Missing packages: ${missing_packages[*]}"
         
-        # Check if we can install packages
-        if [[ "$container_env" == "apptainer" ]]; then
-            log "WARNING: In Apptainer container, package installation may fail if filesystem is read-only"
-            log "Consider pre-installing packages in the container image or using bind mounts"
-        fi
-        
         for package in "${missing_packages[@]}"; do
-            log "Installing $package..."
+            log "Installing $package to virtual environment..."
             if eval "$PIP_CMD install ${PIP_INSTALL_ARGS:-} $package"; then
                 log "✓ Successfully installed $package"
             else
@@ -195,10 +223,11 @@ setup_system_python() {
     
     # Final verification
     log "=== Final Environment Verification ==="
+    log "Virtual environment: $VIRTUAL_ENV"
     log "Python interpreter: $(which $python_cmd)"
     log "Python version: $($python_cmd --version)"
     log "Python executable path: $($python_cmd -c 'import sys; print(sys.executable)')"
-    log "Python path: $($python_cmd -c 'import sys; print(sys.path[:3])')"
+    log "Python path (first 3 entries): $($python_cmd -c 'import sys; print(sys.path[:3])')"
     
     # Test import of critical packages
     for package in "${required_packages[@]}"; do
@@ -207,7 +236,7 @@ setup_system_python() {
         fi
     done
     
-    log "System Python environment setup completed successfully"
+    log "Python environment setup completed successfully"
 }
 
 # Function to run Python script with error handling
@@ -218,6 +247,7 @@ run_python_script() {
     log "=== Running $description ==="
     log "Script: $script"
     log "Using Python: ${PYTHON_CMD} ($(which ${PYTHON_CMD}))"
+    log "Virtual environment: ${VIRTUAL_ENV:-none}"
     
     # Set additional environment variables for the script
     export PYTHONUNBUFFERED=1  # Ensure output is not buffered
@@ -242,22 +272,20 @@ run_setup_script() {
     # Check if setup script exists and is executable
     check_executable "$setup_script" "Setup script"
     
-    # Run setup script with appropriate flags
+    # Since we're using our own venv, we can run setup script normally
+    # but still try to skip additional venv creation if possible
+    log "Running setup script..."
     case "$container_env" in
         "docker"|"apptainer")
-            log "Running setup script in container mode..."
-            # Skip virtual environment creation in containers
-            if [[ -x "$setup_script" ]]; then
-                if ! "$setup_script" -f --no-venv 2>/dev/null; then
-                    log "Setup script doesn't support --no-venv flag, trying with -f only..."
-                    if ! "$setup_script" -f; then
-                        error_exit "Setup script failed"
-                    fi
+            # Try to skip additional venv creation since we already have one
+            if ! "$setup_script" -f --no-venv 2>/dev/null; then
+                log "Setup script doesn't support --no-venv flag, trying with -f only..."
+                if ! "$setup_script" -f; then
+                    error_exit "Setup script failed"
                 fi
             fi
             ;;
         *)
-            log "Running setup script in native mode..."
             if ! "$setup_script" -f; then
                 error_exit "Setup script failed"
             fi
@@ -269,19 +297,20 @@ run_setup_script() {
 
 # Main execution
 main() {
-    log "=== Starting Container-Aware Experiment Pipeline ==="
+    log "=== Starting Container-Aware Experiment Pipeline with venv ==="
     log "Script directory: $SCRIPT_DIR"
     log "Working directory: $(pwd)"
     log "User: $(whoami)"
     log "UID: $(id -u)"
     log "GID: $(id -g)"
+    log "Target virtual environment: $VENV_PATH"
     
     # Detect and log environment
     local container_env=$(detect_container)
     log "Detected environment: $container_env"
     
-    # Setup system Python environment
-    setup_system_python
+    # Setup Python environment with venv
+    setup_python_environment
     
     # Download data
     log "=== Download Phase ==="
@@ -333,6 +362,7 @@ main() {
     
     log "=== Pipeline Completed Successfully ==="
     log "Container environment: $container_env"
+    log "Virtual environment used: ${VIRTUAL_ENV:-none}"
     log "Python used: ${PYTHON_CMD} ($(${PYTHON_CMD} --version))"
 }
 
@@ -342,6 +372,13 @@ cleanup() {
     if [[ $exit_code -ne 0 ]]; then
         log "Pipeline terminated with error (exit code: $exit_code)"
     fi
+    
+    # Deactivate virtual environment if it was activated
+    if [[ -n "${VIRTUAL_ENV:-}" ]] && command -v deactivate >/dev/null 2>&1; then
+        log "Deactivating virtual environment..."
+        deactivate 2>/dev/null || true
+    fi
+    
     exit $exit_code
 }
 
