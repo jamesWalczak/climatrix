@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import logging
 from enum import StrEnum
-from typing import Any, Collection, Union
-
-import numpy as np
+from numbers import Number
+from typing import Any, Collection
 
 from climatrix.comparison import Comparison
 from climatrix.dataset.base import BaseClimatrixDataset
@@ -163,9 +162,11 @@ class HParamFinder:
                 method.update_bounds(values={param_name: param_def["values"]})
         # NOTE: user-defined bounds override defaults
         for param_name, param_value in user_defined_bounds.items():
-            if isinstance(param_value, tuple):
+            if isinstance(param_value, tuple) and all(
+                isinstance(v, Number) for v in param_value
+            ):
                 bounds[param_name] = tuple(param_value)
-            elif isinstance(param_value, list):
+            elif isinstance(param_value, (list, tuple)):
                 self.mapping[param_name] = {
                     i: v for i, v in enumerate(param_value)
                 }
