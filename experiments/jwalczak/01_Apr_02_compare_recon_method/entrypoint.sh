@@ -10,6 +10,8 @@ if [ -z "$CLIMATRIX_EXP_DIR" ]; then
 	exit 1
  fi
 
+# Script directory
+SCRIPT_DIR="$CLIMATRIX_EXP_DIR/scripts"
 # Virtual environment path
 VENV_PATH="$CLIMATRIX_EXP_DIR/conf/exp1"
 
@@ -312,30 +314,13 @@ main() {
     # Setup Python environment with venv
     setup_python_environment
     
-    # Download data
-    log "=== Download Phase ==="
-    download_script="$SCRIPT_DIR/scripts/download_blend_mean_temperature.sh"
-    
-    if [[ -f "$download_script" ]]; then
-        check_executable "$download_script" "Download script"
-        
-        log "Running download script..."
-        if ! "$download_script"; then
-            error_exit "Download script failed"
-        fi
-        log "Download script completed successfully"
-    else
-        log "WARNING: Download script not found: $download_script"
-        log "Continuing without download script..."
-    fi
-    
     # Check all Python scripts exist before running
     log "=== Pre-flight Script Check ==="
     local python_scripts=(
-        "$SCRIPT_DIR/scripts/prepare_ecad_observations.py:ECAD observations preparation script"
-        "$SCRIPT_DIR/scripts/kriging/run_ok.py:Kriging script"
-        "$SCRIPT_DIR/scripts/idw/run_idw.py:IDW script"
-        "$SCRIPT_DIR/scripts/inr/sinet/run_sinet.py:SINET script"
+        "$SCRIPT_DIR/prepare_ecad_observations.py:ECAD observations preparation script"
+        "$SCRIPT_DIR/kriging/run_ok.py:Kriging script"
+        "$SCRIPT_DIR/idw/run_idw.py:IDW script"
+        "$SCRIPT_DIR/inr/sinet/run_sinet.py:SINET script"
     )
     
     local scripts_to_run=()
