@@ -32,14 +32,14 @@ class IDWReconstructor(BaseReconstructor):
     power : float, optional
         The power to raise the distance to (default is 2.0).
         Controls the rate of decrease of influence with distance.
-        Type: float, bounds: (1e-10, 5.0), default: 2.0
+        Type: float, bounds: <unbounded>, default: 2.0
     k : int, optional
         The number of nearest neighbors to consider (default is 5).
-        Type: int, bounds: (1, 50), default: 5
+        Type: int, bounds: (1, ...), default: 5
     k_min : int, optional
         The minimum number of nearest neighbors to consider (if k < k_min)
         NaN values will be put (default is 2).
-        Type: int, bounds: (1, 40), default: 2
+        Type: int, bounds: (1, ...)>, default: 2
 
     Raises
     ------
@@ -53,14 +53,14 @@ class IDWReconstructor(BaseReconstructor):
     -----
     Hyperparameters for optimization:
         - power: float in (1e-10, 5.0), default=2.0
-        - k: int in (1, 50), default=5  
+        - k: int in (1, 50), default=5
         - k_min: int in (1, 40), default=2
     """
 
     NAME: ClassVar[str] = "idw"
-    power = Hyperparameter(float, bounds=(1e-10, 5.0), default=2.0)
-    k = Hyperparameter(int, bounds=(1, 50), default=5)
-    k_min = Hyperparameter(int, bounds=(1, 40), default=2)
+    power = Hyperparameter(float, default=2.0)
+    k = Hyperparameter(int, bounds=(1, None), default=5)
+    k_min = Hyperparameter(int, bounds=(1, None), default=2)
 
     @log_input(log, level=logging.DEBUG)
     def __init__(

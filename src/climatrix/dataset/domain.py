@@ -112,7 +112,7 @@ class SamplingNaNPolicy(StrEnum):
 class DomainBuilder:
     """
     Builder class for creating domains with various axes.
-    
+
     Supports a fluent interface for configuring domain axes
     and creating sparse or dense domains.
     """
@@ -123,7 +123,7 @@ class DomainBuilder:
     def _add_axis(self, axis_type: AxisType, **kwargs) -> Self:
         """
         Add an axis to the domain configuration.
-        
+
         Parameters
         ----------
         axis_type : AxisType
@@ -131,12 +131,12 @@ class DomainBuilder:
         **kwargs
             Keyword arguments where the key is the axis name and the value
             is the coordinate data (slice, list, or numpy array).
-            
+
         Returns
         -------
         DomainBuilder
             The builder instance for method chaining.
-            
+
         Raises
         ------
         ValueError
@@ -151,18 +151,18 @@ class DomainBuilder:
     def vertical(self, **kwargs) -> Self:
         """
         Add a vertical axis to the domain.
-        
+
         Parameters
         ----------
         **kwargs
             Keyword arguments where the key is the axis name and the value
             is the coordinate data (slice, list, or numpy array).
-            
+
         Returns
         -------
         DomainBuilder
             The builder instance for method chaining.
-            
+
         Examples
         --------
         >>> builder.vertical(depth=slice(10, 100, 1))
@@ -173,18 +173,18 @@ class DomainBuilder:
     def lat(self, **kwargs) -> Self:
         """
         Add a latitude axis to the domain.
-        
+
         Parameters
         ----------
         **kwargs
             Keyword arguments where the key is the axis name and the value
             is the coordinate data (slice, list, or numpy array).
-            
+
         Returns
         -------
         DomainBuilder
             The builder instance for method chaining.
-            
+
         Examples
         --------
         >>> builder.lat(latitude=[1, 2, 3, 4])
@@ -195,18 +195,18 @@ class DomainBuilder:
     def lon(self, **kwargs) -> Self:
         """
         Add a longitude axis to the domain.
-        
+
         Parameters
         ----------
         **kwargs
             Keyword arguments where the key is the axis name and the value
             is the coordinate data (slice, list, or numpy array).
-            
+
         Returns
         -------
         DomainBuilder
             The builder instance for method chaining.
-            
+
         Examples
         --------
         >>> builder.lon(longitude=[1, 2, 3, 4])
@@ -217,18 +217,18 @@ class DomainBuilder:
     def time(self, **kwargs) -> Self:
         """
         Add a time axis to the domain.
-        
+
         Parameters
         ----------
         **kwargs
             Keyword arguments where the key is the axis name and the value
             is the coordinate data (slice, list, or numpy array).
-            
+
         Returns
         -------
         DomainBuilder
             The builder instance for method chaining.
-            
+
         Examples
         --------
         >>> builder.time(time=['2020-01-01', '2020-01-02'])
@@ -248,7 +248,7 @@ class DomainBuilder:
             )
         else:
             result = np.array(values)
-        
+
         if len(result) == 0:
             raise ValueError("Resulting array is empty")
         return result
@@ -260,7 +260,7 @@ class DomainBuilder:
             raise ValueError("Latitude axis is required")
         if AxisType.LONGITUDE not in self._axes_config:
             raise ValueError("Longitude axis is required")
-        
+
         # Get coordinate array lengths for spatial coordinates only
         # Vertical and time can be separate dimensions
         spatial_sizes = {}
@@ -268,7 +268,7 @@ class DomainBuilder:
             if axis_type in [AxisType.LATITUDE, AxisType.LONGITUDE]:
                 coord_array = self._convert_slice_to_array(values)
                 spatial_sizes[axis_type] = len(coord_array)
-        
+
         # Check that lat and lon have the same length
         if len(set(spatial_sizes.values())) > 1:
             raise ValueError(
@@ -279,19 +279,19 @@ class DomainBuilder:
     def sparse(self):
         """
         Create a sparse domain from the configured axes.
-        
+
         Returns
         -------
         Domain
             A sparse domain instance.
-            
+
         Raises
         ------
         ValueError
             If coordinate arrays have different lengths or required axes are missing.
         """
         self._validate_sparse_coordinates()
-        
+
         # Convert configurations to coordinate arrays
         coords = {}
         for axis_type, (name, values) in self._axes_config.items():
@@ -302,7 +302,7 @@ class DomainBuilder:
             else:
                 # Spatial coordinates (lat/lon) are indexed by point dimension
                 coords[name] = ("point", coord_array)
-        
+
         # Create xarray Dataset and return Domain
         ds = xr.Dataset(coords=coords)
         return Domain(ds)
@@ -310,7 +310,7 @@ class DomainBuilder:
     def dense(self):
         """
         Create a dense domain from the configured axes.
-        
+
         Returns
         -------
         Domain
@@ -321,7 +321,7 @@ class DomainBuilder:
         for axis_type, (name, values) in self._axes_config.items():
             coord_array = self._convert_slice_to_array(values)
             coords[name] = coord_array
-        
+
         # Create xarray Dataset and return Domain
         ds = xr.Dataset(coords=coords)
         return Domain(ds)
@@ -410,7 +410,7 @@ class Domain:
                 lon.stop + lon.step,
                 lon.step,
             )
-        
+
         # Check if slices produced empty arrays
         if len(lat) == 0:
             raise ValueError(
@@ -445,12 +445,12 @@ class Domain:
     def from_axes(cls) -> DomainBuilder:
         """
         Create a domain builder for configuring domains with multiple axes.
-        
+
         Returns
         -------
         DomainBuilder
             A builder instance for creating domains with various axes.
-            
+
         Examples
         --------
         >>> domain = (Domain.from_axes()

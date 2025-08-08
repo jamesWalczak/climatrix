@@ -60,7 +60,7 @@ plot = [
     "flask"
 ]
 optim = [
-    "bayesian-optimization"
+    "optuna",
 ]
 ok = [
     "pykrige",
