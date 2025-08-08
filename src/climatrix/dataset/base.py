@@ -393,7 +393,7 @@ class BaseClimatrixDataset:
         query_ = {}
         # Handle sparse domain coordinate selection specially
         sparse_coord_queries = {}
-        
+
         for axis_type, value in query.items():
             axis_type = AxisType.get(axis_type)
             corresponding_axis = self.domain.get_axis(axis_type)
@@ -407,14 +407,21 @@ class BaseClimatrixDataset:
                 )
                 continue
             if not corresponding_axis.is_dimension:
-                if self.domain.is_sparse and corresponding_axis.name in self.da.coords:
+                if (
+                    self.domain.is_sparse
+                    and corresponding_axis.name in self.da.coords
+                ):
                     coord_dims = self.da.coords[corresponding_axis.name].dims
-                    if any(dim_name == self.domain.point.name for dim_name in coord_dims):
+                    if any(
+                        dim_name == self.domain.point.name
+                        for dim_name in coord_dims
+                    ):
                         sparse_coord_queries[corresponding_axis.name] = value
                         continue
                     else:
                         log.error(
-                            "Axis '%s' is not a dimension and does not depend on sparse dimensions in this dataset. ", axis_type
+                            "Axis '%s' is not a dimension and does not depend on sparse dimensions in this dataset. ",
+                            axis_type,
                         )
                         raise SubsettingByNonDimensionAxisError(
                             f"Axis '{axis_type}' is not a dimension and does not depend on sparse dimensions in this dataset. "
@@ -422,7 +429,8 @@ class BaseClimatrixDataset:
                         )
                 else:
                     log.error(
-                        "Axis '%s' is not a dimension in this dataset. ", axis_type
+                        "Axis '%s' is not a dimension in this dataset. ",
+                        axis_type,
                     )
                     raise SubsettingByNonDimensionAxisError(
                         f"Axis '{axis_type}' is not a dimension in this dataset. "
@@ -434,7 +442,7 @@ class BaseClimatrixDataset:
         da = self.da
         if query_:
             da = da.sel(query_)
-        
+
         # Then handle sparse coordinate selections using where
         for coord_name, coord_value in sparse_coord_queries.items():
             coord_value = ensure_list_or_slice(coord_value)
@@ -456,7 +464,7 @@ class BaseClimatrixDataset:
                     # Handle exact value
                     mask = da.coords[coord_name] == coord_value
             da = da.where(mask, drop=True)
-        
+
         return type(self)(da)
 
     def isel(self, query: dict[Axis | str, Any]) -> Self:
@@ -498,23 +506,33 @@ class BaseClimatrixDataset:
                 )
                 continue
             if not corresponding_axis.is_dimension:
-                if self.domain.is_sparse and corresponding_axis.name in self.da.coords:
+                if (
+                    self.domain.is_sparse
+                    and corresponding_axis.name in self.da.coords
+                ):
                     coord_dims = self.da.coords[corresponding_axis.name].dims
-                    if any(dim_name == self.domain.point.name for dim_name in coord_dims):
+                    if any(
+                        dim_name == self.domain.point.name
+                        for dim_name in coord_dims
+                    ):
                         log.warning(
                             "Using isel with coordinate '%s' in sparse domain. "
-                            "Converting to point dimension selection.", axis_type
+                            "Converting to point dimension selection.",
+                            axis_type,
                         )
                         warnings.warn(
                             f"Using isel with coordinate '{axis_type}' in sparse domain. "
                             "This selects the point at the given index, not the coordinate value. "
                             "Consider using sel() instead for coordinate value selection."
                         )
-                        query_[self.domain.point.name] = ensure_list_or_slice(value)
+                        query_[self.domain.point.name] = ensure_list_or_slice(
+                            value
+                        )
                         continue
                     else:
                         log.error(
-                            "Axis '%s' is not a dimension and does not depend on sparse dimensions in this dataset. ", axis_type
+                            "Axis '%s' is not a dimension and does not depend on sparse dimensions in this dataset. ",
+                            axis_type,
                         )
                         raise SubsettingByNonDimensionAxisError(
                             f"Axis '{axis_type}' is not a dimension and does not depend on sparse dimensions in this dataset. "
@@ -522,7 +540,8 @@ class BaseClimatrixDataset:
                         )
                 else:
                     log.error(
-                        "Axis '%s' is not a dimension in this dataset. ", axis_type
+                        "Axis '%s' is not a dimension in this dataset. ",
+                        axis_type,
                     )
                     raise SubsettingByNonDimensionAxisError(
                         f"Axis '{axis_type}' is not a dimension in this dataset. "

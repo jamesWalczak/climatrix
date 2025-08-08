@@ -9,6 +9,8 @@ from enum import StrEnum
 from numbers import Number
 from typing import Any, Collection
 
+import numpy as np
+
 from climatrix.comparison import Comparison
 from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.decorators.runtime import raise_if_not_installed
@@ -167,10 +169,20 @@ class HParamFinder:
                     )
                 low, high, dtype = param_def
                 if issubclass(dtype, int):
+                    if low is None:
+                        # NOTE: Bounds range cannot exceed int limits
+                        low = np.iinfo(dtype).min // 2 + 1
+                    if high is None:
+                        high = np.iinfo(dtype).max // 2 - 1
                     suggested_params[param_name] = trial.suggest_int(
                         param_name, low, high
                     )
                 elif issubclass(dtype, float):
+                    if low is None:
+                        # NOTE: Bounds range cannot exceed float limits
+                        low = np.finfo(dtype).min / 2 + 1
+                    if high is None:
+                        high = np.finfo(dtype).max / 2 - 1
                     suggested_params[param_name] = trial.suggest_float(
                         param_name, low, high
                     )
@@ -222,6 +234,12 @@ class HParamFinder:
                     )
             elif "values" in param_def:
                 bounds[param_name] = list(param_def["values"])
+            else:
+                bounds[param_name] = (
+                    None,
+                    None,
+                    param_def["type"],
+                )
         # NOTE: user-defined bounds override defaults
         for param_name, param_value in user_defined_bounds.items():
             if isinstance(param_value, tuple):
@@ -239,10 +257,8 @@ class HParamFinder:
                     raise TypeError(
                         f"Invalid bounds for parameter '{param_name}': {param_value}"
                     )
-                method.update_bounds(bounds={param_name: param_value})
             elif isinstance(param_value, list):
                 bounds[param_name] = param_value
-                method.update_bounds(values={param_name: param_value})
             else:
                 raise TypeError(
                     f"Invalid bounds for parameter '{param_name}': {param_value}"

@@ -1,6 +1,8 @@
 """Tests for Bayesian hyperparameter optimization."""
 
 from datetime import datetime
+from unittest.mock import MagicMock
+import importlib
 
 import numpy as np
 import pytest
@@ -64,7 +66,8 @@ class TestHyperparameterProperty:
 
         assert issubclass(hparams["power"]["type"], float)
         assert issubclass(hparams["k"]["type"], int)
-        assert "bounds" in hparams["power"]
+        # NOTE: power is unbounded
+        assert "bounds" not in hparams["power"]
 
 
 class TestHParamFinder:
@@ -187,8 +190,8 @@ class TestHParamFinder:
         finder = HParamFinder(
             "idw", sparse_dataset, dense_dataset, bounds=custom_bounds
         )
-        assert finder.bounds["power"] == (100.0, 330.0)
-        assert finder.bounds["k"] == (20, 89)
+        assert finder.bounds["power"] == (100.0, 330.0, float)
+        assert finder.bounds["k"] == (20, 89, int)
 
     def test_invalid_explore(self, sparse_dataset, dense_dataset):
         """Test invalid explore parameter."""
@@ -224,16 +227,20 @@ class TestHParamFinder:
         ):
             HParamFinder("idw", sparse_dataset, "not_a_dataset")
 
+    @pytest.mark.skipif(not importlib.util.find_spec("optuna"), reason="`optuna` package is not installed")
     def test_evaluate_params(self, sparse_dataset, dense_dataset):
         """Test parameter evaluation (without full optimization)."""
+        from optuna import Trial
         finder = HParamFinder(
             "idw",
             sparse_dataset,
             dense_dataset,
         )
-
-        result = finder._evaluate_params(power=2, k=5, k_min=2)
-
+        trial = MagicMock(spec=Trial)
+        trial.suggest_int.side_effect = [2, 5]
+        trial.suggest_float.side_effect = [5.0]
+        
+        result = finder._evaluate_params(trial)
         assert isinstance(result, float)
         assert result <= 0
 

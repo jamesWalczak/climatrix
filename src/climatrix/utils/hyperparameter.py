@@ -65,8 +65,11 @@ class Hyperparameter:
                 raise ValueError(
                     "Bounds must be a tuple of (min_value, max_value)"
                 )
-            if bounds[0] >= bounds[1]:
-                raise ValueError("Lower bound must be less than upper bound")
+            if bounds[0] is not None and bounds[1] is not None:
+                if bounds[0] >= bounds[1]:
+                    raise ValueError(
+                        "Lower bound must be less than upper bound"
+                    )
 
     def __set_name__(self, owner, name):
         """Called when the descriptor is assigned to a class attribute."""
@@ -101,9 +104,13 @@ class Hyperparameter:
             casted_value, numbers.Number
         ):
             min_val, max_val = self.bounds
-            if not (min_val <= casted_value <= max_val):
+            if min_val is not None and casted_value < min_val:
                 raise ValueError(
-                    f"Parameter '{self.name}' value {casted_value} is outside bounds [{min_val}, {max_val}]"
+                    f"Parameter '{self.name}' value {casted_value} is below the minimum bound {min_val}"
+                )
+            if max_val is not None and casted_value > max_val:
+                raise ValueError(
+                    f"Parameter '{self.name}' value {casted_value} is above the maximum bound {max_val}"
                 )
 
         if self.values is not None:

@@ -17,7 +17,7 @@ class TestIDWReconstructor(TestBaseReconstructor):
     @skip_on_error(NotImplementedError)
     def test_raise_on_k_min_negative(self, dataset):
         with pytest.raises(
-            ValueError, match="Parameter 'k_min' value -1 is outside bounds*"
+            ValueError, match="Parameter 'k_min' value -1 is below the minimum bound 1*"
         ):
             IDWReconstructor(dataset, dataset.domain, k_min=-1, k=1)
 

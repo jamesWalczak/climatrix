@@ -48,31 +48,31 @@ class SiNETReconstructor(BaseReconstructor):
         Scaling factor for coordinates (default is 1.5).
     lr : float, optional
         Learning rate for optimization (default is 3e-4).
-        Type: float, bounds: (1e-5, 1e-2), default: 1e-3
+        Type: float, bounds: <unbounded>, default: 1e-3
     batch_size : int, optional
         Batch size for training (default is 512).
-        Type: int, bounds: (64, 1024), default: 128
+        Type: int, bounds: <unbounded>, default: 128
     num_epochs : int, optional
         Number of training epochs (default is 5000).
-        Type: int, bounds: (10, 10_000), default: 5_000
+        Type: int, bounds: <unbounded>, default: 5_000
     num_workers : int, optional
         Number of worker processes for data loading (default is 0).
     device : str, optional
         Device to run computation on (default is "cuda").
     gradient_clipping_value : float | None, optional
         Value for gradient clipping (default is None).
-        Type: float, bounds: (0.1, 10.0), default: 1.0
+        Type: float, bounds: <unbounded>, default: 1.0
     checkpoint : str | os.PathLike | Path | None, optional
         Path to model checkpoint (default is None).
     mse_loss_weight : float, optional
         Weight for MSE loss component (default is 3e3).
-        Type: float, bounds: (1e1, 1e4), default: 1e2
+        Type: float, bounds: <unbounded>, default: 1e2
     eikonal_loss_weight : float, optional
         Weight for Eikonal loss component (default is 5e1).
-        Type: float, bounds: (1e0, 1e3), default: 1e1
+        Type: float, bounds: <unbounded>, default: 1e1
     laplace_loss_weight : float, optional
         Weight for Laplace loss component (default is 1e2).
-        Type: float, bounds: (1e1, 1e3), default: 1e2
+        Type: float, bounds: <unbounded>, default: 1e2
     validation : float | BaseClimatrixDataset, optional
         Validation data or portion for training (default is 0.2).
     patience : int | None, optional
@@ -97,17 +97,16 @@ class SiNETReconstructor(BaseReconstructor):
         - eikonal_loss_weight: float in (1e0, 1e3), default=1e1
         - laplace_loss_weight: float in (1e1, 1e3), default=1e2
     """
+
     NAME: ClassVar[str] = "sinet"
 
-    lr = Hyperparameter(float, bounds=(1e-5, 1e-2), default=1e-3)
-    batch_size = Hyperparameter(int, bounds=(64, 1024), default=128)
-    num_epochs = Hyperparameter(int, bounds=(10, 10_000), default=5_000)
-    gradient_clipping_value = Hyperparameter(
-        float, bounds=(0.1, 10.0), default=1.0
-    )
-    mse_loss_weight = Hyperparameter(float, bounds=(1e1, 1e4), default=1e2)
-    eikonal_loss_weight = Hyperparameter(float, bounds=(1e0, 1e3), default=1e1)
-    laplace_loss_weight = Hyperparameter(float, bounds=(1e1, 1e3), default=1e2)
+    lr = Hyperparameter(float, default=1e-3)
+    batch_size = Hyperparameter(int, default=128)
+    num_epochs = Hyperparameter(int, default=5_000)
+    gradient_clipping_value = Hyperparameter(float, default=1.0)
+    mse_loss_weight = Hyperparameter(float, default=1e2)
+    eikonal_loss_weight = Hyperparameter(float, default=1e1)
+    laplace_loss_weight = Hyperparameter(float, default=1e2)
     _was_early_stopped: ClassVar[bool] = False
 
     @log_input(log, level=logging.DEBUG)

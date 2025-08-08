@@ -141,10 +141,10 @@ class TestHyperparameterInClass:
         assert obj.power == 0.5
 
         # Invalid bounds
-        with pytest.raises(ValueError, match="outside bounds \\[0.5, 5.0\\]"):
+        with pytest.raises(ValueError, match="Parameter 'power' value 0.4 is below the minimum bound 0.5"):
             obj.power = 0.4
 
-        with pytest.raises(ValueError, match="outside bounds \\[0.5, 5.0\\]"):
+        with pytest.raises(ValueError, match="Parameter 'power' value 5.1 is above the maximum bound 5.0"):
             obj.power = 5.1
 
         # Integer bounds
@@ -154,10 +154,10 @@ class TestHyperparameterInClass:
         obj.k = 20  # Upper bound
         assert obj.k == 20
 
-        with pytest.raises(ValueError, match="outside bounds \\[1, 20\\]"):
+        with pytest.raises(ValueError, match="Parameter 'k' value 0 is below the minimum bound 1"):
             obj.k = 0
 
-        with pytest.raises(ValueError, match="outside bounds \\[1, 20\\]"):
+        with pytest.raises(ValueError, match="Parameter 'k' value 21 is above the maximum bound 20"):
             obj.k = 21
 
     def test_categorical_validation(self):
@@ -275,10 +275,10 @@ class TestEdgeCases:
         obj.big_float = 1e5
         assert obj.big_float == 1e5
 
-        with pytest.raises(ValueError, match="outside bounds"):
+        with pytest.raises(ValueError, match="Parameter 'small_int' value -11 is below the minimum bound -10"):
             obj.small_int = -11
 
-        with pytest.raises(ValueError, match="outside bounds"):
+        with pytest.raises(ValueError, match="Parameter 'big_float' value 10000000.0 is above the maximum bound 1000000.0"):
             obj.big_float = 1e7
 
     def test_list_and_tuple_categorical(self):

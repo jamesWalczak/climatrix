@@ -1,6 +1,7 @@
 
 # Version is managed by the build system
 **/_version.py
+_version.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
