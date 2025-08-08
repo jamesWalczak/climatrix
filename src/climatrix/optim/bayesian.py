@@ -53,9 +53,6 @@ class HParamFinder:
     include : str or Collection[str], optional
         Parameter(s) to include in optimization. If specified, only these
         parameters will be optimized.
-    explore : float, optional
-        Exploration vs exploitation trade-off parameter in (0, 1).
-        Higher values favor exploration. Default is 0.9.
     n_iters : int, optional
         Total number of optimization iterations. Default is 100.
     bounds : dict, optional
@@ -75,10 +72,8 @@ class HParamFinder:
         Reconstruction method.
     bounds : dict
         Parameter bounds for optimization.
-    n_init_points : int
-        Number of initial random points.
     n_iter : int
-        Number of Bayesian optimization iterations.
+        Number of optimization iterations.
     random_seed : int
         Random seed for optimization.
     """
@@ -92,12 +87,10 @@ class HParamFinder:
         metric: str = "mae",
         exclude: str | Collection[str] | None = None,
         include: str | Collection[str] | None = None,
-        explore: float = 0.9,
-        n_iters: int = 100,
         bounds: dict[str, tuple[float, float]] | None = None,
         random_seed: int = 42,
+        n_iters: int = 100,
         verbose: int = 0,
-        n_jobs: int = 1,
     ):
         self.mapping: dict[str, dict[int, str]] = {}
         self.result: dict[str, Any] = {}
@@ -108,35 +101,30 @@ class HParamFinder:
         self.method_hparams = BaseReconstructor.get(self.method).get_hparams()
         self.random_seed = random_seed
 
-        self._validate_inputs(explore, n_iters)
+        self._validate_inputs(n_iters)
 
         self._compute_bounds(bounds)
         self._filter_parameters(include, exclude)
 
-        self.n_init_points = max(1, int(n_iters * explore))
-        self.n_iter = max(4, n_iters - self.n_init_points)
+        self.n_iters = n_iters
 
         self.verbose = verbose
-        self.n_jobs = n_jobs
 
         log.debug(
             "HParamFinder initialized: method=%s, metric=%s, "
-            "n_init_points=%d, n_iter=%d, bounds=%s",
+            "n_iter=%d, bounds=%s",
             self.method,
             self.metric,
-            self.n_init_points,
-            self.n_iter,
+            self.n_iters,
             self.bounds,
         )
 
-    def _validate_inputs(self, explore: float, n_iters: int) -> None:
+    def _validate_inputs(self, n_iters: int) -> None:
         """Validate input parameters."""
         if not isinstance(self.train_dset, BaseClimatrixDataset):
             raise TypeError("train_dset must be a BaseClimatrixDataset")
         if not isinstance(self.val_dset, BaseClimatrixDataset):
             raise TypeError("val_dset must be a BaseClimatrixDataset")
-        if not 0 < explore < 1:
-            raise ValueError("explore must be in the range (0, 1)")
         if n_iters < 1:
             raise ValueError("n_iters must be >= 1")
 
@@ -382,11 +370,7 @@ class HParamFinder:
 
         log.info("Starting Bayesian optimization for method '%s'", self.method)
         log.info("Bounds: %s", self.bounds)
-        log.info(
-            "Using %d initial points and %d iterations",
-            self.n_init_points,
-            self.n_iter,
-        )
+        log.info("Using %d iterations", self.n_iters)
         sampler = optuna.samplers.TPESampler(seed=self.random_seed)
         pruner = optuna.pruners.MedianPruner(
             n_startup_trials=5, n_warmup_steps=10
@@ -402,7 +386,7 @@ class HParamFinder:
 
         study.optimize(
             self._evaluate_params,
-            n_trials=self.n_iter,
+            n_trials=self.n_iters,
             timeout=None,
             show_progress_bar=True,
         )
