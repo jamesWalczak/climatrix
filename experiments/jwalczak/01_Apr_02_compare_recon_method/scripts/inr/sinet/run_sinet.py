@@ -157,7 +157,6 @@ def run_single_experiment(
         train_dset,
         val_dset,
         metric="mae",
-        explore=0.3,
         n_iters=OPTIM_N_ITERS,
         bounds=BOUNDS,
         random_seed=SEED,
