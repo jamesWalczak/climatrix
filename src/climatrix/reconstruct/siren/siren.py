@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader
 
 from climatrix.dataset.domain import Domain
 from climatrix.decorators.runtime import log_input, raise_if_not_installed
+from climatrix.optim.hyperparameter import Hyperparameter
 from climatrix.reconstruct.base import BaseReconstructor
-from climatrix.utils.hyperparameter import Hyperparameter
 
 from .dataset import SIRENDataset
 from .losses import (

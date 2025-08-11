@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader
 
 from climatrix import BaseClimatrixDataset, Domain
 from climatrix.decorators.runtime import log_input, raise_if_not_installed
+from climatrix.optim.hyperparameter import Hyperparameter
 from climatrix.reconstruct.base import BaseReconstructor
 from climatrix.reconstruct.sinet.callbacks import EarlyStopping
 from climatrix.reconstruct.sinet.dataset import (
@@ -19,7 +20,6 @@ from climatrix.reconstruct.sinet.dataset import (
 )
 from climatrix.reconstruct.sinet.losses import LossEntity, compute_sdf_losses
 from climatrix.reconstruct.sinet.model import SiNET
-from climatrix.utils.hyperparameter import Hyperparameter
 
 log = logging.getLogger(__name__)
 
