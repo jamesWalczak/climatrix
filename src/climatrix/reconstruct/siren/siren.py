@@ -177,7 +177,7 @@ class SIRENReconstructor(BaseReconstructor):
             self.checkpoint = Path(checkpoint).expanduser().absolute()
             log.info("Using checkpoint path: %s", self.checkpoint)
 
-    def _init_model(self) -> nn.Module:
+    def init_model(self) -> nn.Module:
         """
         Initialize the 3D SIREN model.
 
@@ -197,7 +197,7 @@ class SIRENReconstructor(BaseReconstructor):
             omega_hidden=self.omega_hidden,
         ).to(self.device)
 
-    def _configure_optimizer(self, model: nn.Module) -> torch.optim.Optimizer:
+    def configure_optimizer(self, model: nn.Module) -> torch.optim.Optimizer:
         """
         Configure the optimizer for the model.
 
@@ -495,12 +495,12 @@ class SIRENReconstructor(BaseReconstructor):
         """
         from climatrix.dataset.base import BaseClimatrixDataset
 
-        siren_model = self._init_model()
+        siren_model = self.init_model()
         siren_model = self._maybe_load_checkpoint(siren_model, self.checkpoint)
 
         if not self.is_model_loaded:
             log.info("Training 3D SIREN model (SDF loss)...")
-            optimizer = self._configure_optimizer(siren_model)
+            optimizer = self.configure_optimizer(siren_model)
 
             dataloader = DataLoader(
                 self.train_dataset,
