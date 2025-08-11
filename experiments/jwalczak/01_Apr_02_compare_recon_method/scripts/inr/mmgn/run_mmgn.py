@@ -6,19 +6,15 @@ This module runs experiment of SiNET method
 
 import csv
 import shutil
-from functools import partial
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import xarray as xr
-from bayes_opt import BayesianOptimization
 from rich.console import Console
 
 import climatrix as cm
 
 console = Console()
-
-INF_LOSS = -1e4
 
 # Setting up the experiment parameters
 NAN_POLICY = "resample"
@@ -30,13 +26,7 @@ console.print("[bold green]Using seed: [/bold green]", SEED)
 DSET_PATH = Path(__file__).parent.parent.parent.parent.joinpath("data")
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
-OPTIM_INIT_POINTS: int = 50
-console.print(
-    "[bold green]Using nbr initial points for optimization: [/bold green]",
-    OPTIM_INIT_POINTS,
-)
-
-OPTIM_N_ITERS: int = 100
+OPTIM_N_ITERS: int = 500
 console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )

@@ -16,8 +16,6 @@ import climatrix as cm
 
 console = Console()
 
-INF_LOSS = -1e4
-
 # Setting up the experiment parameters
 NAN_POLICY = "resample"
 console.print("[bold green]Using NaN policy: [/bold green]", NAN_POLICY)
@@ -28,7 +26,7 @@ console.print("[bold green]Using seed: [/bold green]", SEED)
 DSET_PATH = Path(__file__).parent.parent.parent.joinpath("data")
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
-OPTIM_N_ITERS: int = 100
+OPTIM_N_ITERS: int = 500
 console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )

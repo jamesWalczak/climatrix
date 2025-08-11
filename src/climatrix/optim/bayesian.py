@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import inspect
 import logging
 from collections import OrderedDict
 from enum import StrEnum
-from numbers import Number
 from typing import Any, Collection
 
 import numpy as np
