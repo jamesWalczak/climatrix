@@ -235,7 +235,7 @@ class TestHParamFinder:
 
         result = finder._evaluate_params(trial)
         assert isinstance(result, float)
-        assert result <= 0
+        assert result >= 0
 
     @skip_on_error(ImportError)
     def test_optimize_mock(self, sparse_dataset, dense_dataset):

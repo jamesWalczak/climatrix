@@ -3,42 +3,11 @@ from enum import Enum
 
 log = logging.getLogger(__name__)
 
-from climatrix.reconstruct.idw import IDWReconstructor
-
-reconstructors = {
-    "IDW": IDWReconstructor,
-}
-
-try:
-    from climatrix.reconstruct.kriging import OrdinaryKrigingReconstructor
-
-    reconstructors["OK"] = OrdinaryKrigingReconstructor
-except ImportError:
-    log.warning(
-        "OrdinaryKrigingReconstructor not available. "
-        "Install climatrix[ok] to use it."
-    )
-    pass
-
-try:
-    from climatrix.reconstruct.sinet.sinet import SiNETReconstructor
-
-    reconstructors["SINET"] = SiNETReconstructor
-except ImportError:
-    pass
-try:
-    from climatrix.reconstruct.siren.siren import SIRENReconstructor
-
-    reconstructors["SIREN"] = SIRENReconstructor
-except ImportError:
-    log.warning(
-        "SIRENReconstructor not available. " "Install climatrix[ml] to use it."
-    )
-    pass
+from climatrix.reconstruct.base import BaseReconstructor
 
 ReconstructionType = Enum(
     "ReconstructionType",
-    {name: cls for name, cls in reconstructors.items()},
+    {name.upper(): cls for name, cls in BaseReconstructor._registry.items()},
 )
 
 

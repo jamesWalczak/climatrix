@@ -1,5 +1,5 @@
 """
-This module runs experiment of OK method
+This module runs experiment of SiNET method
 
 @author: Jakub Walczak, PhD
 """
@@ -23,7 +23,7 @@ console.print("[bold green]Using NaN policy: [/bold green]", NAN_POLICY)
 SEED = 1
 console.print("[bold green]Using seed: [/bold green]", SEED)
 
-DSET_PATH = Path(__file__).parent.parent.parent.joinpath("data")
+DSET_PATH = Path(__file__).parent.parent.parent.parent.joinpath("data")
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
 OPTIM_N_ITERS: int = 500
@@ -31,7 +31,9 @@ console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
 
-RESULT_DIR: Path = Path(__file__).parent.parent.parent / "results" / "ok"
+RESULT_DIR: Path = (
+    Path(__file__).parent.parent.parent / "results" / "inr" / "mmgn"
+)
 PLOT_DIR: Path = RESULT_DIR / "plots"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
 console.print("[bold green]Plots will be saved to: [/bold green]", PLOT_DIR)
@@ -48,16 +50,15 @@ console.print(
 )
 
 BOUNDS = {
-    "nlags": (2, 50),
-    "anisotropy_scaling": (1e-5, 5.0),
-    "coordinates_type": ("euclidean", "geographic"),
-    "variogram_model": (
-        "linear",
-        "power",
-        "gaussian",
-        "spherical",
-        "exponential",
-    ),
+    "lr": (1e-5, 1e-2),
+    "num_epochs": (50, 500),
+    "batch_size": (32, 1024),
+    "weight_decay": (1e-8, 1e-2),
+    "hidden_dim": [32, 64, 128, 256, 512, 1024],
+    "latent_dim": (32, 256),
+    "n_layers": (1, 5),
+    "input_scale": (32, 512),
+    "alpha": (0, 1),
 }
 console.print("[bold green]Hyperparameter bounds: [/bold green]", BOUNDS)
 
@@ -89,11 +90,15 @@ def get_all_dataset_idx() -> list[str]:
 def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
     fieldnames = [
         "dataset_id",
-        "nlags",
-        "anisotropy_scaling",
-        "coordinates_type",
-        "variogram_model",
-        "opt_loss",
+        "lr",
+        "num_epochs",
+        "batch_size",
+        "weight_decay",
+        "hidden_dim",
+        "latent_dim",
+        "n_layers",
+        "input_scale",
+        "alpha",
     ]
     if not hparam_path.exists():
         with open(hparam_path, "w") as f:
@@ -148,7 +153,7 @@ def run_single_experiment(
         spinner="bouncingBall",
     )
     finder = cm.optim.HParamFinder(
-        "ok",
+        "mmgn",
         train_dset,
         val_dset,
         metric="mae",
@@ -159,20 +164,41 @@ def run_single_experiment(
     result = finder.optimize()
     console.print("[bold yellow]Optimized parameters:[/bold yellow]")
     console.print(
-        "[yellow]Number of lags:[/yellow]", result["best_params"]["nlags"]
+        "[yellow]Learning rate (lr):[/yellow]", result["best_params"]["lr"]
     )
     console.print(
-        "[yellow]Anisotropy scaling factor:[/yellow]",
-        result["best_params"]["anisotropy_scaling"],
+        "[yellow]Number of epochs (num_epochs):[/yellow]",
+        result["best_params"]["num_epochs"],
     )
     console.print(
-        "[yellow]Coordinates type:[/yellow]",
-        result["best_params"]["coordinates_type"],
+        "[yellow]Batch size (batch_size):[/yellow]",
+        result["best_params"]["batch_size"],
     )
     console.print(
-        "[yellow]Variogram model:[/yellow]",
-        result["best_params"]["variogram_model"],
+        "[yellow]Weight decay (weight_decay):[/yellow]",
+        result["best_params"]["weight_decay"],
     )
+    console.print(
+        "[yellow]Hidden dimension (hidden_dim):[/yellow]",
+        result["best_params"]["hidden_dim"],
+    )
+    console.print(
+        "[yellow]Latent dimension (latent_dim):[/yellow]",
+        result["best_params"]["latent_dim"],
+    )
+    console.print(
+        "[yellow]Number of layers (n_layers):[/yellow]",
+        result["best_params"]["n_layers"],
+    )
+    console.print(
+        "[yellow]Input scale (input_scale):[/yellow]",
+        result["best_params"]["input_scale"],
+    )
+    console.print(
+        "[yellow]Alpha (alpha):[/yellow]", result["best_params"]["alpha"]
+    )
+    console.print("[yellow]Best score (MAE):[/yellow]", result["best_score"])
+
     status.update(
         "[magenta]Reconstructing with optimised parameters...",
         spinner="bouncingBall",
@@ -184,13 +210,18 @@ def run_single_experiment(
     train_val_dset = xr.concat([train_dset.da, val_dset.da], dim="point").cm
     reconstructed_dset = train_val_dset.reconstruct(
         test_dset.domain,
-        method="ok",
-        nlags=result["best_params"]["nlags"],
-        anisotropy_scaling=result["best_params"]["anisotropy_scaling"],
-        coordinates_type=result["best_params"]["coordinates_type"],
-        variogram_model=result["best_params"]["variogram_model"],
-        backend="vectorized",
-        pseudo_inv=True,
+        method="mmgn",
+        lr=result["best_params"]["lr"],
+        num_epochs=result["best_params"]["num_epochs"],
+        batch_size=result["best_params"]["batch_size"],
+        num_workers=-1,
+        device="cuda",
+        weight_decay=result["best_params"]["weight_decay"],
+        hidden_dim=result["best_params"]["hidden_dim"],
+        latent_dim=result["best_params"]["latent_dim"],
+        n_layers=result["best_params"]["n_layers"],
+        input_scale=result["best_params"]["input_scale"],
+        alpha=result["best_params"]["alpha"],
     )
     status.update(
         "[magenta]Saving reconstructed dset to "
@@ -208,13 +239,18 @@ def run_single_experiment(
     if reconstruct_dense:
         reconstructed_dense = train_val_dset.reconstruct(
             EUROPE_DOMAIN,
-            method="ok",
-            nlags=result["best_params"]["nlags"],
-            anisotropy_scaling=result["best_params"]["anisotropy_scaling"],
-            coordinates_type=result["best_params"]["coordinates_type"],
-            variogram_model=result["best_params"]["variogram_model"],
-            backend="loop",
-            pseudo_inv=True,
+            method="mmgn",
+            lr=result["best_params"]["lr"],
+            num_epochs=result["best_params"]["num_epochs"],
+            batch_size=result["best_params"]["batch_size"],
+            num_workers=-1,
+            device="cuda",
+            weight_decay=result["best_params"]["weight_decay"],
+            hidden_dim=result["best_params"]["hidden_dim"],
+            latent_dim=result["best_params"]["latent_dim"],
+            n_layers=result["best_params"]["n_layers"],
+            input_scale=result["best_params"]["input_scale"],
+            alpha=result["best_params"]["alpha"],
         )
         status.update(
             "[magenta]Saving reconstructed dense dset to "
@@ -239,11 +275,16 @@ def run_single_experiment(
     metrics["dataset_id"] = d
     hyperparams = {
         "dataset_id": d,
-        "nlags": result["best_params"]["nlags"],
-        "anisotropy_scaling": result["best_params"]["anisotropy_scaling"],
-        "coordinates_type": result["best_params"]["coordinates_type"],
-        "variogram_model": result["best_params"]["variogram_model"],
-        "opt_loss": result["best_loss"],
+        "lr": result["best_params"]["lr"],
+        "num_epochs": result["best_params"]["num_epochs"],
+        "batch_size": result["best_params"]["batch_size"],
+        "weight_decay": result["best_params"]["weight_decay"],
+        "hidden_dim": result["best_params"]["hidden_dim"],
+        "latent_dim": result["best_params"]["latent_dim"],
+        "n_layers": result["best_params"]["n_layers"],
+        "input_scale": result["best_params"]["input_scale"],
+        "alpha": result["best_params"]["alpha"],
+        "opt_loss": result["best_score"],
     }
     if continuous_update:
         console.print("[bold green]Updating metrics file...[/bold green]")
@@ -272,11 +313,11 @@ def run_all_experiments_sequentially():
                 len(dset_idx),
                 status,
                 continuous_update=True,
-                reconstruct_dense=False,
+                reconstruct_dense=True,
             )
-
+        return  # TODO: remove
 
 if __name__ == "__main__":
-    # clear_result_dir()
+    clear_result_dir()
     create_result_dir()
     run_all_experiments_sequentially()

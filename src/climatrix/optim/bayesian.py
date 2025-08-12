@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import inspect
 import logging
 from collections import OrderedDict
 from enum import StrEnum
-from numbers import Number
 from typing import Any, Collection
 
 import numpy as np
@@ -19,7 +17,7 @@ from climatrix.reconstruct.base import BaseReconstructor
 log = logging.getLogger(__name__)
 
 # Module-level constants
-DEFAULT_BAD_SCORE = -1e6
+DEFAULT_BAD_SCORE = 1e6
 
 
 class MetricType(StrEnum):
@@ -251,6 +249,7 @@ class HParamFinder:
                 raise TypeError(
                     f"Invalid bounds for parameter '{param_name}': {param_value}"
                 )
+
         if not bounds:
             raise ValueError(f"No bounds defined for method '{self.method}'")
         self.bounds = bounds
@@ -338,7 +337,6 @@ class HParamFinder:
             reconstructed = self.train_dset.reconstruct(
                 target=self.val_dset.domain, method=self.method, **kwargs
             )
-
             comparison = Comparison(reconstructed, self.val_dset)
             score = comparison.compute(self.metric.value)
 
@@ -346,7 +344,7 @@ class HParamFinder:
             # NOTE: Return negative score for maximization
             return score
 
-        except Exception as e:
+        except (NotImplementedError, ValueError, TypeError) as e:
             log.warning("Error evaluating parameters %s: %s", kwargs, e)
             return DEFAULT_BAD_SCORE
 
