@@ -15,7 +15,6 @@ References
 
 from collections import namedtuple
 from enum import Enum, StrEnum
-from re import I
 from typing import Self
 
 import numpy as np
