@@ -219,7 +219,7 @@ class MMGNReconstructor(BaseNNReconstructor):
         ).to(self.device)
 
     def compute_loss(
-        self, xy: torch.Tensor, true_z: torch.Tensor, pred_z: torch.Tensor
+        self, xy: torch.Tensor, pred_z: torch.Tensor, true_z: torch.Tensor
     ) -> torch.Tensor:
         return F.l1_loss(pred_z, true_z)
 
