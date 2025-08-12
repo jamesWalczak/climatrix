@@ -129,7 +129,7 @@ class SiNETDatasetGenerator(BaseNNDatasetGenerator):
             self._extend_input_features(ckdtree, self.elevation)
 
     def configure_field_transformer(self):
-        return MinMaxScaler((-1, 1))
+        return MinMaxScaler((0, 1))
 
     def _extend_input_features(
         self, tree: cKDTree, values: np.ndarray
