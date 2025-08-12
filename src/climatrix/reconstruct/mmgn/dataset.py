@@ -4,7 +4,7 @@ import logging
 
 from sklearn.preprocessing import MinMaxScaler
 
-from climatrix.reconstruct.sinet.dataset import BaseNNDatasetGenerator
+from climatrix.reconstruct.nn.dataset import BaseNNDatasetGenerator
 
 log = logging.getLogger(__name__)
 
