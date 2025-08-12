@@ -38,7 +38,9 @@ console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
 
-RESULT_DIR: Path = Path(CLIMATRIX_EXP_DIR) / "results" / "inr" / "sinet"
+RESULT_DIR: Path = (
+    Path(__file__).parent.parent.parent / "results" / "inr" / "mmgn"
+)
 PLOT_DIR: Path = RESULT_DIR / "plots"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
 console.print("[bold green]Plots will be saved to: [/bold green]", PLOT_DIR)
@@ -57,12 +59,13 @@ console.print(
 BOUNDS = {
     "lr": (1e-5, 1e-2),
     "num_epochs": (50, 500),
-    "gradient_clipping_value": (1e-4, 1e4),
     "batch_size": (32, 1024),
-    "mse_loss_weight": (1e-5, 1),
-    "eikonal_loss_weight": (0, 1e-2),
-    "laplace_loss_weight": (0, 1e-2),
-    "early_stopping_patience": (10, 200),
+    "weight_decay": (1e-8, 1e-2),
+    "hidden_dim": [32, 64, 128, 256, 512, 1024],
+    "latent_dim": (32, 256),
+    "n_layers": (1, 5),
+    "input_scale": (32, 512),
+    "alpha": (0, 1),
 }
 console.print("[bold green]Hyperparameter bounds: [/bold green]", BOUNDS)
 
@@ -96,14 +99,13 @@ def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
         "dataset_id",
         "lr",
         "num_epochs",
-        "gradient_clipping_value",
         "batch_size",
-        "mse_loss_weight",
-        "eikonal_loss_weight",
-        "laplace_loss_weight",
-        "early_stopping_patience",
-        "use_elevation",
-        "opt_loss",
+        "weight_decay",
+        "hidden_dim",
+        "latent_dim",
+        "n_layers",
+        "input_scale",
+        "alpha",
     ]
     if not hparam_path.exists():
         with open(hparam_path, "w") as f:
@@ -158,7 +160,7 @@ def run_single_experiment(
         spinner="bouncingBall",
     )
     finder = cm.optim.HParamFinder(
-        "sinet",
+        "mmgn",
         train_dset,
         val_dset,
         metric="mae",
@@ -172,37 +174,38 @@ def run_single_experiment(
         "[yellow]Learning rate (lr):[/yellow]", result["best_params"]["lr"]
     )
     console.print(
-        "[yellow]Number of epochs:[/yellow]",
+        "[yellow]Number of epochs (num_epochs):[/yellow]",
         result["best_params"]["num_epochs"],
     )
     console.print(
-        "[yellow]Gradient clipping value:[/yellow]",
-        result["best_params"]["gradient_clipping_value"],
+        "[yellow]Batch size (batch_size):[/yellow]",
+        result["best_params"]["batch_size"],
     )
     console.print(
-        "[yellow]Batch size:[/yellow]", result["best_params"]["batch_size"]
+        "[yellow]Weight decay (weight_decay):[/yellow]",
+        result["best_params"]["weight_decay"],
     )
     console.print(
-        "[yellow]MSE loss weight:[/yellow]",
-        result["best_params"]["mse_loss_weight"],
+        "[yellow]Hidden dimension (hidden_dim):[/yellow]",
+        result["best_params"]["hidden_dim"],
     )
     console.print(
-        "[yellow]Eikonal loss weight:[/yellow]",
-        result["best_params"]["eikonal_loss_weight"],
+        "[yellow]Latent dimension (latent_dim):[/yellow]",
+        result["best_params"]["latent_dim"],
     )
     console.print(
-        "[yellow]Laplace loss weight:[/yellow]",
-        result["best_params"]["laplace_loss_weight"],
+        "[yellow]Number of layers (n_layers):[/yellow]",
+        result["best_params"]["n_layers"],
     )
     console.print(
-        "[yellow]Early stopping patience:[/yellow]",
-        result["best_params"]["early_stopping_patience"],
+        "[yellow]Input scale (input_scale):[/yellow]",
+        result["best_params"]["input_scale"],
     )
     console.print(
-        "[yellow]Use elevation:[/yellow]",
-        result["best_params"]["use_elevation"],
+        "[yellow]Alpha (alpha):[/yellow]", result["best_params"]["alpha"]
     )
-    console.print("[yellow]Best loss:[/yellow]", result["best_loss"])
+    console.print("[yellow]Best score (MAE):[/yellow]", result["best_score"])
+
     status.update(
         "[magenta]Reconstructing with optimised parameters...",
         spinner="bouncingBall",
@@ -214,20 +217,18 @@ def run_single_experiment(
     train_val_dset = xr.concat([train_dset.da, val_dset.da], dim="point").cm
     reconstructed_dset = train_val_dset.reconstruct(
         test_dset.domain,
-        method="sinet",
+        method="mmgn",
         lr=result["best_params"]["lr"],
         num_epochs=result["best_params"]["num_epochs"],
         batch_size=result["best_params"]["batch_size"],
-        num_workers=0,
+        num_workers=-1,
         device="cuda",
-        gradient_clipping_value=result["best_params"][
-            "gradient_clipping_value"
-        ],
-        mse_loss_weight=result["best_params"]["mse_loss_weight"],
-        eikonal_loss_weight=result["best_params"]["eikonal_loss_weight"],
-        laplace_loss_weight=result["best_params"]["laplace_loss_weight"],
-        patience=result["best_params"]["early_stopping_patience"],
-        use_elevation=result["best_params"]["use_elevation"],
+        weight_decay=result["best_params"]["weight_decay"],
+        hidden_dim=result["best_params"]["hidden_dim"],
+        latent_dim=result["best_params"]["latent_dim"],
+        n_layers=result["best_params"]["n_layers"],
+        input_scale=result["best_params"]["input_scale"],
+        alpha=result["best_params"]["alpha"],
     )
     status.update(
         "[magenta]Saving reconstructed dset to "
@@ -245,19 +246,18 @@ def run_single_experiment(
     if reconstruct_dense:
         reconstructed_dense = train_val_dset.reconstruct(
             EUROPE_DOMAIN,
-            method="sinet",
+            method="mmgn",
             lr=result["best_params"]["lr"],
             num_epochs=result["best_params"]["num_epochs"],
             batch_size=result["best_params"]["batch_size"],
-            num_workers=0,
+            num_workers=-1,
             device="cuda",
-            gradient_clipping_value=result["best_params"][
-                "gradient_clipping_value"
-            ],
-            mse_loss_weight=result["best_params"]["mse_loss_weight"],
-            eikonal_loss_weight=result["best_params"]["eikonal_loss_weight"],
-            laplace_loss_weight=result["best_params"]["laplace_loss_weight"],
-            patience=result["best_params"]["early_stopping_patience"],
+            weight_decay=result["best_params"]["weight_decay"],
+            hidden_dim=result["best_params"]["hidden_dim"],
+            latent_dim=result["best_params"]["latent_dim"],
+            n_layers=result["best_params"]["n_layers"],
+            input_scale=result["best_params"]["input_scale"],
+            alpha=result["best_params"]["alpha"],
         )
         status.update(
             "[magenta]Saving reconstructed dense dset to "
@@ -284,16 +284,13 @@ def run_single_experiment(
         "dataset_id": d,
         "lr": result["best_params"]["lr"],
         "num_epochs": result["best_params"]["num_epochs"],
-        "gradient_clipping_value": result["best_params"][
-            "gradient_clipping_value"
-        ],
         "batch_size": result["best_params"]["batch_size"],
-        "mse_loss_weight": result["best_params"]["mse_loss_weight"],
-        "eikonal_loss_weight": result["best_params"]["eikonal_loss_weight"],
-        "laplace_loss_weight": result["best_params"]["laplace_loss_weight"],
-        "early_stopping_patience": result["best_params"][
-            "early_stopping_patience"
-        ],
+        "weight_decay": result["best_params"]["weight_decay"],
+        "hidden_dim": result["best_params"]["hidden_dim"],
+        "latent_dim": result["best_params"]["latent_dim"],
+        "n_layers": result["best_params"]["n_layers"],
+        "input_scale": result["best_params"]["input_scale"],
+        "alpha": result["best_params"]["alpha"],
         "opt_loss": result["best_score"],
     }
     if continuous_update:
@@ -325,9 +322,10 @@ def run_all_experiments_sequentially():
                 continuous_update=True,
                 reconstruct_dense=True,
             )
+        return  # TODO: remove
 
 
 if __name__ == "__main__":
-    # clear_result_dir()
+    clear_result_dir()
     create_result_dir()
     run_all_experiments_sequentially()

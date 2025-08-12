@@ -17,8 +17,6 @@ import climatrix as cm
 
 console = Console()
 
-INF_LOSS = -1e4
-
 # Setting up the experiment parameters
 NAN_POLICY = "resample"
 console.print("[bold green]Using NaN policy: [/bold green]", NAN_POLICY)
@@ -35,13 +33,7 @@ if CLIMATRIX_EXP_DIR is None:
 DSET_PATH = Path(CLIMATRIX_EXP_DIR) / "data"
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
-OPTIM_INIT_POINTS: int = 50
-console.print(
-    "[bold green]Using nbr initial points for optimization: [/bold green]",
-    OPTIM_INIT_POINTS,
-)
-
-OPTIM_N_ITERS: int = 100
+OPTIM_N_ITERS: int = 500
 console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
@@ -167,7 +159,6 @@ def run_single_experiment(
         train_dset,
         val_dset,
         metric="mae",
-        explore=0.3,
         n_iters=OPTIM_N_ITERS,
         bounds=BOUNDS,
         random_seed=SEED,

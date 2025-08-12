@@ -4,7 +4,6 @@ import importlib.resources
 import logging
 from collections import namedtuple
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
@@ -13,9 +12,7 @@ from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import Dataset
 
 from climatrix.decorators.runtime import log_input
-
-if TYPE_CHECKING:
-    pass
+from climatrix.reconstruct.nn.dataset import BaseNNDatasetGenerator
 
 SdfEntry = namedtuple("SdfEntry", ["coordinates", "normals", "sdf"])
 
@@ -64,11 +61,7 @@ def query_features(
     return values[indices]
 
 
-class SiNETDatasetGenerator:
-    train_coordinates: np.ndarray
-    train_field: np.ndarray
-    target_coordinates: np.ndarray | None
-    field_transformer: MinMaxScaler
+class SiNETDatasetGenerator(BaseNNDatasetGenerator):
     radius: float
 
     @log_input(log, level=logging.DEBUG)
@@ -78,11 +71,11 @@ class SiNETDatasetGenerator:
         field: np.ndarray,
         *,
         target_coordinates: np.ndarray | None = None,
-        degree: bool = True,
-        radius: float = 1.0,
         val_portion: float | None = None,
         validation_coordinates: np.ndarray | None = None,
         validation_field: np.ndarray | None = None,
+        degree: bool = True,
+        radius: float = 1.0,
         use_elevation: bool = False,
     ) -> None:
         """
@@ -114,55 +107,19 @@ class SiNETDatasetGenerator:
         use_elevation: bool, optional
             Whether to use elevation data. Defaults to False.
         """
-        self.field_transformer = MinMaxScaler((0, 1))
-        field = self.field_transformer.fit_transform(field.reshape(-1, 1))
-        self.target_coordinates = target_coordinates
+        super().__init__(
+            spatial_points=spatial_points,
+            field=field,
+            target_coordinates=target_coordinates,
+            val_portion=val_portion,
+            validation_coordinates=validation_coordinates,
+            validation_field=validation_field,
+        )
         if degree:
             log.debug("Converting degrees to radians...")
             spatial_points = np.deg2rad(spatial_points)
             if target_coordinates is not None:
                 self.target_coordinates = np.deg2rad(target_coordinates)
-
-        if val_portion is not None:
-            if not (0 < val_portion < 1):
-                log.error(
-                    "Validation portion must be between 0 and 1, got %f.",
-                    val_portion,
-                )
-                raise ValueError(
-                    "Validation portion must be between 0 and 1, got %f."
-                    % val_portion
-                )
-            if (
-                validation_coordinates is not None
-                or validation_field is not None
-            ):
-                log.error(
-                    "Cannot use both `val_portion` and `validation_coordinates`/`validation_field`."
-                )
-                raise ValueError(
-                    "Cannot use both `val_portion` and `validation_coordinates`/`validation_field`."
-                )
-            log.debug("Splitting train and validation datasets...")
-            (
-                self.train_coordinates,
-                self.train_field,
-                self.val_coordinates,
-                self.val_field,
-            ) = self._split_train_val(spatial_points, field, val_portion)
-        else:
-            if validation_coordinates is None or validation_field is None:
-                log.error(
-                    "Validation coordinates and field must be provided if `val_portion` is not used."
-                )
-                raise ValueError(
-                    "Validation coordinates and field must be provided if `val_portion` is not used."
-                )
-            log.debug("Using provided validation dataset...")
-            self.train_coordinates = spatial_points
-            self.train_field = field
-            self.val_coordinates = validation_coordinates
-            self.val_field = validation_field
 
         ckdtree = None
         self.radius = radius
@@ -171,54 +128,8 @@ class SiNETDatasetGenerator:
             ckdtree = cKDTree(np.deg2rad(coords))
             self._extend_input_features(ckdtree, self.elevation)
 
-        # # Plot europe lat/lon
-        # import cartopy.crs as ccrs
-        # import cartopy.feature as cfeature
-        # import matplotlib.pyplot as plt
-
-        # fig = plt.figure(figsize=(10, 8))
-        # ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
-        # scatter = ax.scatter(
-        #     np.rad2deg(self.target_coordinates[:, 1]),
-        #     np.rad2deg(self.target_coordinates[:, 0]),
-        #     c=self.target_coordinates[:, 2],
-        #     cmap="viridis",
-        #     s=50,
-        #     transform=ccrs.PlateCarree(),
-        #     edgecolor="k",
-        #     linewidth=0.5,
-        #     alpha=0.7,
-        # )
-        # ax.add_feature(cfeature.BORDERS, linestyle=":", edgecolor="gray")
-        # ax.add_feature(cfeature.COASTLINE, linewidth=0.8)
-        # # ax.set_extent([0, 40, 30, 60], crs=ccrs.PlateCarree())
-        # gl = ax.gridlines(
-        #     crs=ccrs.PlateCarree(),
-        #     draw_labels=True,
-        #     linewidth=0.5,
-        #     color="gray",
-        #     alpha=0.5,
-        #     linestyle="--",
-        # )
-        # gl.top_labels = False
-        # gl.right_labels = False
-
-        # # Set title
-        # ax.set_title("Europe Latitude/Longitude")
-
-        # plt.show()
-
-    @property
-    def n_features(self) -> int:
-        """
-        Number of features in the dataset.
-
-        Returns
-        -------
-        int
-            Number of features.
-        """
-        return self.train_coordinates.shape[1]
+    def configure_field_transformer(self):
+        return MinMaxScaler((0, 1))
 
     def _extend_input_features(
         self, tree: cKDTree, values: np.ndarray
@@ -248,24 +159,6 @@ class SiNETDatasetGenerator:
             axis=1,
         )
 
-    def _split_train_val(
-        self, coordinates: np.ndarray, field: np.ndarray, val_portion: float
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        log.debug("Splitting train and validation datasets...")
-        num_samples = coordinates.shape[0]
-        indices = np.arange(num_samples)
-        np.random.seed(0)
-        np.random.shuffle(indices)
-        split_index = int(num_samples * (1 - val_portion))
-        train_indices = indices[:split_index]
-        val_indices = indices[split_index:]
-        return (
-            coordinates[train_indices],
-            field[train_indices],
-            coordinates[val_indices],
-            field[val_indices],
-        )
-
     @staticmethod
     def convert_spherical_to_cartesian(
         coordinates: np.ndarray, radius: float = 1.0
@@ -275,25 +168,3 @@ class SiNETDatasetGenerator:
         y = radius * np.cos(coordinates[:, 0]) * np.sin(coordinates[:, 1])
         z = radius * np.sin(coordinates[:, 0])
         return np.stack((x, y, z), axis=1)
-
-    @property
-    def train_dataset(self) -> Dataset:
-        return torch.utils.data.TensorDataset(
-            torch.from_numpy(self.train_coordinates).float(),
-            torch.from_numpy(self.train_field).float(),
-        )
-
-    @property
-    def val_dataset(self) -> Dataset:
-        return torch.utils.data.TensorDataset(
-            torch.from_numpy(self.val_coordinates).float(),
-            torch.from_numpy(self.val_field).float(),
-        )
-
-    @property
-    def target_dataset(self) -> Dataset:
-        if self.target_coordinates is None:
-            raise ValueError("Target coordinates are not set.")
-        return torch.utils.data.TensorDataset(
-            torch.from_numpy(self.target_coordinates).float()
-        )

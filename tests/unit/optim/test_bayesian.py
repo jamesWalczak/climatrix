@@ -1,6 +1,8 @@
 """Tests for Bayesian hyperparameter optimization."""
 
+import importlib
 from datetime import datetime
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -64,7 +66,8 @@ class TestHyperparameterProperty:
 
         assert issubclass(hparams["power"]["type"], float)
         assert issubclass(hparams["k"]["type"], int)
-        assert "bounds" in hparams["power"]
+        # NOTE: power is unbounded
+        assert "bounds" not in hparams["power"]
 
 
 class TestHParamFinder:
@@ -117,7 +120,6 @@ class TestHParamFinder:
         assert finder.metric == MetricType.MAE
         assert finder.method == "idw"
         assert finder.random_seed == 42
-        assert finder.n_init_points + finder.n_iter == 100
         assert finder.bounds is not None
 
     def test_init_with_parameters(self, sparse_dataset, dense_dataset):
@@ -127,7 +129,6 @@ class TestHParamFinder:
             sparse_dataset,
             dense_dataset,
             metric="mse",
-            explore=0.5,
             n_iters=50,
             random_seed=123,
         )
@@ -135,8 +136,7 @@ class TestHParamFinder:
         assert finder.metric == MetricType.MSE
         assert finder.method == "ok"
         assert finder.random_seed == 123
-        assert finder.n_init_points == 25  # 50 * 0.5
-        assert finder.n_iter == 25
+        assert finder.n_iters == 50
 
     def test_include_parameters(self, sparse_dataset, dense_dataset):
         """Test parameter inclusion."""
@@ -187,16 +187,8 @@ class TestHParamFinder:
         finder = HParamFinder(
             "idw", sparse_dataset, dense_dataset, bounds=custom_bounds
         )
-        assert finder.bounds["power"] == (100.0, 330.0)
-        assert finder.bounds["k"] == (20, 89)
-
-    def test_invalid_explore(self, sparse_dataset, dense_dataset):
-        """Test invalid explore parameter."""
-        with pytest.raises(ValueError, match="explore must be in the range"):
-            HParamFinder("idw", sparse_dataset, dense_dataset, explore=0.0)
-
-        with pytest.raises(ValueError, match="explore must be in the range"):
-            HParamFinder("idw", sparse_dataset, dense_dataset, explore=1.0)
+        assert finder.bounds["power"] == (100.0, 330.0, float)
+        assert finder.bounds["k"] == (20, 89, int)
 
     def test_invalid_n_iters(self, sparse_dataset, dense_dataset):
         """Test invalid n_iters parameter."""
@@ -224,21 +216,38 @@ class TestHParamFinder:
         ):
             HParamFinder("idw", sparse_dataset, "not_a_dataset")
 
+    @pytest.mark.skipif(
+        not importlib.util.find_spec("optuna"),
+        reason="`optuna` package is not installed",
+    )
     def test_evaluate_params(self, sparse_dataset, dense_dataset):
         """Test parameter evaluation (without full optimization)."""
+        from optuna import Trial
+
         finder = HParamFinder(
             "idw",
             sparse_dataset,
             dense_dataset,
         )
+        trial = MagicMock(spec=Trial)
+        trial.suggest_int.side_effect = [2, 5]
+        trial.suggest_float.side_effect = [5.0]
 
-        result = finder._evaluate_params(power=2, k=5, k_min=2)
-
+        result = finder._evaluate_params(trial)
         assert isinstance(result, float)
-        assert result <= 0
+        assert result >= 0
 
     @skip_on_error(ImportError)
     def test_optimize_mock(self, sparse_dataset, dense_dataset):
         _ = HParamFinder(
             "idw", sparse_dataset, dense_dataset, n_iters=5, include=["power"]
         ).optimize()
+
+    def test_optimize_on_explor_high(self, sparse_dataset, dense_dataset):
+        finder = HParamFinder(
+            "idw",
+            sparse_dataset,
+            dense_dataset,
+            n_iters=3,
+        )
+        finder.optimize()

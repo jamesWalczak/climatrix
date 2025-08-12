@@ -60,7 +60,7 @@ plot = [
     "flask"
 ]
 optim = [
-    "bayesian-optimization"
+    "optuna",
 ]
 ok = [
     "pykrige",
@@ -109,3 +109,5 @@ cm = "climatrix.cli.main:cm"
 [tool.setuptools_scm]
 version_scheme = "release-branch-semver"
 version_file = "src/climatrix/_version.py"
+tag_regex = "^v(?P<version>.*)$"
+local_scheme = "no-local-version"

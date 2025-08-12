@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
+from collections import OrderedDict
 from enum import StrEnum
-from numbers import Number
 from typing import Any, Collection
 
 import numpy as np
@@ -17,7 +17,7 @@ from climatrix.reconstruct.base import BaseReconstructor
 log = logging.getLogger(__name__)
 
 # Module-level constants
-DEFAULT_BAD_SCORE = -1e6
+DEFAULT_BAD_SCORE = 1e6
 
 
 class MetricType(StrEnum):
@@ -51,9 +51,6 @@ class HParamFinder:
     include : str or Collection[str], optional
         Parameter(s) to include in optimization. If specified, only these
         parameters will be optimized.
-    explore : float, optional
-        Exploration vs exploitation trade-off parameter in (0, 1).
-        Higher values favor exploration. Default is 0.9.
     n_iters : int, optional
         Total number of optimization iterations. Default is 100.
     bounds : dict, optional
@@ -73,10 +70,8 @@ class HParamFinder:
         Reconstruction method.
     bounds : dict
         Parameter bounds for optimization.
-    n_init_points : int
-        Number of initial random points.
     n_iter : int
-        Number of Bayesian optimization iterations.
+        Number of optimization iterations.
     random_seed : int
         Random seed for optimization.
     """
@@ -90,10 +85,9 @@ class HParamFinder:
         metric: str = "mae",
         exclude: str | Collection[str] | None = None,
         include: str | Collection[str] | None = None,
-        explore: float = 0.9,
-        n_iters: int = 100,
         bounds: dict[str, tuple[float, float]] | None = None,
         random_seed: int = 42,
+        n_iters: int = 100,
         verbose: int = 0,
     ):
         self.mapping: dict[str, dict[int, str]] = {}
@@ -105,37 +99,91 @@ class HParamFinder:
         self.method_hparams = BaseReconstructor.get(self.method).get_hparams()
         self.random_seed = random_seed
 
-        self._validate_inputs(explore, n_iters)
+        self._validate_inputs(n_iters)
 
         self._compute_bounds(bounds)
         self._filter_parameters(include, exclude)
 
-        self.n_init_points = max(1, int(n_iters * explore))
-        self.n_iter = n_iters - self.n_init_points
+        self.n_iters = n_iters
 
         self.verbose = verbose
 
         log.debug(
             "HParamFinder initialized: method=%s, metric=%s, "
-            "n_init_points=%d, n_iter=%d, bounds=%s",
+            "n_iter=%d, bounds=%s",
             self.method,
             self.metric,
-            self.n_init_points,
-            self.n_iter,
+            self.n_iters,
             self.bounds,
         )
 
-    def _validate_inputs(self, explore: float, n_iters: int) -> None:
+    def _validate_inputs(self, n_iters: int) -> None:
         """Validate input parameters."""
         if not isinstance(self.train_dset, BaseClimatrixDataset):
             raise TypeError("train_dset must be a BaseClimatrixDataset")
         if not isinstance(self.val_dset, BaseClimatrixDataset):
             raise TypeError("val_dset must be a BaseClimatrixDataset")
-        if not 0 < explore < 1:
-            raise ValueError("explore must be in the range (0, 1)")
         if n_iters < 1:
             raise ValueError("n_iters must be >= 1")
 
+    def _suggest_arguments(self, trial) -> dict[str, Any]:
+        """
+        Suggest hyperparameters for the current trial.
+
+        Parameters
+        ----------
+        trial : optuna.Trial
+            Current optimization trial.
+
+        Returns
+        -------
+        dict[str, Any]
+            Suggested hyperparameters with correct types.
+        """
+        suggested_params = {}
+        for param_name, param_def in self.bounds.items():
+            # NOTE: if list - suggest categorical parameter
+            if isinstance(param_def, list):
+                suggested_params[param_name] = trial.suggest_categorical(
+                    param_name, param_def
+                )
+            else:
+                # Otherwise suggest numeric parameter with bounds
+                if not isinstance(param_def, tuple):
+                    raise TypeError(
+                        f"Invalid bounds for parameter '{param_name}': {param_def}"
+                    )
+                low, high, dtype = param_def
+                if issubclass(dtype, int):
+                    if low is None:
+                        # NOTE: Bounds range cannot exceed int limits
+                        low = np.iinfo(dtype).min // 2 + 1
+                    if high is None:
+                        high = np.iinfo(dtype).max // 2 - 1
+                    suggested_params[param_name] = trial.suggest_int(
+                        param_name, low, high
+                    )
+                elif issubclass(dtype, float):
+                    if low is None:
+                        # NOTE: Bounds range cannot exceed float limits
+                        low = np.finfo(dtype).min / 2 + 1
+                    if high is None:
+                        high = np.finfo(dtype).max / 2 - 1
+                    suggested_params[param_name] = trial.suggest_float(
+                        param_name, low, high
+                    )
+                else:
+                    raise TypeError(
+                        f"Unsupported parameter type for '{param_name}': {dtype}"
+                    )
+        log.debug(
+            "Suggested parameters for trial %s: %s",
+            trial.number,
+            suggested_params,
+        )
+        return suggested_params
+
+    @raise_if_not_installed("optuna")
     def _compute_bounds(self, user_defined_bounds: dict) -> None:
         """
         Compute parameter bounds for optimization.
@@ -151,28 +199,52 @@ class HParamFinder:
         user_defined_bounds = user_defined_bounds or {}
         method = BaseReconstructor.get(self.method)
         hparam_defs: dict = method.get_hparams()
-        bounds = {}
+        bounds = OrderedDict()
         for param_name, param_def in hparam_defs.items():
             if "bounds" in param_def:
-                bounds[param_name] = tuple(param_def["bounds"])
-                method.update_bounds(bounds={param_name: param_def["bounds"]})
+                if issubclass(param_def["type"], int):
+                    bounds[param_name] = (
+                        param_def["bounds"][0],
+                        param_def["bounds"][1],
+                        int,
+                    )
+                elif issubclass(param_def["type"], float):
+                    bounds[param_name] = (
+                        param_def["bounds"][0],
+                        param_def["bounds"][1],
+                        float,
+                    )
+                else:
+                    raise ValueError(
+                        "Bounds can be defined only for numeric parameters."
+                    )
             elif "values" in param_def:
-                self.mapping[param_name] = {
-                    i: v for i, v in enumerate(param_def["values"])
-                }
-                bounds[param_name] = ("0", str(len(param_def["values"]) - 1))
-                method.update_bounds(values={param_name: param_def["values"]})
+                bounds[param_name] = list(param_def["values"])
+            else:
+                bounds[param_name] = (
+                    None,
+                    None,
+                    param_def["type"],
+                )
         # NOTE: user-defined bounds override defaults
         for param_name, param_value in user_defined_bounds.items():
-            if isinstance(param_value, tuple) and all(
-                isinstance(v, Number) for v in param_value
-            ):
-                bounds[param_name] = tuple(param_value)
-            elif isinstance(param_value, (list, tuple)):
-                self.mapping[param_name] = {
-                    i: v for i, v in enumerate(param_value)
-                }
-                bounds[param_name] = ("0", str(len(param_value) - 1))
+            if isinstance(param_value, tuple):
+                if any(isinstance(v, float) for v in param_value):
+                    bounds[param_name] = (
+                        param_value[0],
+                        param_value[1],
+                        float,
+                    )
+                elif any(isinstance(v, int) for v in param_value):
+                    bounds[param_name] = (param_value[0], param_value[1], int)
+                elif any(isinstance(v, str) for v in param_value):
+                    bounds[param_name] = list(param_value)
+                else:
+                    raise TypeError(
+                        f"Invalid bounds for parameter '{param_name}': {param_value}"
+                    )
+            elif isinstance(param_value, list):
+                bounds[param_name] = param_value
             else:
                 raise TypeError(
                     f"Invalid bounds for parameter '{param_name}': {param_value}"
@@ -245,39 +317,38 @@ class HParamFinder:
 
         return valid_params
 
-    def _evaluate_params(self, **params) -> float:
+    def _evaluate_params(self, trial) -> float:
         """
         Evaluate a set of hyperparameters.
 
         Parameters
         ----------
-        **params
-            Hyperparameters to evaluate.
+        trial : optuna.Trial
+            Current optimization trial.
 
         Returns
         -------
         float
             Negative metric value (since BayesianOptimization maximizes).
         """
-        params = self._map_bo_output_to_valid_params(params)
+        kwargs = self._suggest_arguments(trial)
         try:
-            log.debug("Evaluating parameters: %s", params)
+            log.debug("Evaluating parameters: %s", **kwargs)
             reconstructed = self.train_dset.reconstruct(
-                target=self.val_dset.domain, method=self.method, **params
+                target=self.val_dset.domain, method=self.method, **kwargs
             )
-
             comparison = Comparison(reconstructed, self.val_dset)
             score = comparison.compute(self.metric.value)
 
-            log.debug("Score for params %s: %f", params, score)
+            log.debug("Score for params %s: %f", kwargs, score)
             # NOTE: Return negative score for maximization
-            return -score
+            return score
 
-        except Exception as e:
-            log.warning("Error evaluating parameters %s: %s", params, e)
+        except (NotImplementedError, ValueError, TypeError) as e:
+            log.warning("Error evaluating parameters %s: %s", kwargs, e)
             return DEFAULT_BAD_SCORE
 
-    @raise_if_not_installed("bayes_opt")
+    @raise_if_not_installed("optuna")
     def optimize(self) -> dict[str, Any]:
         """
         Run Bayesian optimization to find optimal hyperparameters.
@@ -292,42 +363,40 @@ class HParamFinder:
             - 'metric_name': Name of the optimized metric
             - 'method': Reconstruction method used
         """
-        from bayes_opt import BayesianOptimization
+
+        import optuna
 
         log.info("Starting Bayesian optimization for method '%s'", self.method)
         log.info("Bounds: %s", self.bounds)
-        log.info(
-            "Using %d initial points and %d iterations",
-            self.n_init_points,
-            self.n_iter,
+        log.info("Using %d iterations", self.n_iters)
+        sampler = optuna.samplers.TPESampler(seed=self.random_seed)
+        pruner = optuna.pruners.MedianPruner(
+            n_startup_trials=5, n_warmup_steps=10
         )
-        optimizer = BayesianOptimization(
-            f=self._evaluate_params,
-            pbounds=self.bounds,
-            random_state=self.random_seed,
-            verbose=self.verbose,
-        )
-        optimizer.maximize(
-            init_points=self.n_init_points,
-            n_iter=self.n_iter,
-        )
-        optimizer.acquisition_function._fit_gp(optimizer._gp, optimizer.space)
 
-        best_params = optimizer.max["params"]
-        best_params = self._map_bo_output_to_valid_params(best_params)
-        best_score = optimizer.max["target"]
+        study = optuna.create_study(
+            direction="minimize",
+            sampler=sampler,
+            pruner=pruner,
+            study_name=f"{self.method}_study",
+            load_if_exists=False,
+        )
 
-        log.info("Optimization completed. Best score: %f", best_score)
-        log.info("Best parameters: %s", best_params)
+        study.optimize(
+            self._evaluate_params,
+            n_trials=self.n_iters,
+            timeout=None,
+            show_progress_bar=True,
+        )
+
+        log.info("Optimization completed. Best score: %f", study.best_value)
+        log.info("Best parameters: %s", study.best_params)
 
         self.result = {
-            "best_params": best_params,
-            "best_score": best_score,
+            "best_params": study.best_params,
+            "best_score": study.best_value,
             "metric_name": self.metric.value,
+            "n_trials": len(study.trials),
             "method": self.method,
-            "history": [
-                {"params": res["params"], "target": res["target"]}
-                for res in optimizer.res
-            ],
         }
         return self.result

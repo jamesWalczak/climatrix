@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 import torch
@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader
 
 from climatrix.dataset.domain import Domain
 from climatrix.decorators.runtime import log_input, raise_if_not_installed
+from climatrix.optim.hyperparameter import Hyperparameter
 from climatrix.reconstruct.base import BaseReconstructor
-from climatrix.utils.hyperparameter import Hyperparameter
 
 from .dataset import SIRENDataset
 from .losses import (
@@ -33,7 +33,7 @@ class SIRENReconstructor(BaseReconstructor):
     A reconstructor that uses SIREN to reconstruct fields.
 
     SIREN (Sinusoidal Representation Networks) uses sinusoidal activation
-    functions to learn continuous implicit neural representations of 
+    functions to learn continuous implicit neural representations of
     spatial fields from sparse observations.
 
     Parameters
@@ -54,26 +54,26 @@ class SIRENReconstructor(BaseReconstructor):
         Frequency multiplier for hidden layers.
     lr : float, default=1e-4
         Learning rate for the optimizer.
-        Type: float, bounds: (1e-5, 1e-2), default: 1e-3
+        Type: float, bounds: <unbounded>, default: 1e-3
     batch_size : int, default=256
         Batch size for training.
-        Type: int, bounds: (64, 1024), default: 256
+        Type: int, bounds: <unbounded>, default: 256
     num_epochs : int, default=100
         Number of epochs to train for.
-        Type: int, bounds: (100, 10_000), default: 5_000
+        Type: int, bounds: <unbounded>, default: 5_000
     hidden_dim : int, default=256
         Hidden layer dimensions.
-        Type: int, bounds: (128, 512), default: 256
+        Type: int, bounds: <unbounded>, default: 256
     num_layers : int, default=4
         Number of hidden layers.
-        Type: int, bounds: (3, 8), default: 4
+        Type: int, bounds: <unbounded>, default: 4
     num_workers : int, default=0
         Number of worker processes for the dataloader.
     device : str, default="cuda"
         Device to run the model on ("cuda" or "cpu").
     gradient_clipping_value : float or None, default=None
         Value for gradient clipping (None to disable).
-        Type: float, bounds: (0.1, 10.0), default: 1.0
+        Type: float, bounds: <unbounded>, default: 1.0
     checkpoint : str or os.PathLike or Path or None, default=None
         Path to save/load model checkpoint from.
     sdf_loss_weight : float, default=3000.0
@@ -100,14 +100,15 @@ class SIRENReconstructor(BaseReconstructor):
         - num_layers: int in (3, 8), default=4
         - gradient_clipping_value: float in (0.1, 10.0), default=1.0
     """
+
     NAME: ClassVar[str] = "siren"
 
     # Hyperparameter descriptors
-    lr = Hyperparameter(float, bounds=(1e-5, 1e-2), default=1e-3)
-    batch_size = Hyperparameter(int, bounds=(64, 1024), default=256)
-    num_epochs = Hyperparameter(int, bounds=(100, 10_000), default=5_000)
-    hidden_dim = Hyperparameter(int, bounds=(128, 512), default=256)
-    num_layers = Hyperparameter(int, bounds=(3, 8), default=4)
+    lr = Hyperparameter(float, default=1e-3)
+    batch_size = Hyperparameter(int, default=256)
+    num_epochs = Hyperparameter(int, default=5_000)
+    hidden_dim = Hyperparameter(int, default=256)
+    num_layers = Hyperparameter(int, default=4)
     gradient_clipping_value = Hyperparameter(
         float, bounds=(0.1, 10.0), default=1.0
     )
@@ -176,7 +177,7 @@ class SIRENReconstructor(BaseReconstructor):
             self.checkpoint = Path(checkpoint).expanduser().absolute()
             log.info("Using checkpoint path: %s", self.checkpoint)
 
-    def _init_model(self) -> nn.Module:
+    def init_model(self) -> nn.Module:
         """
         Initialize the 3D SIREN model.
 
@@ -196,7 +197,7 @@ class SIRENReconstructor(BaseReconstructor):
             omega_hidden=self.omega_hidden,
         ).to(self.device)
 
-    def _configure_optimizer(self, model: nn.Module) -> torch.optim.Optimizer:
+    def configure_optimizer(self, model: nn.Module) -> torch.optim.Optimizer:
         """
         Configure the optimizer for the model.
 
@@ -494,12 +495,12 @@ class SIRENReconstructor(BaseReconstructor):
         """
         from climatrix.dataset.base import BaseClimatrixDataset
 
-        siren_model = self._init_model()
+        siren_model = self.init_model()
         siren_model = self._maybe_load_checkpoint(siren_model, self.checkpoint)
 
         if not self.is_model_loaded:
             log.info("Training 3D SIREN model (SDF loss)...")
-            optimizer = self._configure_optimizer(siren_model)
+            optimizer = self.configure_optimizer(siren_model)
 
             dataloader = DataLoader(
                 self.train_dataset,

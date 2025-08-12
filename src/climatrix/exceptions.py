@@ -28,4 +28,5 @@ class DomainMismatchError(ValueError):
 
 class MissingDependencyError(ImportError):
     """Raised when required plotting dependencies are not installed."""
+
     pass

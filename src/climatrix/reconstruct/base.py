@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, ClassVar
 
 from climatrix.dataset.domain import Domain
-from climatrix.utils.hyperparameter import Hyperparameter
+from climatrix.optim.hyperparameter import Hyperparameter
 
 if TYPE_CHECKING:
     from climatrix.dataset.base import BaseClimatrixDataset

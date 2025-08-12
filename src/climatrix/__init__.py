@@ -2,8 +2,6 @@ import importlib
 import importlib.resources
 from logging import config
 
-from ._version import __version__
-
 
 def _configure_logger():
     logging_conf_path = importlib.resources.files("climatrix").joinpath(

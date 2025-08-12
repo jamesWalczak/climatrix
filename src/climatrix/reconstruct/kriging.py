@@ -10,8 +10,8 @@ from climatrix.dataset.base import AxisType, BaseClimatrixDataset
 from climatrix.dataset.domain import Domain
 from climatrix.decorators import raise_if_not_installed
 from climatrix.decorators.runtime import log_input
+from climatrix.optim.hyperparameter import Hyperparameter
 from climatrix.reconstruct.base import BaseReconstructor
-from climatrix.utils.hyperparameter import Hyperparameter
 
 log = logging.getLogger(__name__)
 
@@ -34,10 +34,10 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         The backend to use for kriging (default is None).
     nlags : int | None, optional
         Number of lags for variogram computation (default is 6).
-        Type: int, bounds: (4, 20), default: 6
+        Type: int, bounds: (0, ...), default: 6
     anisotropy_scaling : float | None, optional
         Anisotropy scaling factor (default is 1e-6).
-        Type: float, bounds: (1e-6, 5.0), default: 1e-6
+        Type: float, bounds: <unbounded>, default: 1e-6
     coordinates_type : str | None, optional
         Type of coordinate system (default is "euclidean").
         Type: str, values: ["euclidean", "geographic"], default: "euclidean"
@@ -74,10 +74,8 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
     NAME: ClassVar[str] = "ok"
     _MAX_VECTORIZED_SIZE: ClassVar[int] = 500_000
 
-    nlags = Hyperparameter(int, bounds=(4, 20), default=6)
-    anisotropy_scaling = Hyperparameter(
-        float, bounds=(1e-6, 5.0), default=1e-6
-    )
+    nlags = Hyperparameter(int, bounds=(0, None), default=6)
+    anisotropy_scaling = Hyperparameter(float, bounds=(0, None), default=1e-6)
     coordinates_type = Hyperparameter(
         str, values=["euclidean", "geographic"], default="euclidean"
     )
