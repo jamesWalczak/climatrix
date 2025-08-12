@@ -250,7 +250,7 @@ def run_single_experiment(
         "anisotropy_scaling": result["best_params"]["anisotropy_scaling"],
         "coordinates_type": result["best_params"]["coordinates_type"],
         "variogram_model": result["best_params"]["variogram_model"],
-        "opt_loss": result["best_loss"],
+        "opt_loss": result["best_score"],
     }
     if continuous_update:
         console.print("[bold green]Updating metrics file...[/bold green]")

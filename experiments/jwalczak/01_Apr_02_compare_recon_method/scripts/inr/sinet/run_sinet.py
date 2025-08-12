@@ -202,7 +202,7 @@ def run_single_experiment(
         "[yellow]Use elevation:[/yellow]",
         result["best_params"]["use_elevation"],
     )
-    console.print("[yellow]Best loss:[/yellow]", result["best_loss"])
+    console.print("[yellow]Best loss:[/yellow]", result["best_score"])
     status.update(
         "[magenta]Reconstructing with optimised parameters...",
         spinner="bouncingBall",

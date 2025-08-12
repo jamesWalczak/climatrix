@@ -342,7 +342,6 @@ class HParamFinder:
             Dictionary containing:
             - 'best_params': Best hyperparameters found (with correct types)
             - 'best_score': Best score achieved (negative metric value)
-            - 'history': Optimization history
             - 'metric_name': Name of the optimized metric
             - 'method': Reconstruction method used
         """
