@@ -27,7 +27,7 @@ class IdentityTransformer(BaseTransformer):
     def fit(self, X, y=None):
         if y is not None:
             return X, y
-        return X
+        return self
 
     def transform(self, X):
         return X
