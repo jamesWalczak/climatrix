@@ -12,7 +12,7 @@ from rich.progress import track
 import climatrix as cm
 
 SEED: int = 0
-CLIMATRIX_EXP_DIR = os.environ.get("CLIMATRIX_EXP_DIR")
+CLIMATRIX_EXP_DIR = Path(os.environ.get("CLIMATRIX_EXP_DIR"))
 if CLIMATRIX_EXP_DIR is None:
     raise ValueError(
         "CLIMATRIX_EXP_DIR environment variable is not set. "
@@ -22,7 +22,7 @@ if CLIMATRIX_EXP_DIR is None:
 URL = "https://knmi-ecad-assets-prd.s3.amazonaws.com/download/ECA_blend_tg.zip"
 ZIP_FILE = Path("/tmp/ecad_blend.zip")
 
-DATA_DIR = Path(CLIMATRIX_EXP_DIR) / "data" / "ecad_blend"
+DATA_DIR = CLIMATRIX_EXP_DIR / "data" / "ecad_blend"
 STATIONS_DEF_PATH = DATA_DIR / "sources.txt"
 TARGET_FILE = DATA_DIR / "ecad_blend.nc"
 

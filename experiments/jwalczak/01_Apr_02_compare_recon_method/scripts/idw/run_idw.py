@@ -24,13 +24,13 @@ console.print("[bold green]Using NaN policy: [/bold green]", NAN_POLICY)
 SEED = 1
 console.print("[bold green]Using seed: [/bold green]", SEED)
 
-CLIMATRIX_EXP_DIR = os.environ.get("CLIMATRIX_EXP_DIR")
+CLIMATRIX_EXP_DIR = Path(os.environ.get("CLIMATRIX_EXP_DIR"))
 if CLIMATRIX_EXP_DIR is None:
     raise ValueError(
         "CLIMATRIX_EXP_DIR environment variable is not set. "
         "Please set it to the path of your experiment directory."
     )
-DSET_PATH = Path(CLIMATRIX_EXP_DIR) / "data"
+DSET_PATH = CLIMATRIX_EXP_DIR / "data"
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
 OPTIM_N_ITERS: int = 500
