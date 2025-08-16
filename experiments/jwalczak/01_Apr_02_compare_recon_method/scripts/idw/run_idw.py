@@ -4,6 +4,7 @@ This module runs experiment of IDW method
 @author: Jakub Walczak, PhD
 """
 
+import os
 import shutil
 from collections import defaultdict
 from pathlib import Path
@@ -23,7 +24,13 @@ console.print("[bold green]Using NaN policy: [/bold green]", NAN_POLICY)
 SEED = 1
 console.print("[bold green]Using seed: [/bold green]", SEED)
 
-DSET_PATH = Path(__file__).parent.parent.parent.joinpath("data")
+CLIMATRIX_EXP_DIR = Path(os.environ.get("CLIMATRIX_EXP_DIR"))
+if CLIMATRIX_EXP_DIR is None:
+    raise ValueError(
+        "CLIMATRIX_EXP_DIR environment variable is not set. "
+        "Please set it to the path of your experiment directory."
+    )
+DSET_PATH = CLIMATRIX_EXP_DIR / "data"
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
 OPTIM_N_ITERS: int = 500
@@ -31,7 +38,7 @@ console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
 
-RESULT_DIR: Path = Path(__file__).parent.parent.parent / "results" / "idw"
+RESULT_DIR: Path = Path(CLIMATRIX_EXP_DIR) / "results" / "idw"
 PLOT_DIR: Path = RESULT_DIR / "plots"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
 console.print("[bold green]Plots will be saved to: [/bold green]", PLOT_DIR)
@@ -82,7 +89,7 @@ def get_all_dataset_idx() -> list[str]:
 def run_experiment():
     dset_idx = get_all_dataset_idx()
     with console.status("[magenta]Preparing experiment...") as status:
-        all_metrics = {}
+        all_metrics = []
         hyperparams = defaultdict(list)
         for i, d in enumerate(dset_idx):
             cm.seed_all(SEED)

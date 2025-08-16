@@ -5,6 +5,7 @@ This module runs experiment of SiNET method
 """
 
 import csv
+import os
 import shutil
 from pathlib import Path
 from typing import Any
@@ -23,7 +24,13 @@ console.print("[bold green]Using NaN policy: [/bold green]", NAN_POLICY)
 SEED = 1
 console.print("[bold green]Using seed: [/bold green]", SEED)
 
-DSET_PATH = Path(__file__).parent.parent.parent.parent.joinpath("data")
+CLIMATRIX_EXP_DIR = Path(os.environ.get("CLIMATRIX_EXP_DIR"))
+if CLIMATRIX_EXP_DIR is None:
+    raise ValueError(
+        "CLIMATRIX_EXP_DIR environment variable is not set. "
+        "Please set it to the path of your experiment directory."
+    )
+DSET_PATH = CLIMATRIX_EXP_DIR / "data"
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
 OPTIM_N_ITERS: int = 500
@@ -316,6 +323,7 @@ def run_all_experiments_sequentially():
                 reconstruct_dense=True,
             )
         return  # TODO: remove
+
 
 if __name__ == "__main__":
     clear_result_dir()

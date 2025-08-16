@@ -5,6 +5,7 @@ This module runs experiment of SiNET method
 """
 
 import csv
+import os
 import shutil
 from pathlib import Path
 from typing import Any
@@ -23,7 +24,13 @@ console.print("[bold green]Using NaN policy: [/bold green]", NAN_POLICY)
 SEED = 1
 console.print("[bold green]Using seed: [/bold green]", SEED)
 
-DSET_PATH = Path(__file__).parent.parent.parent.parent.joinpath("data")
+CLIMATRIX_EXP_DIR = Path(os.environ.get("CLIMATRIX_EXP_DIR"))
+if CLIMATRIX_EXP_DIR is None:
+    raise ValueError(
+        "CLIMATRIX_EXP_DIR environment variable is not set. "
+        "Please set it to the path of your experiment directory."
+    )
+DSET_PATH = CLIMATRIX_EXP_DIR / "data"
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
 OPTIM_N_ITERS: int = 500
@@ -31,9 +38,7 @@ console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
 
-RESULT_DIR: Path = (
-    Path(__file__).parent.parent.parent / "results" / "inr" / "sinet"
-)
+RESULT_DIR: Path = Path(CLIMATRIX_EXP_DIR) / "results" / "inr" / "sinet"
 PLOT_DIR: Path = RESULT_DIR / "plots"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
 console.print("[bold green]Plots will be saved to: [/bold green]", PLOT_DIR)
@@ -197,7 +202,7 @@ def run_single_experiment(
         "[yellow]Use elevation:[/yellow]",
         result["best_params"]["use_elevation"],
     )
-    console.print("[yellow]Best loss:[/yellow]", result["best_loss"])
+    console.print("[yellow]Best loss:[/yellow]", result["best_score"])
     status.update(
         "[magenta]Reconstructing with optimised parameters...",
         spinner="bouncingBall",
