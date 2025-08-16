@@ -89,7 +89,7 @@ def get_all_dataset_idx() -> list[str]:
 def run_experiment():
     dset_idx = get_all_dataset_idx()
     with console.status("[magenta]Preparing experiment...") as status:
-        all_metrics = {}
+        all_metrics = []
         hyperparams = defaultdict(list)
         for i, d in enumerate(dset_idx):
             cm.seed_all(SEED)
