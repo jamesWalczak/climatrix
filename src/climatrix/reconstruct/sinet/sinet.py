@@ -130,6 +130,8 @@ class SiNETReconstructor(BaseNNReconstructor):
         laplace_loss_weight: float = 1e2,
         validation: float | BaseClimatrixDataset = 0.2,
     ) -> None:
+        from climatrix.dataset.base import BaseClimatrixDataset
+
         super().__init__(
             dataset,
             target_domain,

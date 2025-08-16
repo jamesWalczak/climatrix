@@ -74,6 +74,19 @@ class HParamFinder:
         Number of optimization iterations.
     random_seed : int
         Random seed for optimization.
+    verbose : int
+        Verbosity level for logging (0 - silent, 1 - info, 2 - debug).
+    n_startup_trials : int
+        Number of startup trials for the optimizer.
+    n_warmup_steps : int
+        Number of warmup steps before starting optimization.
+    result : dict
+        Dictionary containing optimization results:
+        - 'best_params': Best hyperparameters found (with correct types)
+        - 'best_score': Best score achieved (negative metric value)
+        - 'metric_name': Name of the optimized metric
+        - 'method': Reconstruction method used
+        - 'n_trials': Total number of trials performed
     """
 
     def __init__(
@@ -89,6 +102,8 @@ class HParamFinder:
         random_seed: int = 42,
         n_iters: int = 100,
         verbose: int = 0,
+        n_startup_trials: int = 5,
+        n_warmup_steps: int = 10,
     ):
         self.mapping: dict[str, dict[int, str]] = {}
         self.result: dict[str, Any] = {}
@@ -107,6 +122,8 @@ class HParamFinder:
         self.n_iters = n_iters
 
         self.verbose = verbose
+        self.n_startup_trials = n_startup_trials
+        self.n_warmup_steps = n_warmup_steps
 
         log.debug(
             "HParamFinder initialized: method=%s, metric=%s, "
@@ -371,7 +388,8 @@ class HParamFinder:
         log.info("Using %d iterations", self.n_iters)
         sampler = optuna.samplers.TPESampler(seed=self.random_seed)
         pruner = optuna.pruners.MedianPruner(
-            n_startup_trials=5, n_warmup_steps=10
+            n_startup_trials=self.n_startup_trials,
+            n_warmup_steps=self.n_warmup_steps,
         )
 
         study = optuna.create_study(
