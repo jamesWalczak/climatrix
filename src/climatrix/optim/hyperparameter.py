@@ -39,7 +39,7 @@ class Hyperparameter:
         self,
         param_type: type,
         *,
-        bounds: tuple[int | float, int | float] | None = None,
+        bounds: tuple[int | float | None, int | float | None] | None = None,
         values: list[int | float | str] | None = None,
         default: Any = None,
     ):

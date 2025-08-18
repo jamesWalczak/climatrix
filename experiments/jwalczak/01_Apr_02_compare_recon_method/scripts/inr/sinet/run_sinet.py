@@ -62,7 +62,7 @@ BOUNDS = {
     "mse_loss_weight": (1e-5, 1),
     "eikonal_loss_weight": (0, 1e-2),
     "laplace_loss_weight": (0, 1e-2),
-    "early_stopping_patience": (10, 200),
+    "patience": (10, 200),
 }
 console.print("[bold green]Hyperparameter bounds: [/bold green]", BOUNDS)
 
@@ -101,7 +101,7 @@ def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
         "mse_loss_weight",
         "eikonal_loss_weight",
         "laplace_loss_weight",
-        "early_stopping_patience",
+        "patience",
         "opt_loss",
     ]
     if not hparam_path.exists():
@@ -195,7 +195,7 @@ def run_single_experiment(
     )
     console.print(
         "[yellow]Early stopping patience:[/yellow]",
-        result["best_params"]["early_stopping_patience"],
+        result["best_params"]["patience"],
     )
     console.print("[yellow]Best loss:[/yellow]", result["best_score"])
     status.update(
@@ -221,7 +221,7 @@ def run_single_experiment(
         mse_loss_weight=result["best_params"]["mse_loss_weight"],
         eikonal_loss_weight=result["best_params"]["eikonal_loss_weight"],
         laplace_loss_weight=result["best_params"]["laplace_loss_weight"],
-        patience=result["best_params"]["early_stopping_patience"],
+        patience=result["best_params"]["patience"],
     )
     status.update(
         "[magenta]Saving reconstructed dset to "
@@ -251,7 +251,7 @@ def run_single_experiment(
             mse_loss_weight=result["best_params"]["mse_loss_weight"],
             eikonal_loss_weight=result["best_params"]["eikonal_loss_weight"],
             laplace_loss_weight=result["best_params"]["laplace_loss_weight"],
-            patience=result["best_params"]["early_stopping_patience"],
+            patience=result["best_params"]["patience"],
         )
         status.update(
             "[magenta]Saving reconstructed dense dset to "
@@ -285,9 +285,7 @@ def run_single_experiment(
         "mse_loss_weight": result["best_params"]["mse_loss_weight"],
         "eikonal_loss_weight": result["best_params"]["eikonal_loss_weight"],
         "laplace_loss_weight": result["best_params"]["laplace_loss_weight"],
-        "early_stopping_patience": result["best_params"][
-            "early_stopping_patience"
-        ],
+        "patience": result["best_params"]["patience"],
         "opt_loss": result["best_score"],
     }
     if continuous_update:

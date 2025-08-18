@@ -71,7 +71,9 @@ class Comparison:
             predicted_dataset, BaseClimatrixDataset
         ) or not isinstance(true_dataset, BaseClimatrixDataset):
             raise TypeError(
-                "Both datasets must be BaseClimatrixDataset objects"
+                "Both datasets must be BaseClimatrixDataset objects, "
+                f"not {predicted_dataset.__class__.__name__} and "
+                f"{true_dataset.__class__.__name__}"
             )
         self.predicted_dataset = predicted_dataset
         self.true_dataset = true_dataset
