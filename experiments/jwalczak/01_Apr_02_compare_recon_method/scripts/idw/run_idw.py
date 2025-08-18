@@ -93,6 +93,9 @@ def run_experiment():
         hyperparams = defaultdict(list)
         for i, d in enumerate(dset_idx):
             cm.seed_all(SEED)
+            if (PLOT_DIR / f"{d}_reconstructed.png").exists():
+                print(f"Skipping {d} as it already exists")
+                continue
             status.update(
                 f"[magenta]Processing date: {d} ({i + 1}/{len(dset_idx)})...",
                 spinner="bouncingBall",

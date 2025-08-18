@@ -102,7 +102,6 @@ def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
         "eikonal_loss_weight",
         "laplace_loss_weight",
         "early_stopping_patience",
-        "use_elevation",
         "opt_loss",
     ]
     if not hparam_path.exists():
@@ -198,10 +197,6 @@ def run_single_experiment(
         "[yellow]Early stopping patience:[/yellow]",
         result["best_params"]["early_stopping_patience"],
     )
-    console.print(
-        "[yellow]Use elevation:[/yellow]",
-        result["best_params"]["use_elevation"],
-    )
     console.print("[yellow]Best loss:[/yellow]", result["best_score"])
     status.update(
         "[magenta]Reconstructing with optimised parameters...",
@@ -215,11 +210,11 @@ def run_single_experiment(
     reconstructed_dset = train_val_dset.reconstruct(
         test_dset.domain,
         method="sinet",
+        device="cpu",
         lr=result["best_params"]["lr"],
         num_epochs=result["best_params"]["num_epochs"],
         batch_size=result["best_params"]["batch_size"],
         num_workers=0,
-        device="cuda",
         gradient_clipping_value=result["best_params"][
             "gradient_clipping_value"
         ],
@@ -227,7 +222,6 @@ def run_single_experiment(
         eikonal_loss_weight=result["best_params"]["eikonal_loss_weight"],
         laplace_loss_weight=result["best_params"]["laplace_loss_weight"],
         patience=result["best_params"]["early_stopping_patience"],
-        use_elevation=result["best_params"]["use_elevation"],
     )
     status.update(
         "[magenta]Saving reconstructed dset to "
@@ -246,11 +240,11 @@ def run_single_experiment(
         reconstructed_dense = train_val_dset.reconstruct(
             EUROPE_DOMAIN,
             method="sinet",
+            device="cpu",
             lr=result["best_params"]["lr"],
             num_epochs=result["best_params"]["num_epochs"],
             batch_size=result["best_params"]["batch_size"],
             num_workers=0,
-            device="cuda",
             gradient_clipping_value=result["best_params"][
                 "gradient_clipping_value"
             ],
