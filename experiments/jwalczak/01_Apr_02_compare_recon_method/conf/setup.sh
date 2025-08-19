@@ -1,6 +1,13 @@
 #!/bin/bash
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV_NAME="${SCRIPT_DIR}/exp1"
+if [ -z "$CLIMATRIX_EXP_DIR" ]; then
+	echo "Error: The CLIMATRIX_EXP_DIR environment variable is not set." >&2
+	echo "Please set it before running the script, for example:" >&2
+	echo "export CLIMATRIX_EXP_DIR=\"/path/to/your/directory\"" >&2
+	echo "Refer to the experiment README.md file" >&2
+	exit 1
+fi
+VENV_NAME="${CLIMATRIX_EXP_DIR}/exp1"
 
 function create_venv() {
   echo "Creating virtual environment: $VENV_NAME"

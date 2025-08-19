@@ -8,6 +8,7 @@ import os
 import shutil
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import xarray as xr
@@ -24,7 +25,7 @@ console.print("[bold green]Using NaN policy: [/bold green]", NAN_POLICY)
 SEED = 1
 console.print("[bold green]Using seed: [/bold green]", SEED)
 
-CLIMATRIX_EXP_DIR = Path(os.environ.get("CLIMATRIX_EXP_DIR"))
+CLIMATRIX_EXP_DIR = Path(os.environ.get("CLIMATRIX_EXP_DIR", os.getcwd()))
 if CLIMATRIX_EXP_DIR is None:
     raise ValueError(
         "CLIMATRIX_EXP_DIR environment variable is not set. "
@@ -193,7 +194,7 @@ def run_experiment():
             cmp.plot_signed_diff_hist().get_figure().savefig(
                 PLOT_DIR / f"{d}_hist.png"
             )
-            metrics = cmp.compute_report()
+            metrics: dict[str, Any] = cmp.compute_report()
             metrics["dataset_id"] = d
             all_metrics.append(metrics)
 
