@@ -116,6 +116,13 @@ if [ -d "/app" ] && [ "$PWD" = "/app/conf" ]; then
         echo "Removing existing virtual environment for clean container build"
         rm -rf "$VENV_NAME"
     fi
+    # Force creation of new venv for container
+    create_venv
+    activate_venv
+    install_dependencies
+    touch "$BUILD_MARKER"
+    echo "Container build complete. Virtual environment '$VENV_NAME' is configured with dependencies installed."
+    exit 0
 fi
 
 if [ -d "$VENV_NAME" ]; then
@@ -127,6 +134,8 @@ if [ -d "$VENV_NAME" ]; then
         else
             echo "Virtual environment appears broken, fixing..."
             fix_broken_venv
+            activate_venv
+            install_dependencies
             touch "$BUILD_MARKER"
         fi
     elif [ "$1" == "-f" ]; then

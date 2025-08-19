@@ -106,7 +106,7 @@ setup_virtual_environment() {
     
     # Verify Python version
     local python_version=$(python3 --version 2>&1 | cut -d' ' -f2)
-    log "Using Python version: $python_version (from container's Python)"
+    log "Using Python version: $python_version (from virtual environment)"
     
     return 0
 }
@@ -169,21 +169,9 @@ setup_python_environment() {
     log "Pip command: $pip_cmd"
     log "Pip version: $($pip_cmd --version)"
     
-    # Verify pip is using the venv
-    local pip_location=$($pip_cmd --version | grep -o '/[^[:space:]]*' | head -1 || echo "unknown")
-    if [[ "$pip_location" != "unknown" && "$pip_location" == "$VENV_PATH"* ]]; then
-        log "✓ Confirmed using venv pip: $pip_location"
-    elif [[ "$pip_location" != "unknown" ]]; then
-        log "WARNING: Pip location may not be from venv: $pip_location"
-    fi
-    
     # Set environment variables for consistent Python usage
     export PYTHON_CMD="$python_cmd"
     export PIP_CMD="$pip_cmd"
-    
-    # Check Python site-packages directory
-    local site_packages=$($python_cmd -c "import site; print(site.getsitepackages()[0])" 2>/dev/null || echo "unknown")
-    log "Python site-packages directory: $site_packages"
     
     # For venv, we typically install directly (no --user needed)
     export PIP_INSTALL_ARGS="--no-cache-dir"
@@ -265,41 +253,6 @@ run_python_script() {
     fi
     
     log "Successfully completed $description"
-}
-
-# Function to handle setup script with container awareness
-run_setup_script() {
-    local setup_script="$1"
-    local container_env=$(detect_container)
-    
-    log "=== Setup Script Execution ==="
-    log "Setup script: $setup_script"
-    log "Container environment: $container_env"
-    
-    # Check if setup script exists and is executable
-    check_executable "$setup_script" "Setup script"
-    
-    # Since we're using our own venv, we can run setup script normally
-    # but still try to skip additional venv creation if possible
-    log "Running setup script..."
-    case "$container_env" in
-        "docker"|"apptainer")
-            # Try to skip additional venv creation since we already have one
-            if ! "$setup_script" -f --no-venv 2>/dev/null; then
-                log "Setup script doesn't support --no-venv flag, trying with -f only..."
-                if ! "$setup_script" -f; then
-                    error_exit "Setup script failed"
-                fi
-            fi
-            ;;
-        *)
-            if ! "$setup_script" -f; then
-                error_exit "Setup script failed"
-            fi
-            ;;
-    esac
-    
-    log "Setup script completed successfully"
 }
 
 # Main execution

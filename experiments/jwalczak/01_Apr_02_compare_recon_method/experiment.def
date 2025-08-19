@@ -10,7 +10,6 @@ From: ubuntu:24.04
 
 %files
     conf /app/conf
-    images /app/images
     scripts /app/scripts
     entrypoint.sh /app/entrypoint.sh
 
