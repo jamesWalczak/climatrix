@@ -2,17 +2,18 @@
 
 set -euo pipefail
 
-if [ -z "$CLIMATRIX_EXP_DIR" ]; then
-	echo "Error: The CLIMATRIX_EXP_DIR environment variable is not set." >&2
-	echo "Please set it before running the script, for example:" >&2
-	echo "export CLIMATRIX_EXP_DIR=\"/path/to/your/directory\"" >&2
-	echo "Refer to the experiment README.md file" >&2
-	exit 1
- fi
+# Require CLIMATRIX_EXP_DIR to be explicitly set by user
+if [ -z "${CLIMATRIX_EXP_DIR:-}" ]; then
+    echo "Error: The CLIMATRIX_EXP_DIR environment variable is not set." >&2
+    echo "Please set it before running the script, for example:" >&2
+    echo "export CLIMATRIX_EXP_DIR=\"/path/to/your/directory\"" >&2
+    echo "Refer to the experiment README.md file" >&2
+    exit 1
+fi
 
 # Script directory
 SCRIPT_DIR="$CLIMATRIX_EXP_DIR/scripts"
-# Virtual environment path
+# Virtual environment path - should already exist from container build
 VENV_PATH="$CLIMATRIX_EXP_DIR/conf/exp1"
 
 # Logging function
@@ -77,9 +78,9 @@ setup_virtual_environment() {
     log "=== Virtual Environment Setup ==="
     log "Target venv path: $VENV_PATH"
     
-    # Check if virtual environment exists
+    # Check if virtual environment exists (should be built into container)
     if [[ ! -d "$VENV_PATH" ]]; then
-        error_exit "Virtual environment directory does not exist: $VENV_PATH"
+        error_exit "Virtual environment directory does not exist: $VENV_PATH (should be built into container)"
     fi
     
     # Check for activation script
@@ -88,7 +89,7 @@ setup_virtual_environment() {
         error_exit "Virtual environment activation script not found: $activate_script"
     fi
     
-    log "Found virtual environment at: $VENV_PATH"
+    log "Found pre-built virtual environment at: $VENV_PATH"
     
     # Source the virtual environment
     log "Activating virtual environment..."
@@ -102,6 +103,10 @@ setup_virtual_environment() {
     fi
     
     log "Virtual environment activated: $VIRTUAL_ENV"
+    
+    # Verify Python version
+    local python_version=$(python3 --version 2>&1 | cut -d' ' -f2)
+    log "Using Python version: $python_version (from container's Python)"
     
     return 0
 }

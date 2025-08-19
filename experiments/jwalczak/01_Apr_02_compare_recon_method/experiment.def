@@ -4,7 +4,9 @@ From: ubuntu:24.04
 %environment
     export DEBIAN_FRONTEND=noninteractive
     export APP_DIR=/app
+    export CLIMATRIX_EXP_DIR=/app
     export PATH=/app/conf/exp1/bin:$PATH
+    export VIRTUAL_ENV=/app/conf/exp1
 
 %files
     conf /app/conf
@@ -22,6 +24,9 @@ From: ubuntu:24.04
         wget curl git unzip bash \
         && rm -rf /var/lib/apt/lists/*
 
+    # Set environment variable for setup script
+    export CLIMATRIX_EXP_DIR=/app
+    
     cd /app/conf
     bash setup.sh
 
