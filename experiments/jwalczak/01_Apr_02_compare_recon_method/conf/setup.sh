@@ -11,7 +11,8 @@ VENV_NAME="${CLIMATRIX_EXP_DIR}/exp1"
 
 function create_venv() {
   echo "Creating virtual environment: $VENV_NAME"
-  python3 -m venv "$VENV_NAME"
+  # Use --copies to avoid symlinks that break in containers
+  python3 -m venv --copies "$VENV_NAME"
   if [ $? -ne 0 ]; then
     echo "Error creating virtual environment."
     exit 1
@@ -62,18 +63,32 @@ if [ -d "$VENV_NAME" ]; then
     activate_venv
     install_dependencies
     touch "$BUILD_MARKER"
-  else
-    echo "Virtual environment '$VENV_NAME' exists but incomplete. Completing setup."
-    # Fix shebangs in case they weren't fixed before
-    find "$VENV_NAME/bin" -type f -executable | while read script; do
-      if head -1 "$script" | grep -q python; then
-        sed -i '1c#!/usr/bin/env python3' "$script"
-      fi
-    done
-    activate_venv
-    install_dependencies
-    touch "$BUILD_MARKER"
+function fix_broken_venv() {
+  echo "Attempting to fix broken virtual environment..."
+  
+  # Remove the broken pyvenv.cfg that contains host paths
+  if [ -f "$VENV_NAME/pyvenv.cfg" ]; then
+    rm "$VENV_NAME/pyvenv.cfg"
   fi
+  
+  # Recreate pyvenv.cfg with container paths
+  cat > "$VENV_NAME/pyvenv.cfg" << EOF
+home = /usr/bin
+include-system-site-packages = false
+version = $(python3 -c "import sys; print('.'.join(map(str, sys.version_info[:2])))")
+executable = /usr/bin/python3
+command = /usr/bin/python3 -m venv $VENV_NAME
+EOF
+
+  # Fix all shebangs
+  find "$VENV_NAME/bin" -type f -executable | while read script; do
+    if head -1 "$script" | grep -q python; then
+      sed -i '1c#!/usr/bin/env python3' "$script"
+    fi
+  done
+  
+  echo "Virtual environment fixed."
+}
 else
   create_venv
   activate_venv
