@@ -40,7 +40,7 @@ class Hyperparameter:
         param_type: type,
         *,
         bounds: tuple[int | float | None, int | float | None] | None = None,
-        values: list[int | float | str] | None = None,
+        values: list[int] | list[float] | list[str] | None = None,
         default: Any = None,
     ):
         self.param_type = param_type

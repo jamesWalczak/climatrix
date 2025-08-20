@@ -128,7 +128,7 @@ class SiNETReconstructor(BaseNNReconstructor):
         mse_loss_weight: float = 3e3,
         eikonal_loss_weight: float = 5e1,
         laplace_loss_weight: float = 1e2,
-        validation: float | BaseClimatrixDataset = 0.2,
+        validation: float | BaseClimatrixDataset = 0.0,
     ) -> None:
         from climatrix.dataset.base import BaseClimatrixDataset
 

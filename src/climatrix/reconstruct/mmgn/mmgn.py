@@ -32,7 +32,7 @@ class MMGNReconstructor(BaseNNReconstructor):
         float, bounds=(0.0, 1.0), default=1e-5
     )
     hidden_dim: Hyperparameter = Hyperparameter(
-        int, default=256, values=(32, 64, 128, 256, 512, 1024)
+        int, default=256, values=[32, 64, 128, 256, 512, 1024]
     )
     latent_dim: Hyperparameter = Hyperparameter(
         int, bounds=(1, None), default=128
