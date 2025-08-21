@@ -34,11 +34,11 @@ class BaseNNReconstructor(BaseReconstructor):
     patience: int | None = None
 
     # Hyperparameters definitions
-    lr: Hyperparameter = Hyperparameter(
-        float, bounds=(np.finfo(float).eps, None)
+    lr = Hyperparameter[float](
+        bounds=(np.finfo(float).eps, None), default=5e-3
     )
-    num_epochs: Hyperparameter = Hyperparameter(int, bounds=(1, None))
-    batch_size: Hyperparameter = Hyperparameter(int, bounds=(1, None))
+    num_epochs = Hyperparameter[int](bounds=(1, None), default=1_000)
+    batch_size = Hyperparameter[int](bounds=(1, None), default=32)
 
     def __init__(
         self,
@@ -47,7 +47,7 @@ class BaseNNReconstructor(BaseReconstructor):
         lr: float,
         num_epochs: int,
         batch_size: int,
-        checkpoint: str | Path | None = None,
+        checkpoint: str | os.PathLike | Path | None = None,
         overwrite_checkpoint: bool = False,
         num_workers: int = 0,
         gradient_clipping_value: float | None = None,

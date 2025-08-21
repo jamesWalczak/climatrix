@@ -100,9 +100,9 @@ class SiNETReconstructor(BaseNNReconstructor):
 
     NAME: ClassVar[str] = "sinet"
 
-    mse_loss_weight = Hyperparameter(float, default=1e2)
-    eikonal_loss_weight = Hyperparameter(float, default=1e1)
-    laplace_loss_weight = Hyperparameter(float, default=1e2)
+    mse_loss_weight = Hyperparameter[float](default=1e2)
+    eikonal_loss_weight = Hyperparameter[float](default=1e1)
+    laplace_loss_weight = Hyperparameter[float](default=1e2)
     _was_early_stopped: ClassVar[bool] = False
 
     @log_input(log, level=logging.DEBUG)
@@ -128,7 +128,7 @@ class SiNETReconstructor(BaseNNReconstructor):
         mse_loss_weight: float = 3e3,
         eikonal_loss_weight: float = 5e1,
         laplace_loss_weight: float = 1e2,
-        validation: float | BaseClimatrixDataset = 0.0,
+        validation: float | BaseClimatrixDataset | None = None,
     ) -> None:
         from climatrix.dataset.base import BaseClimatrixDataset
 
@@ -231,13 +231,13 @@ class SiNETReconstructor(BaseNNReconstructor):
         return SiNETDatasetGenerator(**kwargs)
 
     def configure_optimizer(
-        self, siren_model: torch.nn.Module
+        self, nn_model: torch.nn.Module
     ) -> torch.optim.Optimizer:
         log.info(
             "Configuring Adam optimizer with learning rate: %0.6f",
             self.lr,
         )
-        return torch.optim.Adam(lr=self.lr, params=siren_model.parameters())
+        return torch.optim.Adam(lr=self.lr, params=nn_model.parameters())
 
     def init_model(self) -> torch.nn.Module:
         log.info("Initializing SiNET model...")

@@ -28,25 +28,19 @@ class MMGNReconstructor(BaseNNReconstructor):
     NAME: ClassVar[str] = "mmgn"
 
     # Hyperparameters definitions
-    weight_decay: Hyperparameter = Hyperparameter(
-        float, bounds=(0.0, 1.0), default=1e-5
+    weight_decay = Hyperparameter[float](bounds=(0.0, 1.0), default=1e-5)
+    hidden_dim = Hyperparameter[int](
+        default=256, values=[32, 64, 128, 256, 512, 1024]
     )
-    hidden_dim: Hyperparameter = Hyperparameter(
-        int, default=256, values=(32, 64, 128, 256, 512, 1024)
+    latent_dim = Hyperparameter[int](bounds=(1, None), default=128)
+    n_layers = Hyperparameter[int](bounds=(1, 50), default=5)
+    input_scale = Hyperparameter[int](bounds=(1, None), default=256)
+    alpha = Hyperparameter[float](bounds=(0, 1), default=1.0)
+    filter_type = Hyperparameter[str](
+        default="gabor", values=_FilterType.choices()
     )
-    latent_dim: Hyperparameter = Hyperparameter(
-        int, bounds=(1, None), default=128
-    )
-    n_layers: Hyperparameter = Hyperparameter(int, bounds=(1, 50), default=5)
-    input_scale: Hyperparameter = Hyperparameter(
-        int, bounds=(1, None), default=256
-    )
-    alpha: Hyperparameter = Hyperparameter(float, bounds=(0, 1), default=1.0)
-    filter_type: Hyperparameter = Hyperparameter(
-        str, default="gabor", values=_FilterType.choices()
-    )
-    latent_init: Hyperparameter = Hyperparameter(
-        str, default="zeros", values=_LatentInitType.choices()
+    latent_init = Hyperparameter[str](
+        default="zeros", values=_LatentInitType.choices()
     )
 
     gamma: float = 0.99
@@ -68,7 +62,7 @@ class MMGNReconstructor(BaseNNReconstructor):
         n_layers: int = 5,
         input_scale: int = 256,
         alpha: float = 1.0,
-        validation: float | BaseClimatrixDataset = 0.0,
+        validation: float | BaseClimatrixDataset | None = None,
         overwrite_checkpoint: bool = False,
         filter_type: str = "gabor",
         latent_init: str = "zeros",
