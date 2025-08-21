@@ -57,6 +57,9 @@ class HParamFinder:
         Custom parameter bounds. Overrides default bounds for the method.
     random_seed : int, optional
         Random seed for reproducible optimization. Default is 42.
+    reconstructor_kwargs : dict, optional
+        Additional keyword arguments for the reconstructor.
+        The optimizable parameters will be overridden by the optimizer.
 
     Attributes
     ----------
@@ -80,6 +83,8 @@ class HParamFinder:
         Number of startup trials for the optimizer.
     n_warmup_steps : int
         Number of warmup steps before starting optimization.
+    reconstructor_kwargs : dict
+        Additional keyword arguments for the reconstructor.
     result : dict
         Dictionary containing optimization results:
         - 'best_params': Best hyperparameters found (with correct types)
@@ -104,6 +109,7 @@ class HParamFinder:
         verbose: int = 0,
         n_startup_trials: int = 5,
         n_warmup_steps: int = 10,
+        reconstructor_kwargs: dict[str, Any] | None = None,
     ):
         self.mapping: dict[str, dict[int, str]] = {}
         self.result: dict[str, Any] = {}
@@ -124,6 +130,7 @@ class HParamFinder:
         self.verbose = verbose
         self.n_startup_trials = n_startup_trials
         self.n_warmup_steps = n_warmup_steps
+        self.reconstructor_kwargs = reconstructor_kwargs or {}
 
         log.debug(
             "HParamFinder initialized: method=%s, metric=%s, "
@@ -349,10 +356,14 @@ class HParamFinder:
             Negative metric value (since BayesianOptimization maximizes).
         """
         kwargs = self._suggest_arguments(trial)
+        default_kwargs = self.reconstructor_kwargs.copy()
+        default_kwargs.update(kwargs)
         try:
-            log.debug("Evaluating parameters: %s", **kwargs)
+            log.debug("Evaluating parameters: %s", **default_kwargs)
             reconstructed = self.train_dset.reconstruct(
-                target=self.val_dset.domain, method=self.method, **kwargs
+                target=self.val_dset.domain,
+                method=self.method,
+                **self.reconstructor_kwargs,
             )
             comparison = Comparison(reconstructed, self.val_dset)
             score = comparison.compute(self.metric.value)
