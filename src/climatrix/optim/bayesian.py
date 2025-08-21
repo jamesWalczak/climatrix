@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from collections import OrderedDict
 from enum import StrEnum
-from typing import Any, Collection
+from typing import Any, Callable, Collection
 
 import numpy as np
 
@@ -109,6 +109,9 @@ class HParamFinder:
         verbose: int = 0,
         n_startup_trials: int = 5,
         n_warmup_steps: int = 10,
+        scoring_callback: (
+            Callable[[int, dict[str, Any], float], float] | None
+        ) = None,
         reconstructor_kwargs: dict[str, Any] | None = None,
     ):
         self.mapping: dict[str, dict[int, str]] = {}
@@ -130,6 +133,9 @@ class HParamFinder:
         self.verbose = verbose
         self.n_startup_trials = n_startup_trials
         self.n_warmup_steps = n_warmup_steps
+        self.scoring_callback = scoring_callback or (
+            lambda trial_num, params, score: score
+        )
         self.reconstructor_kwargs = reconstructor_kwargs or {}
 
         log.debug(
@@ -370,6 +376,7 @@ class HParamFinder:
 
             log.debug("Score for params %s: %f", kwargs, score)
             # NOTE: Return negative score for maximization
+            score = self.scoring_callback(trial.number, kwargs, score)
             return score
 
         except (NotImplementedError, ValueError, TypeError) as e:
