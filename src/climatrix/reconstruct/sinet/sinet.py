@@ -74,7 +74,7 @@ class SiNETReconstructor(BaseNNReconstructor):
         Weight for Laplace loss component (default is 1e2).
         Type: float, bounds: <unbounded>, default: 1e2
     validation : float | BaseClimatrixDataset, optional
-        Validation data or portion for training (default is 0.2).
+        Validation data or portion for training (default is 0.0).
     patience : int | None, optional
         Early stopping patience (default is None).
     overwrite_checkpoint : bool, optional
