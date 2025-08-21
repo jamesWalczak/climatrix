@@ -39,9 +39,7 @@ console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
 
-RESULT_DIR: Path = (
-    Path(__file__).parent.parent.parent / "results" / "inr" / "mmgn"
-)
+RESULT_DIR: Path = Path(CLIMATRIX_EXP_DIR) / "results" / "inr" / "mmgn"
 PLOT_DIR: Path = RESULT_DIR / "plots"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
 console.print("[bold green]Plots will be saved to: [/bold green]", PLOT_DIR)
@@ -107,6 +105,7 @@ def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
         "n_layers",
         "input_scale",
         "alpha",
+        "opt_loss"
     ]
     if not hparam_path.exists():
         with open(hparam_path, "w") as f:
@@ -222,7 +221,7 @@ def run_single_experiment(
         lr=result["best_params"]["lr"],
         num_epochs=result["best_params"]["num_epochs"],
         batch_size=result["best_params"]["batch_size"],
-        num_workers=-1,
+        num_workers=0,
         device="cuda",
         weight_decay=result["best_params"]["weight_decay"],
         hidden_dim=result["best_params"]["hidden_dim"],
@@ -251,7 +250,7 @@ def run_single_experiment(
             lr=result["best_params"]["lr"],
             num_epochs=result["best_params"]["num_epochs"],
             batch_size=result["best_params"]["batch_size"],
-            num_workers=-1,
+            num_workers=0,
             device="cuda",
             weight_decay=result["best_params"]["weight_decay"],
             hidden_dim=result["best_params"]["hidden_dim"],

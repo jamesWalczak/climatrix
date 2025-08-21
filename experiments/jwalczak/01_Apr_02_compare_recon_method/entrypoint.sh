@@ -277,9 +277,9 @@ main() {
     local python_scripts=(
         "$SCRIPT_DIR/prepare_ecad_observations.py:ECAD observations preparation script"
         "$SCRIPT_DIR/idw/run_idw.py:IDW script"
-        "$SCRIPT_DIR/inr/sinet/run_sinet.py:SINET script"
-        "$SCRIPT_DIR/kriging/run_ok.py:Kriging script"
-        "$SCRIPT_DIR/inr/mmgn/run_mmgn.py:MMGN script"
+        #"$SCRIPT_DIR/inr/sinet/run_sinet.py:SINET script"
+        #"$SCRIPT_DIR/kriging/run_ok.py:Kriging script"
+        #"$SCRIPT_DIR/inr/mmgn/run_mmgn.py:MMGN script"
     )
     
     local scripts_to_run=()

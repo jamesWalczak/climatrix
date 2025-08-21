@@ -211,7 +211,7 @@ def run_single_experiment(
     reconstructed_dset = train_val_dset.reconstruct(
         test_dset.domain,
         method="sinet",
-        device="cpu",
+        device="cuda",
         lr=result["best_params"]["lr"],
         num_epochs=result["best_params"]["num_epochs"],
         batch_size=result["best_params"]["batch_size"],
@@ -241,7 +241,7 @@ def run_single_experiment(
         reconstructed_dense = train_val_dset.reconstruct(
             EUROPE_DOMAIN,
             method="sinet",
-            device="cpu",
+            device="cuda",
             lr=result["best_params"]["lr"],
             num_epochs=result["best_params"]["num_epochs"],
             batch_size=result["best_params"]["batch_size"],
