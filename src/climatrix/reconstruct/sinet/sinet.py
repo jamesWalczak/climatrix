@@ -99,10 +99,11 @@ class SiNETReconstructor(BaseNNReconstructor):
     """
 
     NAME: ClassVar[str] = "sinet"
+    dataset_generator_type = SiNETDatasetGenerator
 
-    mse_loss_weight = Hyperparameter(float, default=1e2)
-    eikonal_loss_weight = Hyperparameter(float, default=1e1)
-    laplace_loss_weight = Hyperparameter(float, default=1e2)
+    mse_loss_weight = Hyperparameter[float](default=1e2)
+    eikonal_loss_weight = Hyperparameter[float](default=1e1)
+    laplace_loss_weight = Hyperparameter[float](default=1e2)
     _was_early_stopped: ClassVar[bool] = False
 
     @log_input(log, level=logging.DEBUG)
@@ -128,10 +129,11 @@ class SiNETReconstructor(BaseNNReconstructor):
         mse_loss_weight: float = 3e3,
         eikonal_loss_weight: float = 5e1,
         laplace_loss_weight: float = 1e2,
-        validation: float | BaseClimatrixDataset = 0.0,
+        validation: float | BaseClimatrixDataset | None = None,
     ) -> None:
-        from climatrix.dataset.base import BaseClimatrixDataset
-
+        self._custom_dataset_generator_kwargs = {
+            "use_elevation": False,
+        }
         super().__init__(
             dataset,
             target_domain,
@@ -144,30 +146,13 @@ class SiNETReconstructor(BaseNNReconstructor):
             gradient_clipping_value=gradient_clipping_value,
             device=device,
             patience=patience,
+            validation=validation,
         )
-        use_elevation = False
         if dataset.domain.is_dynamic:
             log.error("SiNET is not yet supported for dynamic datasets.")
             raise ValueError(
                 "SiNET is not yet supported for dynamic datasets."
             )
-        self.datasets = self._configure_dataset_generator(
-            train_coords=dataset.domain.get_all_spatial_points(),
-            train_field=dataset.da.values,
-            target_coords=target_domain.get_all_spatial_points(),
-            val_portion=validation if isinstance(validation, float) else None,
-            val_coordinates=(
-                (validation.domain.get_all_spatial_points())
-                if isinstance(validation, BaseClimatrixDataset)
-                else None
-            ),
-            val_field=(
-                (validation.da.values)
-                if isinstance(validation, BaseClimatrixDataset)
-                else None
-            ),
-            use_elevation=use_elevation,
-        )
         self.layers = layers
         self.hidden_dim = hidden_dim
         self.sorting_group_size = sorting_group_size
@@ -177,67 +162,14 @@ class SiNETReconstructor(BaseNNReconstructor):
         self.eikonal_loss_weight = eikonal_loss_weight
         self.laplace_loss_weight = laplace_loss_weight
 
-    @staticmethod
-    def _configure_dataset_generator(
-        train_coords: np.ndarray,
-        train_field: np.ndarray,
-        target_coords: np.ndarray,
-        val_portion: float | None = None,
-        val_coordinates: np.ndarray | None = None,
-        val_field: np.ndarray | None = None,
-        use_elevation: bool = False,
-    ) -> SiNETDatasetGenerator:
-        """
-        Configure the SiNET dataset generator.
-        """
-        log.debug("Configuring SiNET dataset generator...")
-        if val_portion is not None and (
-            val_coordinates is not None or val_field is not None
-        ):
-            log.error(
-                "Cannot use both `val_portion` and `val_coordinates`/`val_field`."
-            )
-            raise ValueError(
-                "Cannot use both `val_portion` and `val_coordinates`/`val_field`."
-            )
-        kwargs = {
-            "spatial_points": train_coords,
-            "field": train_field,
-            "target_coordinates": target_coords,
-            "degree": True,
-            "radius": 1.0,
-            "use_elevation": use_elevation,
-        }
-        if val_portion is not None:
-            if not (0 < val_portion < 1):
-                log.error("Validation portion must be in the range (0, 1).")
-                raise ValueError(
-                    "Validation portion must be in the range (0, 1)."
-                )
-            log.debug("Using validation portion: %0.2f", val_portion)
-            kwargs["val_portion"] = val_portion
-        elif val_coordinates is not None and val_field is not None:
-            log.debug("Using validation coordinates and field for validation.")
-            if val_coordinates.shape[0] != val_field.shape[0]:
-                log.error(
-                    "Validation coordinates and field must have the same number of points."
-                )
-                raise ValueError(
-                    "Validation coordinates and field must have the same number of points."
-                )
-            kwargs["validation_coordinates"] = val_coordinates
-            kwargs["validation_field"] = val_field
-
-        return SiNETDatasetGenerator(**kwargs)
-
     def configure_optimizer(
-        self, siren_model: torch.nn.Module
+        self, nn_model: torch.nn.Module
     ) -> torch.optim.Optimizer:
         log.info(
             "Configuring Adam optimizer with learning rate: %0.6f",
             self.lr,
         )
-        return torch.optim.Adam(lr=self.lr, params=siren_model.parameters())
+        return torch.optim.Adam(lr=self.lr, params=nn_model.parameters())
 
     def init_model(self) -> torch.nn.Module:
         log.info("Initializing SiNET model...")

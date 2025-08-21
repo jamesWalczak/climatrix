@@ -2,9 +2,11 @@ import logging
 import os
 from abc import abstractmethod
 from pathlib import Path
+from typing import ClassVar
 
 import numpy as np
 import torch
+from scipy import datasets
 from torch import nn
 from torch.utils.data import DataLoader
 
@@ -12,6 +14,7 @@ from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.dataset.domain import Domain
 from climatrix.reconstruct.base import BaseReconstructor, Hyperparameter
 from climatrix.reconstruct.nn.callbacks import EarlyStopping
+from climatrix.reconstruct.nn.dataset import BaseNNDatasetGenerator
 
 log = logging.getLogger(__name__)
 
@@ -21,6 +24,8 @@ class BaseNNReconstructor(BaseReconstructor):
     Base class for neural network-based reconstructor.
     This class provides a common interface for all neural network-based reconstruction methods.
     """
+
+    dataset_generator_type: ClassVar[type[BaseNNDatasetGenerator]]
 
     is_model_loaded: bool = False
     checkpoint: Path | None = None
@@ -32,13 +37,16 @@ class BaseNNReconstructor(BaseReconstructor):
 
     num_workers: int
     patience: int | None = None
+    datasets: BaseNNDatasetGenerator
+    validation: float | BaseClimatrixDataset | None = None
+    _custom_dataset_generator_kwargs: dict
 
     # Hyperparameters definitions
-    lr: Hyperparameter = Hyperparameter(
-        float, bounds=(np.finfo(float).eps, None)
+    lr = Hyperparameter[float](
+        bounds=(np.finfo(float).eps, None), default=5e-3
     )
-    num_epochs: Hyperparameter = Hyperparameter(int, bounds=(1, None))
-    batch_size: Hyperparameter = Hyperparameter(int, bounds=(1, None))
+    num_epochs = Hyperparameter[int](bounds=(1, None), default=1_000)
+    batch_size = Hyperparameter[int](bounds=(1, None), default=32)
 
     def __init__(
         self,
@@ -47,12 +55,13 @@ class BaseNNReconstructor(BaseReconstructor):
         lr: float,
         num_epochs: int,
         batch_size: int,
-        checkpoint: str | Path | None = None,
+        checkpoint: str | os.PathLike | Path | None = None,
         overwrite_checkpoint: bool = False,
         num_workers: int = 0,
         gradient_clipping_value: float | None = None,
         device: str = "cuda",
         patience: int | None = None,
+        validation: float | BaseClimatrixDataset | None = None,
     ) -> None:
         super().__init__(dataset, target_domain)
         self.num_workers = num_workers
@@ -69,6 +78,23 @@ class BaseNNReconstructor(BaseReconstructor):
         self.lr = lr
         self.num_epochs = num_epochs
         self.batch_size = batch_size
+        self._custom_dataset_generator_kwargs = {}
+        self.datasets = self._configure_dataset_generator(
+            train_coords=dataset.domain.get_all_spatial_points(),
+            train_field=dataset.da.values,
+            target_coords=target_domain.get_all_spatial_points(),
+            val_portion=validation if isinstance(validation, float) else None,
+            val_coordinates=(
+                (validation.domain.get_all_spatial_points())
+                if isinstance(validation, BaseClimatrixDataset)
+                else None
+            ),
+            val_field=(
+                (validation.da.values)
+                if isinstance(validation, BaseClimatrixDataset)
+                else None
+            ),
+        )
 
     def _maybe_clip_grads(self, nn_model: torch.nn.Module) -> None:
         if self.gradient_clipping_value:
@@ -77,12 +103,12 @@ class BaseNNReconstructor(BaseReconstructor):
             )
 
     def _maybe_load_checkpoint(
-        self, nn_model: nn.Module, checkpoint: str | os.PathLike | Path
+        self, nn_model: nn.Module, checkpoint: str | os.PathLike | Path | None
     ) -> nn.Module:
         if (
             not self.overwrite_checkpoint
             and checkpoint
-            and checkpoint.exists()
+            and Path(checkpoint).exists()
         ):
             log.debug("Loading checkpoint from %s...", checkpoint)
             try:
@@ -298,9 +324,59 @@ class BaseNNReconstructor(BaseReconstructor):
             "Subclasses must implement configure_optimizer method."
         )
 
+    @abstractmethod
+    def _configure_dataset_generator(
+        self,
+        train_coords: np.ndarray,
+        train_field: np.ndarray,
+        target_coords: np.ndarray,
+        val_portion: float | None = None,
+        val_coordinates: np.ndarray | None = None,
+        val_field: np.ndarray | None = None,
+    ) -> BaseNNDatasetGenerator:
+        log.debug("Configuring dataset generator...")
+        if val_portion is not None and (
+            val_coordinates is not None or val_field is not None
+        ):
+            log.error(
+                "Cannot use both `val_portion` and `val_coordinates`/`val_field`."
+            )
+            raise ValueError(
+                "Cannot use both `val_portion` and `val_coordinates`/`val_field`."
+            )
+        kwargs = {
+            "spatial_points": train_coords,
+            "field": train_field,
+            "target_coordinates": target_coords,
+            "degree": True,
+            "radius": 1.0,
+        }
+        if val_portion is not None:
+            if not (0 < val_portion < 1):
+                log.error("Validation portion must be in the range (0, 1).")
+                raise ValueError(
+                    "Validation portion must be in the range (0, 1)."
+                )
+            log.debug("Using validation portion: %0.2f", val_portion)
+            kwargs["val_portion"] = val_portion
+        elif val_coordinates is not None and val_field is not None:
+            log.debug("Using validation coordinates and field for validation.")
+            if val_coordinates.shape[0] != val_field.shape[0]:
+                log.error(
+                    "Validation coordinates and field must have the same number of points."
+                )
+                raise ValueError(
+                    "Validation coordinates and field must have the same number of points."
+                )
+            kwargs["validation_coordinates"] = val_coordinates
+            kwargs["validation_field"] = val_field
+
+        kwargs.update(self._custom_dataset_generator_kwargs)
+        return self.dataset_generator_type(**kwargs)
+
     def configure_epoch_schedulers(
         self, optimizer: torch.optim.Optimizer
-    ) -> list[torch.optim.lr_scheduler._LRScheduler]:
+    ) -> list[torch.optim.lr_scheduler.LRScheduler]:
         """
         Configure the epoch schedulers for the optimizer.
         """
