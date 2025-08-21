@@ -234,6 +234,83 @@ setup_python_environment() {
     log "Python environment setup completed successfully"
 }
 
+# Function to parse command line arguments
+parse_arguments() {
+    local models=()
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --model)
+                if [[ -n "${2:-}" ]]; then
+                    models+=("$2")
+                    shift 2
+                else
+                    error_exit "Error: --model requires a value"
+                fi
+                ;;
+            *)
+                error_exit "Unknown argument: $1"
+                ;;
+        esac
+    done
+    
+    # Export the models array for use in other functions
+    export SELECTED_MODELS="${models[*]}"
+    
+    # If no models specified, default to all available models
+    if [[ ${#models[@]} -eq 0 ]]; then
+        log "No models specified, using default: idw"
+        export SELECTED_MODELS="idw"
+    fi
+    
+    log "Selected models: ${SELECTED_MODELS}"
+}
+
+# Function to validate model names
+validate_models() {
+    local valid_models=("idw" "ok" "sinet" "mmgn")
+    local selected_models=($SELECTED_MODELS)
+    
+    for model in "${selected_models[@]}"; do
+        local is_valid=false
+        for valid_model in "${valid_models[@]}"; do
+            if [[ "$model" == "$valid_model" ]]; then
+                is_valid=true
+                break
+            fi
+        done
+        
+        if [[ "$is_valid" != true ]]; then
+            error_exit "Invalid model: $model. Valid models are: ${valid_models[*]}"
+        fi
+    done
+    
+    log "All specified models are valid"
+}
+
+# Function to get script info for a model
+get_model_script() {
+    local model="$1"
+    
+    case "$model" in
+        "idw")
+            echo "$SCRIPT_DIR/idw/run_idw.py:IDW script"
+            ;;
+        "ok")
+            echo "$SCRIPT_DIR/kriging/run_ok.py:Kriging script"
+            ;;
+        "sinet")
+            echo "$SCRIPT_DIR/inr/sinet/run_sinet.py:SINET script"
+            ;;
+        "mmgn")
+            echo "$SCRIPT_DIR/inr/mmgn/run_mmgn.py:MMGN script"
+            ;;
+        *)
+            error_exit "Unknown model: $model"
+            ;;
+    esac
+}
+
 # Function to run Python script with error handling
 run_python_script() {
     local script="$1"
@@ -265,6 +342,12 @@ main() {
     log "GID: $(id -g)"
     log "Target virtual environment: $VENV_PATH"
     
+    # Parse command line arguments
+    parse_arguments "$@"
+    
+    # Validate specified models
+    validate_models
+    
     # Detect and log environment
     local container_env=$(detect_container)
     log "Detected environment: $container_env"
@@ -272,19 +355,19 @@ main() {
     # Setup Python environment with venv
     setup_python_environment
     
-    # Check all Python scripts exist before running
+    # Always run the preparation script first
     log "=== Pre-flight Script Check ==="
-    local python_scripts=(
-        "$SCRIPT_DIR/prepare_ecad_observations.py:ECAD observations preparation script"
-        "$SCRIPT_DIR/idw/run_idw.py:IDW script"
-        #"$SCRIPT_DIR/inr/sinet/run_sinet.py:SINET script"
-        #"$SCRIPT_DIR/kriging/run_ok.py:Kriging script"
-        #"$SCRIPT_DIR/inr/mmgn/run_mmgn.py:MMGN script"
-    )
+    local prep_script="$SCRIPT_DIR/prepare_ecad_observations.py"
+    check_python_script "$prep_script" "ECAD observations preparation script"
     
-    local scripts_to_run=()
-    for script_info in "${python_scripts[@]}"; do
+    # Build list of model scripts to run based on selected models
+    local selected_models=($SELECTED_MODELS)
+    local scripts_to_run=("$prep_script:ECAD observations preparation script")
+    
+    for model in "${selected_models[@]}"; do
+        local script_info=$(get_model_script "$model")
         IFS=':' read -r script_path script_desc <<< "$script_info"
+        
         if [[ -f "$script_path" ]]; then
             check_python_script "$script_path" "$script_desc"
             scripts_to_run+=("$script_path:$script_desc")
@@ -293,8 +376,8 @@ main() {
         fi
     done
     
-    if [[ ${#scripts_to_run[@]} -eq 0 ]]; then
-        error_exit "No Python scripts found to execute"
+    if [[ ${#scripts_to_run[@]} -le 1 ]]; then
+        error_exit "No model scripts found to execute (only preparation script available)"
     fi
     
     # Run Python scripts
@@ -308,6 +391,7 @@ main() {
     log "Container environment: $container_env"
     log "Virtual environment used: ${VIRTUAL_ENV:-none}"
     log "Python used: ${PYTHON_CMD} ($(${PYTHON_CMD} --version))"
+    log "Models executed: ${SELECTED_MODELS}"
 }
 
 # Handle script termination gracefully
