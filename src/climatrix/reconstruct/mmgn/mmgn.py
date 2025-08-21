@@ -6,6 +6,7 @@ from typing import ClassVar
 import numpy as np
 import torch
 import torch.nn.functional as F
+from torch.optim.lr_scheduler import LRScheduler
 
 from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.dataset.domain import Domain
@@ -26,6 +27,7 @@ class MMGNReconstructor(BaseNNReconstructor):
     """MMGN Reconstructor class."""
 
     NAME: ClassVar[str] = "mmgn"
+    dataset_generator_type = MMGNDatasetGenerator
 
     # Hyperparameters definitions
     weight_decay = Hyperparameter[float](bounds=(0.0, 1.0), default=1e-5)
@@ -79,26 +81,11 @@ class MMGNReconstructor(BaseNNReconstructor):
             overwrite_checkpoint=overwrite_checkpoint,
             num_workers=num_workers,
             device=device,
+            validation=validation,
         )
         if dataset.domain.is_dynamic:
             log.error("MMGN does not support dynamic domains.")
             raise ValueError("MMGN does not support dynamic domains.")
-        self.datasets = self._configure_dataset_generator(
-            train_coords=dataset.domain.get_all_spatial_points(),
-            train_field=dataset.da.values,
-            target_coords=target_domain.get_all_spatial_points(),
-            val_portion=validation if isinstance(validation, float) else None,
-            val_coordinates=(
-                (validation.domain.get_all_spatial_points())
-                if isinstance(validation, BaseClimatrixDataset)
-                else None
-            ),
-            val_field=(
-                (validation.da.values)
-                if isinstance(validation, BaseClimatrixDataset)
-                else None
-            ),
-        )
 
         self.weight_decay = weight_decay
 
@@ -113,75 +100,8 @@ class MMGNReconstructor(BaseNNReconstructor):
         self.filter_type = filter_type
         self.latent_init = latent_init
 
-    @staticmethod
-    def _configure_dataset_generator(
-        train_coords: np.ndarray,
-        train_field: np.ndarray,
-        target_coords: np.ndarray,
-        val_portion: float | None = None,
-        val_coordinates: np.ndarray | None = None,
-        val_field: np.ndarray | None = None,
-    ) -> MMGNDatasetGenerator:
-        """
-        Configure the MMGN dataset generator.
-        """
-        log.debug("Configuring MMGN dataset generator...")
-        if val_portion is not None and (
-            val_coordinates is not None or val_field is not None
-        ):
-            log.error(
-                "Cannot use both `val_portion` and `val_coordinates`/`val_field`."
-            )
-            raise ValueError(
-                "Cannot use both `val_portion` and `val_coordinates`/`val_field`."
-            )
-        kwargs = {
-            "spatial_points": train_coords,
-            "field": train_field,
-        }
-        if val_portion is not None:
-            if not (0 <= val_portion < 1):
-                log.error("Validation portion must be in the range (0, 1).")
-                raise ValueError(
-                    "Validation portion must be in the range (0, 1)."
-                )
-            log.debug("Using validation portion: %0.2f", val_portion)
-            kwargs["val_portion"] = val_portion
-        elif val_coordinates is not None and val_field is not None:
-            log.debug("Using validation coordinates and field for validation.")
-            if val_coordinates.shape[0] != val_field.shape[0]:
-                log.error(
-                    "Validation coordinates and field must have the same number of points."
-                )
-                raise ValueError(
-                    "Validation coordinates and field must have the same number of points."
-                )
-            if val_coordinates.shape[1] != train_coords.shape[1]:
-                log.error(
-                    "Validation coordinates must have the same number of dimensions as training coordinates."
-                )
-                raise ValueError(
-                    "Validation coordinates must have the same number of dimensions as training coordinates."
-                )
-            kwargs["validation_coordinates"] = val_coordinates
-            kwargs["validation_field"] = val_field
-        if target_coords is not None:
-            if (
-                target_coords.ndim != 2
-                or target_coords.shape[1] != train_coords.shape[1]
-            ):
-                log.error(
-                    "Target coordinates must be a 2D array with shape (n_samples, 2)."
-                )
-                raise ValueError(
-                    "Target coordinates must be a 2D array with shape (n_samples, 2)."
-                )
-            kwargs["target_coordinates"] = target_coords
-
-        return MMGNDatasetGenerator(**kwargs)
-
     def configure_optimizer(
-        self, mmgn_module: torch.nn.Module
+        self, nn_model: torch.nn.Module
     ) -> torch.optim.Optimizer:
         log.info(
             "Configuring Adam optimizer with learning rate: %0.6f",
@@ -189,11 +109,11 @@ class MMGNReconstructor(BaseNNReconstructor):
         )
         return torch.optim.AdamW(
             lr=self.lr,
-            params=mmgn_module.parameters(),
+            params=nn_model.parameters(),
             weight_decay=self.weight_decay,
         )
 
-    def configure_epoch_schedulers(self, optimizer):
+    def configure_epoch_schedulers(self, optimizer) -> list[LRScheduler]:
         return [
             torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=self.gamma)
         ]
