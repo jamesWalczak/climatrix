@@ -6,7 +6,6 @@ from typing import ClassVar
 
 import numpy as np
 import torch
-from scipy import datasets
 from torch import nn
 from torch.utils.data import DataLoader
 
@@ -126,7 +125,7 @@ class BaseNNReconstructor(BaseReconstructor):
         return nn_model.to(self.device)
 
     def _maybe_save_checkpoint(
-        self, nn_model: nn.Module, checkpoint: Path
+        self, nn_model: nn.Module, checkpoint: Path | None
     ) -> None:
         if checkpoint:
             if not checkpoint.parent.exists():
