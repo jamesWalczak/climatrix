@@ -2,7 +2,7 @@ import logging
 import os
 from abc import abstractmethod
 from pathlib import Path
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import torch
@@ -283,13 +283,13 @@ class BaseNNReconstructor(BaseReconstructor):
 
         log.info("Reconstructing target domain...")
         values = self._find_surface(nn_model, self.datasets.target_dataset)
-        unscaled_values = self.datasets.field_transformer.inverse_transform(
-            values.reshape(-1, 1)
-        )
+        unscaled_values = self.datasets.untransform_field(values)
 
         log.debug("Reconstruction completed.")
+        name = str(self.dataset.da.name) or "reconstructed_field"
+
         return BaseClimatrixDataset(
-            self.target_domain.to_xarray(unscaled_values, self.dataset.da.name)
+            self.target_domain.to_xarray(unscaled_values, name)
         )
 
     @abstractmethod
@@ -342,12 +342,10 @@ class BaseNNReconstructor(BaseReconstructor):
             raise ValueError(
                 "Cannot use both `val_portion` and `val_coordinates`/`val_field`."
             )
-        kwargs = {
+        kwargs: dict[str, Any] = {
             "spatial_points": train_coords,
             "field": train_field,
             "target_coordinates": target_coords,
-            "degree": True,
-            "radius": 1.0,
         }
         if val_portion is not None:
             if not (0 < val_portion < 1):
