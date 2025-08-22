@@ -323,7 +323,6 @@ class BaseNNReconstructor(BaseReconstructor):
             "Subclasses must implement configure_optimizer method."
         )
 
-    @abstractmethod
     def _configure_dataset_generator(
         self,
         train_coords: np.ndarray,
