@@ -12,20 +12,69 @@ It ensures that datasets are properly downloaded/prepared and that results are s
 │   └── setup.sh           # Script to create virtual environment & install deps
 │   └── requirements.txt   # Dependencies to install
 ├── data/                  # Datasets (mounted from host)
-├── images/                # Container definition files (Dockerfile, experiment.def)
-│   ├── scripts/           # Container utility scripts
-│       └── entrypoint.sh 
-│   ├── Dockerfile
-│   └── experiment.def
 ├── src/                   # Source code (Python modules)
 ├── results/               # Experiment outputs (mounted from host)
 ├── notebook/              # Jupyter notebooks
 ├── scripts/               # Utility scripts
-│   ├── download_blend_mean_temperature.sh
+|   ├── idw/               # Scripts related to IDW method
+|   ├── kriging/           # Scripts related to OK method
+|   ├── inr/               # Scripts related to INR method(s)
+|   |   ├── sinet/         # Scripts for SiNET method (the proposed one)
+|   |   └── mmgn/          # Scripts for MMGN method (the referenced one)
 │   ├── prepare_ecad_observations.py
+├── entrypoint.sh
+├── Dockerfile
+└── experiment.def
 ```
 
 ---
+
+## Prerequisites
+Before running the experiment, you need to set `CLIMATRIX_EXP_DIR` environmental 
+variable with the absolute path to the directory where experiments' files are stored 
+and where data and results will be saved (`01_Apr_02_compare_recon_method` directory).
+If you are using containerized application (Docker or Apptainer), set it to `/app`:
+
+```bash
+export CLIMATRIX_EXP_DIR="/app"
+```
+
+## 💻 Local run
+
+### 1.Setup virtual environment
+First, let us create virtual environment and install all necessery dependencies.
+To do so, navigate to `conf` directory and run `setup.sh` script.
+It will create under `${CLIMATRIX_EXP_DIR}/conf` a directory with Python virual environemnt called `exp1`.
+
+```bash
+bash conf/setup.sh
+```
+
+After that, activate your virtual environment by calling:
+
+```bash
+source $CLIMATRIX_EXP_DIR/conf/exp1/bin/activate
+```
+
+### 2. Download & prepare data
+To download data, navigate to `scripts` under your `$CLIMATRIX_EXP_DIR` directory and run `download_blend_mean_temperature.sh`:
+
+```bash
+python scripts/prepare_ecad_observations.py
+```
+
+Remember to have virtual enviroment activated!
+
+### 4. Run experiments
+Finally, we can run experiments:
+
+```bash
+python scripts/idw/run_idw.py
+python scripts/kriging/run_ok.py
+python scripts/inr/sinet/run_sinet.py
+python scripts/inr/mmgn/run_mmgn.py
+```
+
 
 ## 🐳 Docker Setup
 
