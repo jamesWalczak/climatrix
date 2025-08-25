@@ -228,6 +228,8 @@ def run_single_experiment(
         laplace_loss_weight=result["best_params"]["laplace_loss_weight"],
         patience=result["best_params"]["patience"],
         hidden_dim=result["best_params"]["hidden_dim"],
+        checkpoint="./sinet_checkpoint.pth",
+        overwrite_checkpoint=True,
     )
     status.update(
         "[magenta]Saving reconstructed dset to "
@@ -257,6 +259,8 @@ def run_single_experiment(
             laplace_loss_weight=result["best_params"]["laplace_loss_weight"],
             patience=result["best_params"]["patience"],
             hidden_dim=result["best_params"]["hidden_dim"],
+            checkpoint="./sinet_checkpoint.pth",
+            overwrite_checkpoint=False,
         )
         status.update(
             "[magenta]Saving reconstructed dense dset to "

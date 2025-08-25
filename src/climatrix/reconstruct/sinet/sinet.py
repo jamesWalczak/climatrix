@@ -96,6 +96,8 @@ class SiNETReconstructor(BaseNNReconstructor):
         - mse_loss_weight: float in (1e1, 1e4), default=1e2
         - eikonal_loss_weight: float in (1e0, 1e3), default=1e1
         - laplace_loss_weight: float in (1e1, 1e3), default=1e2
+        - scale: float in (0.01, 10.0), default=1.5
+        - hidden_dim: int in {16, 32, 64, 128,
     """
 
     NAME: ClassVar[str] = "sinet"

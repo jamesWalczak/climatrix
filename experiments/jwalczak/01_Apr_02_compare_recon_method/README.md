@@ -21,7 +21,6 @@ It ensures that datasets are properly downloaded/prepared and that results are s
 |   ├── inr/               # Scripts related to INR method(s)
 |   |   ├── sinet/         # Scripts for SiNET method (the proposed one)
 |   |   └── mmgn/          # Scripts for MMGN method (the referenced one)
-│   ├── download_blend_mean_temperature.sh
 │   ├── prepare_ecad_observations.py
 ├── entrypoint.sh
 ├── Dockerfile
