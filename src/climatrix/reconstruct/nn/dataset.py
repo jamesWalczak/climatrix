@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
 
 import numpy as np
-import sklearn
 import torch
-from sklearn.base import BaseEstimator, OneToOneFeatureMixin, TransformerMixin
 from torch.utils.data import Dataset
 
 from climatrix.decorators.runtime import log_input
@@ -14,29 +12,7 @@ from climatrix.decorators.runtime import log_input
 log = logging.getLogger(__name__)
 
 
-class BaseTransformer(OneToOneFeatureMixin, TransformerMixin, BaseEstimator):
-    pass
-
-
-class IdentityTransformer(BaseTransformer):
-    """
-    A transformer that does not change the data.
-    It is used as a placeholder for the base class.
-    """
-
-    def fit(self, X, y=None):
-        if y is not None:
-            return X, y
-        return self
-
-    def transform(self, X):
-        return X
-
-
 class BaseNNDatasetGenerator(ABC):
-    lat_lon_transformer: BaseTransformer
-    field_transformer: BaseTransformer
-
     train_coordinates: np.ndarray
     train_field: np.ndarray
     target_coordinates: np.ndarray | None
@@ -52,9 +28,6 @@ class BaseNNDatasetGenerator(ABC):
         validation_coordinates: np.ndarray | None = None,
         validation_field: np.ndarray | None = None,
     ) -> None:
-        self.lat_lon_transformer = self.configure_coordinates_transformer()
-        self.field_transformer = self.configure_field_transformer()
-
         if spatial_points.ndim != 2 or spatial_points.shape[1] != 2:
             raise ValueError(
                 "Spatial points must be a 2D array with shape (n_samples, 2)."
@@ -81,19 +54,13 @@ class BaseNNDatasetGenerator(ABC):
             self.val_coordinates = validation_coordinates
             self.val_field = validation_field
 
-        self.train_coordinates = self.lat_lon_transformer.fit_transform(
-            spatial_points
-        )
-        self.train_field = self.field_transformer.fit_transform(
-            field.reshape(-1, 1)
-        ).flatten()
+        self.train_coordinates = self.fit_transform_coordinates(spatial_points)
+        self.train_field = self.fit_transform_field(field)
         if self.val_coordinates is not None and self.val_field is not None:
-            self.val_coordinates = self.lat_lon_transformer.transform(
+            self.val_coordinates = self.transform_coordinates(
                 self.val_coordinates
             )
-            self.val_field = self.field_transformer.transform(
-                self.val_field.reshape(-1, 1)
-            ).flatten()
+            self.val_field = self.transform_field(self.val_field)
 
         if target_coordinates is not None and target_coordinates.ndim != 2:
             raise ValueError(
@@ -110,21 +77,9 @@ class BaseNNDatasetGenerator(ABC):
 
         self.target_coordinates = None
         if target_coordinates is not None:
-            self.target_coordinates = self.lat_lon_transformer.transform(
+            self.target_coordinates = self.transform_coordinates(
                 target_coordinates
             )
-
-    def configure_coordinates_transformer(self) -> BaseTransformer:
-        """
-        Configure the transformer for coordinates.
-        """
-        return IdentityTransformer()
-
-    def configure_field_transformer(self) -> BaseTransformer:
-        """
-        Configure the transformer for field.
-        """
-        return IdentityTransformer()
 
     @property
     def n_samples(self) -> int:
@@ -191,3 +146,99 @@ class BaseNNDatasetGenerator(ABC):
         return torch.utils.data.TensorDataset(
             torch.from_numpy(self.target_coordinates).float()
         )
+
+    def fit_transform_coordinates(self, coordinates: np.ndarray) -> np.ndarray:
+        """
+        Fit and transform the coordinates using the configured transformer.
+
+        Parameters
+        ----------
+        coordinates : np.ndarray
+            Original coordinates.
+
+        Returns
+        -------
+        np.ndarray
+            Transformed coordinates.
+        """
+        return coordinates
+
+    def transform_coordinates(self, coordinates: np.ndarray) -> np.ndarray:
+        """
+        Transform the coordinates using the configured transformer.
+
+        Parameters
+        ----------
+        coordinates : np.ndarray
+            Original coordinates.
+
+        Returns
+        -------
+        np.ndarray
+            Transformed coordinates.
+        """
+        return coordinates
+
+    def untransform_coordinates(self, coordinates: np.ndarray) -> np.ndarray:
+        """
+        Inverse transform the coordinates using the configured transformer.
+
+        Parameters
+        ----------
+        coordinates : np.ndarray
+            Transformed coordinates.
+
+        Returns
+        -------
+        np.ndarray
+            Coordinates after reverse transformation.
+        """
+        return coordinates
+
+    def fit_transform_field(self, field: np.ndarray) -> np.ndarray:
+        """
+        Fit and transform the field using the configured transformer.
+
+        Parameters
+        ----------
+        field : np.ndarray
+            Original field.
+
+        Returns
+        -------
+        np.ndarray
+            Transformed field.
+        """
+        return field
+
+    def transform_field(self, field: np.ndarray) -> np.ndarray:
+        """
+        Transform the field using the configured transformer.
+
+        Parameters
+        ----------
+        field : np.ndarray
+            Original field.
+
+        Returns
+        -------
+        np.ndarray
+            Transformed field.
+        """
+        return field
+
+    def untransform_field(self, field: np.ndarray) -> np.ndarray:
+        """
+        Inverse transform the field using the configured transformer.
+
+        Parameters
+        ----------
+        field : np.ndarray
+            Transformed field.
+
+        Returns
+        -------
+        np.ndarray
+            Field after reverse transformation.
+        """
+        return field

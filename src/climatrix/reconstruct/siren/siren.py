@@ -104,13 +104,13 @@ class SIRENReconstructor(BaseReconstructor):
     NAME: ClassVar[str] = "siren"
 
     # Hyperparameter descriptors
-    lr = Hyperparameter(float, default=1e-3)
-    batch_size = Hyperparameter(int, default=256)
-    num_epochs = Hyperparameter(int, default=5_000)
-    hidden_dim = Hyperparameter(int, default=256)
-    num_layers = Hyperparameter(int, default=4)
-    gradient_clipping_value = Hyperparameter(
-        float, bounds=(0.1, 10.0), default=1.0
+    lr = Hyperparameter[float](default=1e-3)
+    batch_size = Hyperparameter[int](default=256)
+    num_epochs = Hyperparameter[int](default=5_000)
+    hidden_dim = Hyperparameter[int](default=256)
+    num_layers = Hyperparameter[int](default=4)
+    gradient_clipping_value = Hyperparameter[float](
+        bounds=(0.1, 10.0), default=1.0
     )
 
     @log_input(log, level=logging.DEBUG)

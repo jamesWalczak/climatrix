@@ -9,7 +9,6 @@ import numpy as np
 import torch
 from scipy.spatial import cKDTree
 from sklearn.preprocessing import MinMaxScaler
-from torch.utils.data import Dataset
 
 from climatrix.decorators.runtime import log_input
 from climatrix.reconstruct.nn.dataset import BaseNNDatasetGenerator
@@ -23,7 +22,7 @@ _ELEVATION_DATASET_PATH: Path = importlib.resources.files(
 ).joinpath("resources", "lat_lon_elevation.npy")
 
 
-def load_elevation_dataset() -> np.ndarray:
+def load_elevation_dataset() -> tuple[np.ndarray, np.ndarray]:
     """
     Load the elevation dataset (download if needed).
 
@@ -63,6 +62,7 @@ def query_features(
 
 class SiNETDatasetGenerator(BaseNNDatasetGenerator):
     radius: float
+    field_transformer: MinMaxScaler = MinMaxScaler((0, 1))
 
     @log_input(log, level=logging.DEBUG)
     def __init__(
@@ -74,8 +74,6 @@ class SiNETDatasetGenerator(BaseNNDatasetGenerator):
         val_portion: float | None = None,
         validation_coordinates: np.ndarray | None = None,
         validation_field: np.ndarray | None = None,
-        degree: bool = True,
-        radius: float = 1.0,
         use_elevation: bool = False,
     ) -> None:
         """
@@ -89,11 +87,6 @@ class SiNETDatasetGenerator(BaseNNDatasetGenerator):
             Array of shape (N,) with field values at training points.
         target_coordinates : np.ndarray | None, optional
             Array on shape Nx2 with latitudes and longitudes of target points.
-        degree : bool, optional
-            Whether the input latitudes and longitudes are in degrees.
-            Defaults to True.
-        radius : float, optional
-            The radius of the sphere. Defaults to 1.0.
         val_portion : float | None, optional
             Portion of the training data to use for validation. Defaults to 0.2.
         validation_coordinates : np.ndarray | None, optional
@@ -115,25 +108,33 @@ class SiNETDatasetGenerator(BaseNNDatasetGenerator):
             validation_coordinates=validation_coordinates,
             validation_field=validation_field,
         )
-        if degree:
-            log.debug("Converting degrees to radians...")
-            spatial_points = np.deg2rad(spatial_points)
-            if target_coordinates is not None:
-                self.target_coordinates = np.deg2rad(target_coordinates)
+        log.debug("Converting degrees to radians...")
+        spatial_points = np.deg2rad(spatial_points)
+        if target_coordinates is not None:
+            self.target_coordinates = np.deg2rad(target_coordinates)
 
         ckdtree = None
-        self.radius = radius
         if use_elevation:
             coords, self.elevation = load_elevation_dataset()
             ckdtree = cKDTree(np.deg2rad(coords))
             self._extend_input_features(ckdtree, self.elevation)
 
-    def configure_field_transformer(self):
-        return MinMaxScaler((0, 1))
+    def fit_transform_field(self, field: np.ndarray) -> np.ndarray:
+        return self.field_transformer.fit_transform(
+            field.reshape(-1, 1)
+        ).ravel()
+
+    def transform_field(self, field: np.ndarray) -> np.ndarray:
+        return self.field_transformer.transform(field.reshape(-1, 1)).ravel()
+
+    def untransform_field(self, field: np.ndarray) -> np.ndarray:
+        return self.field_transformer.inverse_transform(
+            field.reshape(-1, 1)
+        ).ravel()
 
     def _extend_input_features(
         self, tree: cKDTree, values: np.ndarray
-    ) -> np.ndarray:
+    ) -> np.ndarray | None:
         train_extra_feature = query_features(
             tree, values, self.train_coordinates[:, :2]
         )
@@ -158,13 +159,3 @@ class SiNETDatasetGenerator(BaseNNDatasetGenerator):
             [self.target_coordinates, target_extra_feature.reshape(-1, 1)],
             axis=1,
         )
-
-    @staticmethod
-    def convert_spherical_to_cartesian(
-        coordinates: np.ndarray, radius: float = 1.0
-    ) -> np.ndarray:
-        log.debug("Converting coordinates to cartesian...")
-        x = radius * np.cos(coordinates[:, 0]) * np.cos(coordinates[:, 1])
-        y = radius * np.cos(coordinates[:, 0]) * np.sin(coordinates[:, 1])
-        z = radius * np.sin(coordinates[:, 0])
-        return np.stack((x, y, z), axis=1)
