@@ -58,18 +58,18 @@ class IDWReconstructor(BaseReconstructor):
     """
 
     NAME: ClassVar[str] = "idw"
-    power = Hyperparameter(float, default=2.0)
-    k = Hyperparameter(int, bounds=(1, None), default=5)
-    k_min = Hyperparameter(int, bounds=(1, None), default=2)
+    power = Hyperparameter[float](default=2.0)
+    k = Hyperparameter[int](bounds=(1, None), default=5)
+    k_min = Hyperparameter[int](bounds=(1, None), default=2)
 
     @log_input(log, level=logging.DEBUG)
     def __init__(
         self,
         dataset: BaseClimatrixDataset,
         target_domain: Domain,
-        power: float = None,
-        k: int = None,
-        k_min: int = None,
+        power: float | None = None,
+        k: int | None = None,
+        k_min: int | None = None,
     ):
         super().__init__(dataset, target_domain)
 
@@ -81,6 +81,8 @@ class IDWReconstructor(BaseReconstructor):
             self.k_min = k_min
 
         for axis in dataset.domain.all_axes_types:
+            if not dataset.domain.has_axis(axis):
+                continue
             if not dataset.domain.get_axis(axis).is_dimension:
                 continue
             if axis in [AxisType.LATITUDE, AxisType.LONGITUDE, AxisType.POINT]:

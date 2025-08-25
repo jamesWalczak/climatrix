@@ -305,12 +305,13 @@ ______________________________________________________________________
 If you are using this software in scientific work, cite us:
 
 ```bibtex
-@misc{climatrix,
-  author       = {Walczak, J., Żyndul, W.},
-  title        = {climatrix: Climate data reconstruction made simple },
-  year         = {2025},
-  publisher    = {GitHub},
-  journal      = {GitHub repository},
-  howpublished = {\url{https://github.com/jamesWalczak/climatrix}},
+@article{walczak2025climatrix,
+  title={Climatrix: Xarray accessor for climate data sampling and reconstruction},
+  author={Walczak, Jakub and {\.Z}yndul, Wojciech},
+  journal={SoftwareX},
+  volume={31},
+  pages={102263},
+  year={2025},
+  publisher={Elsevier}
 }
 ```

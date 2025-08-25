@@ -58,12 +58,13 @@ console.print(
 BOUNDS = {
     "lr": (1e-5, 1e-2),
     "num_epochs": (50, 500),
-    "gradient_clipping_value": (1e-4, 1e4),
     "batch_size": (32, 1024),
     "mse_loss_weight": (1e-5, 1),
     "eikonal_loss_weight": (0, 1e-2),
     "laplace_loss_weight": (0, 1e-2),
     "patience": (10, 200),
+    "scale": (0.01, 10.0),
+    "hidden_dim": (16, 64, 128, 256),
 }
 console.print("[bold green]Hyperparameter bounds: [/bold green]", BOUNDS)
 
@@ -97,12 +98,13 @@ def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
         "dataset_id",
         "lr",
         "num_epochs",
-        "gradient_clipping_value",
+        "scale",
         "batch_size",
         "mse_loss_weight",
         "eikonal_loss_weight",
         "laplace_loss_weight",
         "patience",
+        "hidden_dim",
         "opt_loss",
     ]
     if not hparam_path.exists():
@@ -176,8 +178,8 @@ def run_single_experiment(
         result["best_params"]["num_epochs"],
     )
     console.print(
-        "[yellow]Gradient clipping value:[/yellow]",
-        result["best_params"]["gradient_clipping_value"],
+        "[yellow]Scale:[/yellow]",
+        result["best_params"]["scale"],
     )
     console.print(
         "[yellow]Batch size:[/yellow]", result["best_params"]["batch_size"]
@@ -198,6 +200,10 @@ def run_single_experiment(
         "[yellow]Early stopping patience:[/yellow]",
         result["best_params"]["patience"],
     )
+    console.print(
+        "[yellow]Hidden dimension:[/yellow]",
+        result["best_params"]["hidden_dim"],
+    )
     console.print("[yellow]Best loss:[/yellow]", result["best_score"])
     status.update(
         "[magenta]Reconstructing with optimised parameters...",
@@ -216,13 +222,12 @@ def run_single_experiment(
         num_epochs=result["best_params"]["num_epochs"],
         batch_size=result["best_params"]["batch_size"],
         num_workers=0,
-        gradient_clipping_value=result["best_params"][
-            "gradient_clipping_value"
-        ],
+        scale=result["best_params"]["scale"],
         mse_loss_weight=result["best_params"]["mse_loss_weight"],
         eikonal_loss_weight=result["best_params"]["eikonal_loss_weight"],
         laplace_loss_weight=result["best_params"]["laplace_loss_weight"],
         patience=result["best_params"]["patience"],
+        hidden_dim=result["best_params"]["hidden_dim"],
     )
     status.update(
         "[magenta]Saving reconstructed dset to "
@@ -246,13 +251,12 @@ def run_single_experiment(
             num_epochs=result["best_params"]["num_epochs"],
             batch_size=result["best_params"]["batch_size"],
             num_workers=0,
-            gradient_clipping_value=result["best_params"][
-                "gradient_clipping_value"
-            ],
+            scale=result["best_params"]["scale"],
             mse_loss_weight=result["best_params"]["mse_loss_weight"],
             eikonal_loss_weight=result["best_params"]["eikonal_loss_weight"],
             laplace_loss_weight=result["best_params"]["laplace_loss_weight"],
             patience=result["best_params"]["patience"],
+            hidden_dim=result["best_params"]["hidden_dim"],
         )
         status.update(
             "[magenta]Saving reconstructed dense dset to "
@@ -279,14 +283,13 @@ def run_single_experiment(
         "dataset_id": d,
         "lr": result["best_params"]["lr"],
         "num_epochs": result["best_params"]["num_epochs"],
-        "gradient_clipping_value": result["best_params"][
-            "gradient_clipping_value"
-        ],
+        "scale": result["best_params"]["scale"],
         "batch_size": result["best_params"]["batch_size"],
         "mse_loss_weight": result["best_params"]["mse_loss_weight"],
         "eikonal_loss_weight": result["best_params"]["eikonal_loss_weight"],
         "laplace_loss_weight": result["best_params"]["laplace_loss_weight"],
         "patience": result["best_params"]["patience"],
+        "hidden_dim": result["best_params"]["hidden_dim"],
         "opt_loss": result["best_score"],
     }
     if continuous_update:

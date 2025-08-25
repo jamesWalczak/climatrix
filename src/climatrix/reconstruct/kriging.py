@@ -74,13 +74,14 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
     NAME: ClassVar[str] = "ok"
     _MAX_VECTORIZED_SIZE: ClassVar[int] = 500_000
 
-    nlags = Hyperparameter(int, bounds=(0, None), default=6)
-    anisotropy_scaling = Hyperparameter(float, bounds=(0, None), default=1e-6)
-    coordinates_type = Hyperparameter(
-        str, values=["euclidean", "geographic"], default="euclidean"
+    nlags = Hyperparameter[int](bounds=(4, 20), default=6)
+    anisotropy_scaling = Hyperparameter[float](
+        bounds=(1e-6, 5.0), default=1e-6
     )
-    variogram_model = Hyperparameter(
-        str,
+    coordinates_type = Hyperparameter[str](
+        values=["euclidean", "geographic"], default="euclidean"
+    )
+    variogram_model = Hyperparameter[str](
         values=["linear", "power", "gaussian", "spherical", "exponential"],
         default="linear",
     )
