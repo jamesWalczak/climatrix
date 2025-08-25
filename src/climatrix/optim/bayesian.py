@@ -205,7 +205,7 @@ class HParamFinder:
                     raise TypeError(
                         f"Unsupported parameter type for '{param_name}': {dtype}"
                     )
-        log.debug(
+        log.info(
             "Suggested parameters for trial %s: %s",
             trial.number,
             suggested_params,
@@ -352,7 +352,7 @@ class HParamFinder:
             reconstructed = self.train_dset.reconstruct(
                 target=self.val_dset.domain,
                 method=self.method,
-                **self.reconstructor_kwargs,
+                **default_kwargs,
             )
             comparison = Comparison(reconstructed, self.val_dset)
             score = comparison.compute(self.metric.value)
