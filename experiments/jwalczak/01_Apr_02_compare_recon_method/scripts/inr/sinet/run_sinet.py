@@ -34,7 +34,7 @@ if CLIMATRIX_EXP_DIR is None:
 DSET_PATH = CLIMATRIX_EXP_DIR / "data"
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
-OPTIM_N_ITERS: int = 500
+OPTIM_N_ITERS: int = 100
 console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
@@ -64,7 +64,7 @@ BOUNDS = {
     "laplace_loss_weight": (0, 1e-2),
     "patience": (10, 200),
     "scale": (0.01, 10.0),
-    "hidden_dim": (16, 64, 128, 256),
+    "hidden_dim": [16, 64, 128, 256],
 }
 console.print("[bold green]Hyperparameter bounds: [/bold green]", BOUNDS)
 
