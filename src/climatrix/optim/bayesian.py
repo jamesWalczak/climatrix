@@ -206,7 +206,7 @@ class HParamFinder:
                     raise TypeError(
                         f"Unsupported parameter type for '{param_name}': {dtype}"
                     )
-        log.debug(
+        log.info(
             "Suggested parameters for trial %s: %s",
             trial.number,
             suggested_params,
