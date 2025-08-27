@@ -86,6 +86,9 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         default="linear",
     )
 
+    pseudo_inv: bool
+    backend: Literal["vectorized", "loop"] | None
+
     @log_input(log, level=logging.DEBUG)
     def __init__(
         self,
@@ -131,6 +134,11 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
             )
             self.dataset = self.dataset.to_positive_longitude()
         self.backend = backend
+        self.nlags = nlags or self.nlags
+        self.anisotropy_scaling = anisotropy_scaling or self.anisotropy_scaling
+        self.coordinates_type = coordinates_type or self.coordinates_type
+        self.variogram_model = variogram_model or self.variogram_model
+        self.pseudo_inv = pseudo_inv
 
     def _normalize_latitude(self, lat: np.ndarray) -> np.ndarray:
         _lat_max = np.nanmax(lat)
@@ -208,6 +216,7 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
             anisotropy_scaling=self.anisotropy_scaling,
             coordinates_type=self.coordinates_type,
             variogram_model=self.variogram_model,
+            pseudo_inv=self.pseudo_inv,
         )
         log.debug("Performing Ordinary Kriging reconstruction...")
         recon_type = "points" if self.target_domain.is_sparse else "grid"
