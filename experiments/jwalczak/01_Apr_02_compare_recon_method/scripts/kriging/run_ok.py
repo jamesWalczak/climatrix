@@ -163,6 +163,7 @@ def run_single_experiment(
         n_iters=OPTIM_N_ITERS,
         bounds=BOUNDS,
         random_seed=SEED,
+        reconstructor_kwargs={"pseudo_inv": True}
     )
     result = finder.optimize()
     console.print("[bold yellow]Optimized parameters:[/bold yellow]")

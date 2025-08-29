@@ -326,6 +326,6 @@ def run_all_experiments_sequentially():
 
 
 if __name__ == "__main__":
-    clear_result_dir()
+    #clear_result_dir()
     create_result_dir()
     run_all_experiments_sequentially()
