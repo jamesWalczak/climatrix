@@ -96,6 +96,8 @@ class SiNETReconstructor(BaseNNReconstructor):
         - mse_loss_weight: float in (1e1, 1e4), default=1e2
         - eikonal_loss_weight: float in (1e0, 1e3), default=1e1
         - laplace_loss_weight: float in (1e1, 1e3), default=1e2
+        - scale: float in (0.01, 10.0), default=1.5
+        - hidden_dim: int in {16, 32, 64, 128,
     """
 
     NAME: ClassVar[str] = "sinet"
@@ -104,6 +106,8 @@ class SiNETReconstructor(BaseNNReconstructor):
     mse_loss_weight = Hyperparameter[float](default=1e2)
     eikonal_loss_weight = Hyperparameter[float](default=1e1)
     laplace_loss_weight = Hyperparameter[float](default=1e2)
+    scale = Hyperparameter[float](bounds=(0.01, 10.0), default=1.5)
+    hidden_dim = Hyperparameter[int](default=64, values=[16, 32, 64, 128, 256])
     _was_early_stopped: ClassVar[bool] = False
 
     @log_input(log, level=logging.DEBUG)
@@ -190,13 +194,7 @@ class SiNETReconstructor(BaseNNReconstructor):
         pred_z: torch.Tensor,
         true_z: torch.Tensor,
     ) -> torch.Tensor:
-        loss_component: LossEntity = compute_sdf_losses(
-            xy,
-            pred_z * self.datasets.field_transformer.data_range_[0]
-            + self.datasets.field_transformer.data_min_[0],
-            true_z * self.datasets.field_transformer.data_range_[0]
-            + self.datasets.field_transformer.data_min_[0],
-        )
+        loss_component: LossEntity = compute_sdf_losses(xy, pred_z, true_z)
 
         return (
             loss_component.mse * self.mse_loss_weight

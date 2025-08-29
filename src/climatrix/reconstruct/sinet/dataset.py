@@ -9,7 +9,6 @@ import numpy as np
 import torch
 from scipy.spatial import cKDTree
 from sklearn.preprocessing import MinMaxScaler
-from torch.utils.data import Dataset
 
 from climatrix.decorators.runtime import log_input
 from climatrix.reconstruct.nn.dataset import BaseNNDatasetGenerator
