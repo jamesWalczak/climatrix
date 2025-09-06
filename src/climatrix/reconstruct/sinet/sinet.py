@@ -104,6 +104,10 @@ class SiNETReconstructor(BaseNNReconstructor):
     mse_loss_weight = Hyperparameter[float](default=1e2)
     eikonal_loss_weight = Hyperparameter[float](default=1e1)
     laplace_loss_weight = Hyperparameter[float](default=1e2)
+    eikonal_loss_weight = Hyperparameter[float](default=1e1)
+    laplace_loss_weight = Hyperparameter[float](default=1e2)
+    scale = Hyperparameter[float](bounds=(0.01, 10.0), default=1.5)
+    hidden_dim = Hyperparameter[int](default=64, values=[16, 32, 64, 128, 256])
     _was_early_stopped: ClassVar[bool] = False
 
     @log_input(log, level=logging.DEBUG)
@@ -113,6 +117,7 @@ class SiNETReconstructor(BaseNNReconstructor):
         target_domain: Domain,
         *,
         lr: float = 3e-4,
+        weight_decay: float = 0.0,
         batch_size: int = 512,
         num_epochs: int = 5_000,
         num_workers: int = 0,
@@ -126,9 +131,9 @@ class SiNETReconstructor(BaseNNReconstructor):
         hidden_dim: int = 64,
         sorting_group_size: int = 16,
         scale: float = 1.5,
-        mse_loss_weight: float = 3e3,
-        eikonal_loss_weight: float = 5e1,
-        laplace_loss_weight: float = 1e2,
+        mse_loss_weight: float = 1.0,
+        eikonal_loss_weight: float = 0,
+        laplace_loss_weight: float = 0,
         validation: float | BaseClimatrixDataset | None = None,
     ) -> None:
         self._custom_dataset_generator_kwargs = {
@@ -138,6 +143,7 @@ class SiNETReconstructor(BaseNNReconstructor):
             dataset,
             target_domain,
             lr=lr,
+            weight_decay=weight_decay,
             num_epochs=num_epochs,
             batch_size=batch_size,
             checkpoint=checkpoint,
@@ -169,7 +175,11 @@ class SiNETReconstructor(BaseNNReconstructor):
             "Configuring Adam optimizer with learning rate: %0.6f",
             self.lr,
         )
-        return torch.optim.Adam(lr=self.lr, params=nn_model.parameters())
+        return torch.optim.Adam(
+            lr=self.lr,
+            params=nn_model.parameters(),
+            weight_decay=self.weight_decay,
+        )
 
     def init_model(self) -> torch.nn.Module:
         log.info("Initializing SiNET model...")

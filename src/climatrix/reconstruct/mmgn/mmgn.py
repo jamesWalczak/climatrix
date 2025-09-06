@@ -75,6 +75,7 @@ class MMGNReconstructor(BaseNNReconstructor):
             dataset,
             target_domain,
             lr=lr,
+            weight_decay=weight_decay,
             num_epochs=num_epochs,
             batch_size=batch_size,
             checkpoint=checkpoint,
@@ -86,8 +87,6 @@ class MMGNReconstructor(BaseNNReconstructor):
         if dataset.domain.is_dynamic:
             log.error("MMGN does not support dynamic domains.")
             raise ValueError("MMGN does not support dynamic domains.")
-
-        self.weight_decay = weight_decay
 
         self.input_dim = 2
         self.out_dim = 1

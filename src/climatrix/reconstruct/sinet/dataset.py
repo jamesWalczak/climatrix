@@ -101,6 +101,13 @@ class SiNETDatasetGenerator(BaseNNDatasetGenerator):
         use_elevation: bool, optional
             Whether to use elevation data. Defaults to False.
         """
+        log.debug("Converting degrees to radians...")
+        spatial_points = np.deg2rad(spatial_points)
+        if validation_coordinates is not None:
+            validation_coordinates = np.deg2rad(validation_coordinates)
+        if target_coordinates is not None:
+            target_coordinates = np.deg2rad(target_coordinates)
+
         super().__init__(
             spatial_points=spatial_points,
             field=field,
@@ -109,10 +116,6 @@ class SiNETDatasetGenerator(BaseNNDatasetGenerator):
             validation_coordinates=validation_coordinates,
             validation_field=validation_field,
         )
-        log.debug("Converting degrees to radians...")
-        spatial_points = np.deg2rad(spatial_points)
-        if target_coordinates is not None:
-            self.target_coordinates = np.deg2rad(target_coordinates)
 
         ckdtree = None
         if use_elevation:
