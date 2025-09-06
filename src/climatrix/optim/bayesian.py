@@ -404,7 +404,11 @@ class HParamFinder:
         log.info("Starting Bayesian optimization for method '%s'", self.method)
         log.info("Bounds: %s", self.bounds)
         log.info("Using %d iterations", self.n_iters)
-        sampler = optuna.samplers.TPESampler(seed=self.random_seed)
+        sampler = optuna.samplers.GPSampler(
+            seed=self.random_seed,
+            deterministic_objective=True,
+            n_startup_trials=self.n_startup_trials,
+        )
         pruner = optuna.pruners.MedianPruner(
             n_startup_trials=self.n_startup_trials,
             n_warmup_steps=self.n_warmup_steps,

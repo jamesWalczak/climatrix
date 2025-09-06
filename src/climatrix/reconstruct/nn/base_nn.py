@@ -46,6 +46,7 @@ class BaseNNReconstructor(BaseReconstructor):
     )
     num_epochs = Hyperparameter[int](bounds=(1, None), default=1_000)
     batch_size = Hyperparameter[int](bounds=(1, None), default=32)
+    weight_decay = Hyperparameter[float](bounds=(0.0, 1e-2), default=0.0)
 
     def __init__(
         self,
@@ -54,6 +55,7 @@ class BaseNNReconstructor(BaseReconstructor):
         lr: float,
         num_epochs: int,
         batch_size: int,
+        weight_decay: float | None = None,
         checkpoint: str | os.PathLike | Path | None = None,
         overwrite_checkpoint: bool = False,
         num_workers: int = 0,
@@ -75,6 +77,8 @@ class BaseNNReconstructor(BaseReconstructor):
             log.info("Using checkpoint path: %s", self.checkpoint)
 
         self.lr = lr
+        if weight_decay is not None:
+            self.weight_decay = weight_decay
         self.num_epochs = num_epochs
         self.batch_size = batch_size
         self._custom_dataset_generator_kwargs = {}
