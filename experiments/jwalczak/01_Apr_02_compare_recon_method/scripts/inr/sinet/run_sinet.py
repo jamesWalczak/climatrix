@@ -57,6 +57,7 @@ console.print(
 
 BOUNDS = {
     "lr": (1e-5, 1e-2),
+    "weight_decay": (0, 1e-2),
     "num_epochs": (50, 500),
     "batch_size": (32, 1024),
     "mse_loss_weight": (1e-5, 1),
@@ -97,6 +98,7 @@ def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
     fieldnames = [
         "dataset_id",
         "lr",
+        "weight_decay",
         "num_epochs",
         "scale",
         "batch_size",
@@ -174,6 +176,9 @@ def run_single_experiment(
         "[yellow]Learning rate (lr):[/yellow]", result["best_params"]["lr"]
     )
     console.print(
+        "[yellow]Weight decay:[/yellow]", result["best_params"]["weight_decay"]
+    )
+    console.print(
         "[yellow]Number of epochs:[/yellow]",
         result["best_params"]["num_epochs"],
     )
@@ -219,6 +224,7 @@ def run_single_experiment(
         method="sinet",
         device="cuda",
         lr=result["best_params"]["lr"],
+        weight_decay=result["best_params"]["weight_decay"],
         num_epochs=result["best_params"]["num_epochs"],
         batch_size=result["best_params"]["batch_size"],
         num_workers=0,
@@ -250,6 +256,7 @@ def run_single_experiment(
             method="sinet",
             device="cuda",
             lr=result["best_params"]["lr"],
+            weight_decay=result["best_params"]["weight_decay"],
             num_epochs=result["best_params"]["num_epochs"],
             batch_size=result["best_params"]["batch_size"],
             num_workers=0,
@@ -286,6 +293,7 @@ def run_single_experiment(
     hyperparams = {
         "dataset_id": d,
         "lr": result["best_params"]["lr"],
+        "weight_decay": result["best_params"]["weight_decay"],
         "num_epochs": result["best_params"]["num_epochs"],
         "scale": result["best_params"]["scale"],
         "batch_size": result["best_params"]["batch_size"],
