@@ -104,8 +104,6 @@ class SiNETReconstructor(BaseNNReconstructor):
     mse_loss_weight = Hyperparameter[float](default=1e2)
     eikonal_loss_weight = Hyperparameter[float](default=1e1)
     laplace_loss_weight = Hyperparameter[float](default=1e2)
-    eikonal_loss_weight = Hyperparameter[float](default=1e1)
-    laplace_loss_weight = Hyperparameter[float](default=1e2)
     scale = Hyperparameter[float](bounds=(0.01, 10.0), default=1.5)
     hidden_dim = Hyperparameter[int](default=64, values=[16, 32, 64, 128, 256])
     _was_early_stopped: ClassVar[bool] = False
