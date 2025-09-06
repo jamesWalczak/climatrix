@@ -57,9 +57,9 @@ console.print(
 
 BOUNDS = {
     "lr": (1e-5, 1e-2),
+    "weight_decay": (0, 1e-2),
     "num_epochs": (50, 500),
     "batch_size": (32, 1024),
-    "weight_decay": (1e-8, 1e-2),
     "hidden_dim": [32, 64, 128, 256, 512, 1024],
     "latent_dim": (32, 256),
     "n_layers": (1, 5),
@@ -97,15 +97,15 @@ def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
     fieldnames = [
         "dataset_id",
         "lr",
+        "weight_decay",
         "num_epochs",
         "batch_size",
-        "weight_decay",
         "hidden_dim",
         "latent_dim",
         "n_layers",
         "input_scale",
         "alpha",
-        "opt_loss"
+        "opt_loss",
     ]
     if not hparam_path.exists():
         with open(hparam_path, "w") as f:
@@ -174,16 +174,16 @@ def run_single_experiment(
         "[yellow]Learning rate (lr):[/yellow]", result["best_params"]["lr"]
     )
     console.print(
+        "[yellow]Weight decay (weight_decay):[/yellow]",
+        result["best_params"]["weight_decay"],
+    )
+    console.print(
         "[yellow]Number of epochs (num_epochs):[/yellow]",
         result["best_params"]["num_epochs"],
     )
     console.print(
         "[yellow]Batch size (batch_size):[/yellow]",
         result["best_params"]["batch_size"],
-    )
-    console.print(
-        "[yellow]Weight decay (weight_decay):[/yellow]",
-        result["best_params"]["weight_decay"],
     )
     console.print(
         "[yellow]Hidden dimension (hidden_dim):[/yellow]",
@@ -219,11 +219,11 @@ def run_single_experiment(
         test_dset.domain,
         method="mmgn",
         lr=result["best_params"]["lr"],
+        weight_decay=result["best_params"]["weight_decay"],
         num_epochs=result["best_params"]["num_epochs"],
         batch_size=result["best_params"]["batch_size"],
         num_workers=0,
         device="cuda",
-        weight_decay=result["best_params"]["weight_decay"],
         hidden_dim=result["best_params"]["hidden_dim"],
         latent_dim=result["best_params"]["latent_dim"],
         n_layers=result["best_params"]["n_layers"],
@@ -248,11 +248,11 @@ def run_single_experiment(
             EUROPE_DOMAIN,
             method="mmgn",
             lr=result["best_params"]["lr"],
+            weight_decay=result["best_params"]["weight_decay"],
             num_epochs=result["best_params"]["num_epochs"],
             batch_size=result["best_params"]["batch_size"],
             num_workers=0,
             device="cuda",
-            weight_decay=result["best_params"]["weight_decay"],
             hidden_dim=result["best_params"]["hidden_dim"],
             latent_dim=result["best_params"]["latent_dim"],
             n_layers=result["best_params"]["n_layers"],
@@ -283,9 +283,9 @@ def run_single_experiment(
     hyperparams = {
         "dataset_id": d,
         "lr": result["best_params"]["lr"],
+        "weight_decay": result["best_params"]["weight_decay"],
         "num_epochs": result["best_params"]["num_epochs"],
         "batch_size": result["best_params"]["batch_size"],
-        "weight_decay": result["best_params"]["weight_decay"],
         "hidden_dim": result["best_params"]["hidden_dim"],
         "latent_dim": result["best_params"]["latent_dim"],
         "n_layers": result["best_params"]["n_layers"],
@@ -326,6 +326,6 @@ def run_all_experiments_sequentially():
 
 
 if __name__ == "__main__":
-    #clear_result_dir()
+    # clear_result_dir()
     create_result_dir()
     run_all_experiments_sequentially()
