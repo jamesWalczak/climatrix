@@ -56,16 +56,16 @@ console.print(
 )
 
 BOUNDS = {
-    "lr": (1e-5, 1e-2),
+    "lr": (1e-5, 10.0),
     "weight_decay": (0, 1e-2),
-    "num_epochs": (50, 500),
     "batch_size": (32, 1024),
     "hidden_dim": [32, 64, 128, 256, 512, 1024],
     "latent_dim": (32, 256),
     "n_layers": (1, 5),
-    "input_scale": (32, 512),
+    "input_scale": (32, 1024),
     "alpha": (0, 1),
 }
+NUM_EPOCHS: int = 100
 console.print("[bold green]Hyperparameter bounds: [/bold green]", BOUNDS)
 
 EUROPE_BOUNDS = {"north": 71, "south": 36, "west": -24, "east": 35}
@@ -98,7 +98,6 @@ def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
         "dataset_id",
         "lr",
         "weight_decay",
-        "num_epochs",
         "batch_size",
         "hidden_dim",
         "latent_dim",
@@ -167,6 +166,7 @@ def run_single_experiment(
         n_iters=OPTIM_N_ITERS,
         bounds=BOUNDS,
         random_seed=SEED,
+        exclude=["num_epochs"]
     )
     result = finder.optimize()
     console.print("[bold yellow]Optimized parameters:[/bold yellow]")
@@ -176,10 +176,6 @@ def run_single_experiment(
     console.print(
         "[yellow]Weight decay (weight_decay):[/yellow]",
         result["best_params"]["weight_decay"],
-    )
-    console.print(
-        "[yellow]Number of epochs (num_epochs):[/yellow]",
-        result["best_params"]["num_epochs"],
     )
     console.print(
         "[yellow]Batch size (batch_size):[/yellow]",
@@ -220,7 +216,7 @@ def run_single_experiment(
         method="mmgn",
         lr=result["best_params"]["lr"],
         weight_decay=result["best_params"]["weight_decay"],
-        num_epochs=result["best_params"]["num_epochs"],
+        num_epochs=NUM_EPOCHS,
         batch_size=result["best_params"]["batch_size"],
         num_workers=0,
         device="cuda",
@@ -249,7 +245,7 @@ def run_single_experiment(
             method="mmgn",
             lr=result["best_params"]["lr"],
             weight_decay=result["best_params"]["weight_decay"],
-            num_epochs=result["best_params"]["num_epochs"],
+            num_epochs=NUM_EPOCHS,
             batch_size=result["best_params"]["batch_size"],
             num_workers=0,
             device="cuda",
@@ -284,7 +280,6 @@ def run_single_experiment(
         "dataset_id": d,
         "lr": result["best_params"]["lr"],
         "weight_decay": result["best_params"]["weight_decay"],
-        "num_epochs": result["best_params"]["num_epochs"],
         "batch_size": result["best_params"]["batch_size"],
         "hidden_dim": result["best_params"]["hidden_dim"],
         "latent_dim": result["best_params"]["latent_dim"],

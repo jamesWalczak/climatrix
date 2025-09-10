@@ -56,17 +56,16 @@ console.print(
 )
 
 BOUNDS = {
-    "lr": (1e-5, 1e-2),
-    "weight_decay": (0, 1e-2),
-    "num_epochs": (50, 500),
-    "batch_size": (32, 1024),
-    "mse_loss_weight": (1e-5, 1),
-    "eikonal_loss_weight": (0, 1e-2),
-    "laplace_loss_weight": (0, 1e-2),
-    "patience": (10, 200),
-    "scale": (0.01, 10.0),
+    "lr": (1e-5, 10.0),
+    "weight_decay": (0, 1e-1),
+    "batch_size": (32, 4096),
+    "mse_loss_weight": (1e-5, 100),
+    "eikonal_loss_weight": (0.0, 10.0),
+    "laplace_loss_weight": (0.0, 10.0),
+    "scale": (0.01, 100.0),
     "hidden_dim": [16, 64, 128, 256],
 }
+NUM_EPOCHS: int = 100
 console.print("[bold green]Hyperparameter bounds: [/bold green]", BOUNDS)
 
 EUROPE_BOUNDS = {"north": 71, "south": 36, "west": -24, "east": 35}
@@ -99,13 +98,11 @@ def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
         "dataset_id",
         "lr",
         "weight_decay",
-        "num_epochs",
         "scale",
         "batch_size",
         "mse_loss_weight",
         "eikonal_loss_weight",
         "laplace_loss_weight",
-        "patience",
         "hidden_dim",
         "opt_loss",
     ]
@@ -169,6 +166,7 @@ def run_single_experiment(
         n_iters=OPTIM_N_ITERS,
         bounds=BOUNDS,
         random_seed=SEED,
+        exclude=["num_epochs"]
     )
     result = finder.optimize()
     console.print("[bold yellow]Optimized parameters:[/bold yellow]")
@@ -177,10 +175,6 @@ def run_single_experiment(
     )
     console.print(
         "[yellow]Weight decay:[/yellow]", result["best_params"]["weight_decay"]
-    )
-    console.print(
-        "[yellow]Number of epochs:[/yellow]",
-        result["best_params"]["num_epochs"],
     )
     console.print(
         "[yellow]Scale:[/yellow]",
@@ -202,10 +196,6 @@ def run_single_experiment(
         result["best_params"]["laplace_loss_weight"],
     )
     console.print(
-        "[yellow]Early stopping patience:[/yellow]",
-        result["best_params"]["patience"],
-    )
-    console.print(
         "[yellow]Hidden dimension:[/yellow]",
         result["best_params"]["hidden_dim"],
     )
@@ -225,14 +215,13 @@ def run_single_experiment(
         device="cuda",
         lr=result["best_params"]["lr"],
         weight_decay=result["best_params"]["weight_decay"],
-        num_epochs=result["best_params"]["num_epochs"],
+        num_epochs=NUM_EPOCHS,
         batch_size=result["best_params"]["batch_size"],
         num_workers=0,
         scale=result["best_params"]["scale"],
         mse_loss_weight=result["best_params"]["mse_loss_weight"],
         eikonal_loss_weight=result["best_params"]["eikonal_loss_weight"],
         laplace_loss_weight=result["best_params"]["laplace_loss_weight"],
-        patience=result["best_params"]["patience"],
         hidden_dim=result["best_params"]["hidden_dim"],
         checkpoint="./sinet_checkpoint.pth",
         overwrite_checkpoint=True,
@@ -257,14 +246,13 @@ def run_single_experiment(
             device="cuda",
             lr=result["best_params"]["lr"],
             weight_decay=result["best_params"]["weight_decay"],
-            num_epochs=result["best_params"]["num_epochs"],
+            num_epochs=NUM_EPOCHS,
             batch_size=result["best_params"]["batch_size"],
             num_workers=0,
             scale=result["best_params"]["scale"],
             mse_loss_weight=result["best_params"]["mse_loss_weight"],
             eikonal_loss_weight=result["best_params"]["eikonal_loss_weight"],
             laplace_loss_weight=result["best_params"]["laplace_loss_weight"],
-            patience=result["best_params"]["patience"],
             hidden_dim=result["best_params"]["hidden_dim"],
             checkpoint="./sinet_checkpoint.pth",
             overwrite_checkpoint=False,
@@ -294,13 +282,11 @@ def run_single_experiment(
         "dataset_id": d,
         "lr": result["best_params"]["lr"],
         "weight_decay": result["best_params"]["weight_decay"],
-        "num_epochs": result["best_params"]["num_epochs"],
         "scale": result["best_params"]["scale"],
         "batch_size": result["best_params"]["batch_size"],
         "mse_loss_weight": result["best_params"]["mse_loss_weight"],
         "eikonal_loss_weight": result["best_params"]["eikonal_loss_weight"],
         "laplace_loss_weight": result["best_params"]["laplace_loss_weight"],
-        "patience": result["best_params"]["patience"],
         "hidden_dim": result["best_params"]["hidden_dim"],
         "opt_loss": result["best_score"],
     }
@@ -336,6 +322,6 @@ def run_all_experiments_sequentially():
 
 
 if __name__ == "__main__":
-    # clear_result_dir()
+    clear_result_dir()
     create_result_dir()
     run_all_experiments_sequentially()
