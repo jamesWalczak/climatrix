@@ -425,6 +425,13 @@ class HParamFinder:
             log.warning("Error evaluating parameters %s: %s", kwargs, e)
             return DEFAULT_BAD_SCORE
 
+    def restore_default_bounds(self) -> None:
+        """Restore default bounds for all hyperparameters."""
+        reconstructor_class = BaseReconstructor.get(self.method)
+        hparams = reconstructor_class.get_hparams()
+        for param_name, param_def in hparams.items():
+            getattr(reconstructor_class, param_name).restore_default_bounds()
+
     @raise_if_not_installed("optuna")
     def optimize(self) -> dict[str, Any]:
         """

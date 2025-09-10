@@ -73,6 +73,14 @@ class TestHyperparameterProperty:
 class TestHParamFinder:
     """Test the HParamFinder class."""
 
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        yield
+        for reconstructor_method in BaseReconstructor.get_available_methods():
+            reconstructor_class = BaseReconstructor.get(reconstructor_method)
+            for hparam in reconstructor_class.get_hparams().keys():
+                getattr(reconstructor_class, hparam).restore_default_bounds()
+
     @pytest.fixture
     def sparse_dataset(self):
         """Create a sparse dataset for testing."""
