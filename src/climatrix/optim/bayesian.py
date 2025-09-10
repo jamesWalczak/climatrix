@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from collections import OrderedDict
 from enum import StrEnum
+from numbers import Number
 from typing import Any, Callable, Collection
 
 import numpy as np
@@ -12,6 +13,7 @@ import numpy as np
 from climatrix.comparison import Comparison
 from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.decorators.runtime import raise_if_not_installed
+from climatrix.optim.hyperparameter import Hyperparameter
 from climatrix.reconstruct.base import BaseReconstructor
 
 log = logging.getLogger(__name__)
@@ -26,6 +28,29 @@ class MetricType(StrEnum):
     MAE = "mae"
     MSE = "mse"
     RMSE = "rmse"
+
+
+def update_bounds(
+    method: BaseReconstructor,
+    param_name: str,
+    lower: Number | None,
+    upper: Number | None,
+    values: list | None = None,
+):
+    if all([lower is None, upper is None, values is None]):
+        raise ValueError(
+            "At least one of lower, upper, or values must be provided"
+        )
+    if values is not None and (lower is not None or upper is not None):
+        raise ValueError("Cannot specify both bounds and values")
+
+    if not isinstance(hparam := getattr(method, param_name), Hyperparameter):
+        return
+
+    if values is not None:
+        hparam.values = values
+    else:
+        hparam.bounds = (lower, upper)
 
 
 class HParamFinder:
@@ -265,10 +290,27 @@ class HParamFinder:
                         param_value[1],
                         float,
                     )
+                    update_bounds(
+                        method,
+                        param_name,
+                        param_value[0],
+                        param_value[1],
+                        None,
+                    )
                 elif any(isinstance(v, int) for v in param_value):
                     bounds[param_name] = (param_value[0], param_value[1], int)
+                    update_bounds(
+                        method,
+                        param_name,
+                        param_value[0],
+                        param_value[1],
+                        None,
+                    )
                 elif any(isinstance(v, str) for v in param_value):
                     bounds[param_name] = list(param_value)
+                    update_bounds(
+                        method, param_name, None, None, list(param_value)
+                    )
                 else:
                     raise TypeError(
                         f"Invalid bounds for parameter '{param_name}': {param_value}"
