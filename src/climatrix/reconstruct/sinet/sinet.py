@@ -92,7 +92,6 @@ class SiNETReconstructor(BaseNNReconstructor):
         - lr: float in (1e-5, 1e-2), default=1e-3
         - batch_size: int in (64, 1024), default=128
         - num_epochs: int in (10, 10_000), default=5_000
-        - gradient_clipping_value: float in (0.1, 10.0), default=1.0
         - mse_loss_weight: float in (1e1, 1e4), default=1e2
         - eikonal_loss_weight: float in (1e0, 1e3), default=1e1
         - laplace_loss_weight: float in (1e1, 1e3), default=1e2

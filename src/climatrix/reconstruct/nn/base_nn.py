@@ -46,7 +46,7 @@ class BaseNNReconstructor(BaseReconstructor):
     )
     num_epochs = Hyperparameter[int](bounds=(1, None), default=1_000)
     batch_size = Hyperparameter[int](bounds=(1, None), default=32)
-    weight_decay = Hyperparameter[float](bounds=(0.0, 1e-2), default=0.0)
+    weight_decay = Hyperparameter[float](bounds=(0.0, None), default=0.0)
 
     def __init__(
         self,
