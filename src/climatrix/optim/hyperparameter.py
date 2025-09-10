@@ -49,6 +49,7 @@ class Hyperparameter(Generic[T]):
     ):
         self.param_type: type[T] | None = None
         self.bounds = bounds
+        self.default_bounds = bounds
         self.values = values
         self.default = default
         self.name: str | None = None
@@ -179,3 +180,7 @@ class Hyperparameter(Generic[T]):
             spec["default"] = self.default
 
         return spec
+
+    def restore_default_bounds(self) -> None:
+        """Restore the bounds to their original default values."""
+        self.bounds = self.default_bounds
