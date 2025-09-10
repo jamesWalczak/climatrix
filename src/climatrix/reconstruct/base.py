@@ -141,6 +141,40 @@ class BaseReconstructor(ABC):
         """
         return list(cls._registry.keys())
 
+    @property
+    def num_params(self) -> int:
+        """
+        Get the number of trainable parameters in the neural network model.
+
+        Returns
+        -------
+        int
+            Number of trainable parameters. Returns 0 for non-neural network
+            reconstructors.
+
+        Notes
+        -----
+        This property creates a temporary model instance to count parameters
+        for neural network-based reconstructors. For non-neural network
+        reconstructors (e.g., IDW, kriging), it returns 0.
+        """
+        # Check if this is a neural network-based reconstructor
+        if not hasattr(self, 'init_model') or not callable(getattr(self, 'init_model')):
+            return 0
+        
+        try:
+            # Create a temporary model instance to count parameters
+            model = self.init_model()
+            # Count only trainable parameters
+            return sum(p.numel() for p in model.parameters() if p.requires_grad)
+        except Exception as e:
+            log.warning(
+                "Failed to count model parameters for %s: %s",
+                self.__class__.__name__,
+                e
+            )
+            return 0
+
     @classmethod
     def update_bounds(
         cls, bounds: dict | None = None, values: dict | None = None

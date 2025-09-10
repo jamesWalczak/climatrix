@@ -270,3 +270,28 @@ class TestBaseReconstructor:
         reconstructed_dataset = reconstructor.reconstruct()
         assert isinstance(reconstructed_dataset, BaseClimatrixDataset)
         assert reconstructed_dataset.domain.is_sparse
+
+    @pytest.mark.parametrize(
+        "dataset",
+        [
+            "sparse_static",
+            "dense_static",
+            "sparse_dynamic", 
+            "dense_dynamic",
+        ],
+        indirect=True,
+    )
+    def test_num_params_property_exists(self, reconstructor):
+        """Test that the num_params property exists and returns an integer."""
+        assert hasattr(reconstructor, "num_params")
+        num_params = reconstructor.num_params
+        assert isinstance(num_params, int)
+        assert num_params >= 0
+
+    def test_num_params_for_non_nn_reconstructor(self):
+        """Test that non-NN reconstructors return 0 for num_params."""
+        from climatrix.reconstruct.idw import IDWReconstructor
+        
+        dataset = self.create_sparse_static_dataset()
+        reconstructor = IDWReconstructor(dataset, dataset.domain)
+        assert reconstructor.num_params == 0
