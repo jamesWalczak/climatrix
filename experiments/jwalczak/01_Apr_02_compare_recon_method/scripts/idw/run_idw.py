@@ -4,9 +4,11 @@ This module runs experiment of IDW method
 @author: Jakub Walczak, PhD
 """
 
+import os
 import shutil
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import xarray as xr
@@ -23,15 +25,21 @@ console.print("[bold green]Using NaN policy: [/bold green]", NAN_POLICY)
 SEED = 1
 console.print("[bold green]Using seed: [/bold green]", SEED)
 
-DSET_PATH = Path(__file__).parent.parent.parent.joinpath("data")
+CLIMATRIX_EXP_DIR = Path(os.environ.get("CLIMATRIX_EXP_DIR", os.getcwd()))
+if CLIMATRIX_EXP_DIR is None:
+    raise ValueError(
+        "CLIMATRIX_EXP_DIR environment variable is not set. "
+        "Please set it to the path of your experiment directory."
+    )
+DSET_PATH = CLIMATRIX_EXP_DIR / "data"
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
-OPTIM_N_ITERS: int = 500
+OPTIM_N_ITERS: int = 100
 console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
 
-RESULT_DIR: Path = Path(__file__).parent.parent.parent / "results" / "idw"
+RESULT_DIR: Path = Path(CLIMATRIX_EXP_DIR) / "results" / "idw"
 PLOT_DIR: Path = RESULT_DIR / "plots"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
 console.print("[bold green]Plots will be saved to: [/bold green]", PLOT_DIR)
@@ -78,14 +86,21 @@ def get_all_dataset_idx() -> list[str]:
         list({path.stem.split("_")[-1] for path in DSET_PATH.glob("*.nc")})
     )
 
+def idw_scoring_callback(trial: int, hparams: dict, score: float) -> float:
+    if hparams['k_min'] > hparams['k']:
+        return 1e6
+    return score
 
 def run_experiment():
     dset_idx = get_all_dataset_idx()
     with console.status("[magenta]Preparing experiment...") as status:
-        all_metrics = {}
+        all_metrics = []
         hyperparams = defaultdict(list)
         for i, d in enumerate(dset_idx):
             cm.seed_all(SEED)
+            if (PLOT_DIR / f"{d}_reconstructed.png").exists():
+                print(f"Skipping {d} as it already exists")
+                continue
             status.update(
                 f"[magenta]Processing date: {d} ({i + 1}/{len(dset_idx)})...",
                 spinner="bouncingBall",
@@ -112,6 +127,7 @@ def run_experiment():
                 n_iters=OPTIM_N_ITERS,
                 bounds=BOUNDS,
                 random_seed=SEED,
+                scoring_callback=idw_scoring_callback
             )
             result = finder.optimize()
             console.print("[bold yellow]Optimized parameters:[/bold yellow]")
@@ -183,7 +199,7 @@ def run_experiment():
             cmp.plot_signed_diff_hist().get_figure().savefig(
                 PLOT_DIR / f"{d}_hist.png"
             )
-            metrics = cmp.compute_report()
+            metrics: dict[str, Any] = cmp.compute_report()
             metrics["dataset_id"] = d
             all_metrics.append(metrics)
 

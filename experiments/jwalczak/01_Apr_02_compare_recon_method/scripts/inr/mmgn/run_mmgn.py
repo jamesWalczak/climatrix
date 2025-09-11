@@ -5,12 +5,14 @@ This module runs experiment of SiNET method
 """
 
 import csv
+import os
 import shutil
 from pathlib import Path
 from typing import Any
 
 import xarray as xr
 from rich.console import Console
+from rich.status import Status
 
 import climatrix as cm
 
@@ -23,17 +25,21 @@ console.print("[bold green]Using NaN policy: [/bold green]", NAN_POLICY)
 SEED = 1
 console.print("[bold green]Using seed: [/bold green]", SEED)
 
-DSET_PATH = Path(__file__).parent.parent.parent.parent.joinpath("data")
+CLIMATRIX_EXP_DIR = Path(os.environ.get("CLIMATRIX_EXP_DIR", os.getcwd()))
+if CLIMATRIX_EXP_DIR is None:
+    raise ValueError(
+        "CLIMATRIX_EXP_DIR environment variable is not set. "
+        "Please set it to the path of your experiment directory."
+    )
+DSET_PATH = CLIMATRIX_EXP_DIR / "data"
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
-OPTIM_N_ITERS: int = 500
+OPTIM_N_ITERS: int = 100
 console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
 
-RESULT_DIR: Path = (
-    Path(__file__).parent.parent.parent / "results" / "inr" / "mmgn"
-)
+RESULT_DIR: Path = Path(CLIMATRIX_EXP_DIR) / "results" / "inr" / "mmgn"
 PLOT_DIR: Path = RESULT_DIR / "plots"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
 console.print("[bold green]Plots will be saved to: [/bold green]", PLOT_DIR)
@@ -50,16 +56,16 @@ console.print(
 )
 
 BOUNDS = {
-    "lr": (1e-5, 1e-2),
-    "num_epochs": (50, 500),
+    "lr": (1e-5, 10.0),
+    "weight_decay": (0, 1e-2),
     "batch_size": (32, 1024),
-    "weight_decay": (1e-8, 1e-2),
     "hidden_dim": [32, 64, 128, 256, 512, 1024],
     "latent_dim": (32, 256),
     "n_layers": (1, 5),
-    "input_scale": (32, 512),
+    "input_scale": (32, 1024),
     "alpha": (0, 1),
 }
+NUM_EPOCHS: int = 100
 console.print("[bold green]Hyperparameter bounds: [/bold green]", BOUNDS)
 
 EUROPE_BOUNDS = {"north": 71, "south": 36, "west": -24, "east": 35}
@@ -91,14 +97,14 @@ def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
     fieldnames = [
         "dataset_id",
         "lr",
-        "num_epochs",
-        "batch_size",
         "weight_decay",
+        "batch_size",
         "hidden_dim",
         "latent_dim",
         "n_layers",
         "input_scale",
         "alpha",
+        "opt_loss",
     ]
     if not hparam_path.exists():
         with open(hparam_path, "w") as f:
@@ -120,7 +126,7 @@ def update_metric_csv(metrics_path: Path, metrics: dict[str, Any]):
         writer.writerow(metrics)
 
 
-def is_experiment_done(idx: int) -> bool:
+def is_experiment_done(idx: int | str) -> bool:
     return (PLOT_DIR / f"{idx}_diffs.png").exists()
 
 
@@ -128,7 +134,7 @@ def run_single_experiment(
     d: str,
     i: int,
     all_samples: int,
-    status: Console.status,
+    status: Status,
     continuous_update: bool = True,
     reconstruct_dense: bool = True,
 ):
@@ -160,6 +166,7 @@ def run_single_experiment(
         n_iters=OPTIM_N_ITERS,
         bounds=BOUNDS,
         random_seed=SEED,
+        exclude=["num_epochs"],
     )
     result = finder.optimize()
     console.print("[bold yellow]Optimized parameters:[/bold yellow]")
@@ -167,16 +174,12 @@ def run_single_experiment(
         "[yellow]Learning rate (lr):[/yellow]", result["best_params"]["lr"]
     )
     console.print(
-        "[yellow]Number of epochs (num_epochs):[/yellow]",
-        result["best_params"]["num_epochs"],
+        "[yellow]Weight decay (weight_decay):[/yellow]",
+        result["best_params"]["weight_decay"],
     )
     console.print(
         "[yellow]Batch size (batch_size):[/yellow]",
         result["best_params"]["batch_size"],
-    )
-    console.print(
-        "[yellow]Weight decay (weight_decay):[/yellow]",
-        result["best_params"]["weight_decay"],
     )
     console.print(
         "[yellow]Hidden dimension (hidden_dim):[/yellow]",
@@ -212,11 +215,11 @@ def run_single_experiment(
         test_dset.domain,
         method="mmgn",
         lr=result["best_params"]["lr"],
-        num_epochs=result["best_params"]["num_epochs"],
-        batch_size=result["best_params"]["batch_size"],
-        num_workers=-1,
-        device="cuda",
         weight_decay=result["best_params"]["weight_decay"],
+        num_epochs=NUM_EPOCHS,
+        batch_size=result["best_params"]["batch_size"],
+        num_workers=0,
+        device="cuda",
         hidden_dim=result["best_params"]["hidden_dim"],
         latent_dim=result["best_params"]["latent_dim"],
         n_layers=result["best_params"]["n_layers"],
@@ -241,11 +244,11 @@ def run_single_experiment(
             EUROPE_DOMAIN,
             method="mmgn",
             lr=result["best_params"]["lr"],
-            num_epochs=result["best_params"]["num_epochs"],
-            batch_size=result["best_params"]["batch_size"],
-            num_workers=-1,
-            device="cuda",
             weight_decay=result["best_params"]["weight_decay"],
+            num_epochs=NUM_EPOCHS,
+            batch_size=result["best_params"]["batch_size"],
+            num_workers=0,
+            device="cuda",
             hidden_dim=result["best_params"]["hidden_dim"],
             latent_dim=result["best_params"]["latent_dim"],
             n_layers=result["best_params"]["n_layers"],
@@ -271,14 +274,13 @@ def run_single_experiment(
     cmp.plot_signed_diff_hist().get_figure().savefig(
         PLOT_DIR / f"{d}_hist.png"
     )
-    metrics = cmp.compute_report()
+    metrics: dict[str, Any] = cmp.compute_report()
     metrics["dataset_id"] = d
     hyperparams = {
         "dataset_id": d,
         "lr": result["best_params"]["lr"],
-        "num_epochs": result["best_params"]["num_epochs"],
-        "batch_size": result["best_params"]["batch_size"],
         "weight_decay": result["best_params"]["weight_decay"],
+        "batch_size": result["best_params"]["batch_size"],
         "hidden_dim": result["best_params"]["hidden_dim"],
         "latent_dim": result["best_params"]["latent_dim"],
         "n_layers": result["best_params"]["n_layers"],
@@ -315,7 +317,7 @@ def run_all_experiments_sequentially():
                 continuous_update=True,
                 reconstruct_dense=True,
             )
-        return  # TODO: remove
+
 
 if __name__ == "__main__":
     clear_result_dir()

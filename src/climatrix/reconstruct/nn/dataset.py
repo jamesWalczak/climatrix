@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
 
 import numpy as np
-import sklearn
 import torch
-from sklearn.base import BaseEstimator, OneToOneFeatureMixin, TransformerMixin
 from torch.utils.data import Dataset
 
 from climatrix.decorators.runtime import log_input
