@@ -317,6 +317,9 @@ class HParamFinder:
                     )
             elif isinstance(param_value, list):
                 bounds[param_name] = param_value
+                update_bounds(
+                    method, param_name, None, None, param_value
+                )                
             else:
                 raise TypeError(
                     f"Invalid bounds for parameter '{param_name}': {param_value}"
