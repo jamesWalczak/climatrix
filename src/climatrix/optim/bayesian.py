@@ -377,7 +377,7 @@ class HParamFinder:
             log.debug("Score for params %s: %f", kwargs, score)
             # NOTE: Return negative score for maximization
             score = self.scoring_callback(trial.number, kwargs, score)
-            return score
+            return score if np.isfinite(score) else DEFAULT_BAD_SCORE
 
         except (NotImplementedError, ValueError, TypeError) as e:
             log.warning("Error evaluating parameters %s: %s", kwargs, e)
