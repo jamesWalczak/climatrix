@@ -254,7 +254,7 @@ class BaseNNReconstructor(BaseReconstructor):
                     nn_model=nn_model,
                     optimizer=None,
                 )
-                log.debug(
+                log.info(
                     "Epoch %d/%d: train loss = %0.4f | val loss = %0.4f",
                     epoch,
                     self.num_epochs,
