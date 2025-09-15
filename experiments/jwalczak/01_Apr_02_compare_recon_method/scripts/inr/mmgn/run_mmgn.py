@@ -10,6 +10,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+import matplotlib.pyplot as plt
 import xarray as xr
 from rich.console import Console
 from rich.status import Status
@@ -297,6 +298,7 @@ def run_single_experiment(
         )
         update_hparams_csv(HYPERPARAMETERS_SUMMARY_PATH, hyperparams)
 
+    plt.close("all")
     return (metrics, hyperparams)
 
 
