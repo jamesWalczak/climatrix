@@ -175,3 +175,18 @@ class IDWReconstructor(BaseReconstructor):
         return BaseClimatrixDataset(
             self.target_domain.to_xarray(interp_vals, self.dataset.da.name)
         )
+
+    @property
+    def num_params(self) -> int:
+        """
+        Get the number of hyperparameters for the IDW reconstructor.
+
+        For the IDW, the number of parameters of the method corresponds
+        to the number of points in the dataset.
+
+        Returns
+        -------
+        int
+            The number of parameters
+        """
+        return self.dataset.domain.get_all_spatial_points().shape[0]

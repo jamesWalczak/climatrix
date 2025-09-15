@@ -381,3 +381,16 @@ class BaseNNReconstructor(BaseReconstructor):
         Configure the epoch schedulers for the optimizer.
         """
         return []
+
+    @property
+    def num_params(self) -> int:
+        """
+        Get the number of trainable parameters in the model.
+
+        Returns
+        -------
+        int
+            The number of trainable parameters.
+        """
+        nn_model = self.init_model()
+        return sum(p.numel() for p in nn_model.parameters() if p.requires_grad)
