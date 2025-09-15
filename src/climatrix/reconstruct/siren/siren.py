@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
@@ -592,3 +593,17 @@ class SIRENReconstructor(BaseReconstructor):
                 reconstructed_values, self.dataset.da.name
             )
         )
+
+    @property
+    @lru_cache(maxsize=None)
+    def num_params(self) -> int:
+        """
+        Get the number of trainable parameters in the model.
+
+        Returns
+        -------
+        int
+            The number of trainable parameters.
+        """
+        nn_model = self.init_model()
+        return sum(p.numel() for p in nn_model.parameters() if p.requires_grad)
