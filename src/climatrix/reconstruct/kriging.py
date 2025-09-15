@@ -244,3 +244,15 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
         return BaseClimatrixDataset(
             self.target_domain.to_xarray(values, self.dataset.da.name)
         )
+
+    @property
+    def num_params(self) -> int:
+        """
+        Get the number of hyperparameters for the OK reconstructor.
+
+        Returns
+        -------
+        int
+            The number of parameters.
+        """
+        return self.dataset.domain.get_all_spatial_points().shape[0]
