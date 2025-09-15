@@ -195,7 +195,7 @@ class BaseReconstructor(ABC):
     @abstractmethod
     def num_params(self) -> int:
         """
-        Get the number of trainable parameters in the model.
+        Get the number of parameters for the reconstruction method
 
         Returns
         -------

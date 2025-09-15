@@ -1,6 +1,7 @@
 import logging
 import os
 from abc import abstractmethod
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -383,6 +384,7 @@ class BaseNNReconstructor(BaseReconstructor):
         return []
 
     @property
+    @lru_cache(maxsize=None)
     def num_params(self) -> int:
         """
         Get the number of trainable parameters in the model.
