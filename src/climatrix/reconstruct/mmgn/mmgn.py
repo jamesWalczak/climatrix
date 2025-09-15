@@ -11,6 +11,7 @@ from torch.optim.lr_scheduler import LRScheduler
 from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.dataset.domain import Domain
 from climatrix.decorators.runtime import log_input, raise_if_not_installed
+from climatrix.exceptions import ReconstructorConfigurationFailed
 from climatrix.optim.hyperparameter import Hyperparameter
 from climatrix.reconstruct.mmgn.dataset import MMGNDatasetGenerator
 from climatrix.reconstruct.mmgn.model import (
@@ -86,7 +87,9 @@ class MMGNReconstructor(BaseNNReconstructor):
         )
         if dataset.domain.is_dynamic:
             log.error("MMGN does not support dynamic domains.")
-            raise ValueError("MMGN does not support dynamic domains.")
+            raise ReconstructorConfigurationFailed(
+                "MMGN does not support dynamic domains."
+            )
 
         self.input_dim = 2
         self.out_dim = 1

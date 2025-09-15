@@ -30,3 +30,9 @@ class MissingDependencyError(ImportError):
     """Raised when required plotting dependencies are not installed."""
 
     pass
+
+
+class ReconstructorConfigurationFailed(ValueError):
+    """Raised when a reconstructor cannot be configured properly."""
+
+    pass
