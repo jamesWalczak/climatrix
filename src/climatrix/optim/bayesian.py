@@ -13,6 +13,7 @@ import numpy as np
 from climatrix.comparison import Comparison
 from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.decorators.runtime import raise_if_not_installed
+from climatrix.exceptions import ReconstructorConfigurationFailed
 from climatrix.optim.hyperparameter import Hyperparameter
 from climatrix.reconstruct.base import BaseReconstructor
 
@@ -317,9 +318,7 @@ class HParamFinder:
                     )
             elif isinstance(param_value, list):
                 bounds[param_name] = param_value
-                update_bounds(
-                    method, param_name, None, None, param_value
-                )                
+                update_bounds(method, param_name, None, None, param_value)
             else:
                 raise TypeError(
                     f"Invalid bounds for parameter '{param_name}': {param_value}"
@@ -424,7 +423,7 @@ class HParamFinder:
             score = self.scoring_callback(trial.number, kwargs, score)
             return score if np.isfinite(score) else DEFAULT_BAD_SCORE
 
-        except (NotImplementedError, ValueError, TypeError) as e:
+        except (NotImplementedError, ReconstructorConfigurationFailed) as e:
             log.warning("Error evaluating parameters %s: %s", kwargs, e)
             return DEFAULT_BAD_SCORE
 

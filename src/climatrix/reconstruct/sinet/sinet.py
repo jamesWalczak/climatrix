@@ -9,6 +9,7 @@ import numpy as np
 import torch
 
 from climatrix.decorators.runtime import log_input, raise_if_not_installed
+from climatrix.exceptions import ReconstructorConfigurationFailed
 from climatrix.optim.hyperparameter import Hyperparameter
 from climatrix.reconstruct.nn.base_nn import BaseNNReconstructor
 from climatrix.reconstruct.sinet.dataset import (
@@ -153,7 +154,7 @@ class SiNETReconstructor(BaseNNReconstructor):
         )
         if dataset.domain.is_dynamic:
             log.error("SiNET is not yet supported for dynamic datasets.")
-            raise ValueError(
+            raise ReconstructorConfigurationFailed(
                 "SiNET is not yet supported for dynamic datasets."
             )
         self.layers = layers
