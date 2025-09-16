@@ -35,7 +35,7 @@ if CLIMATRIX_EXP_DIR is None:
 DSET_PATH = CLIMATRIX_EXP_DIR / "data"
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
-OPTIM_N_ITERS: int = 100
+OPTIM_N_ITERS: int = 200
 console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
@@ -58,15 +58,15 @@ console.print(
 
 BOUNDS = {
     "lr": (1e-5, 10.0),
-    "weight_decay": (0, 1e-2),
+    "weight_decay": (0, 1e-1),
     "batch_size": (32, 1024),
     "hidden_dim": [32, 64, 128, 256, 512, 1024],
-    "latent_dim": (32, 256),
-    "n_layers": (1, 5),
-    "input_scale": (32, 1024),
-    "alpha": (0, 1),
+    "latent_dim": [32, 64, 128, 256, 512, 1024],
+    "n_layers": (1, 10),
+    "input_scale": (2, 1024),
+    "alpha": (0, 100),
 }
-NUM_EPOCHS: int = 100
+NUM_EPOCHS: int = 500
 console.print("[bold green]Hyperparameter bounds: [/bold green]", BOUNDS)
 
 EUROPE_BOUNDS = {"north": 71, "south": 36, "west": -24, "east": 35}
@@ -270,6 +270,7 @@ def run_single_experiment(
     )
     test_dset.plot(show=False).get_figure().savefig(PLOT_DIR / f"{d}_test.png")
     status.update("[magenta]Evaluating...", spinner="bouncingBall")
+    print(reconstructed_dset.da)
     cmp = cm.Comparison(reconstructed_dset, test_dset)
     cmp.diff.plot(show=False).get_figure().savefig(PLOT_DIR / f"{d}_diffs.png")
     cmp.plot_signed_diff_hist().get_figure().savefig(
@@ -322,6 +323,6 @@ def run_all_experiments_sequentially():
 
 
 if __name__ == "__main__":
-    clear_result_dir()
+    # clear_result_dir()
     create_result_dir()
     run_all_experiments_sequentially()

@@ -58,7 +58,6 @@ console.print(
 BOUNDS = {
     "k": (1, 50),
     "power": (1e-7, 5.0),
-    "k_min": (1, 40),
 }
 console.print("[bold green]Hyperparameter bounds: [/bold green]", BOUNDS)
 
@@ -87,8 +86,6 @@ def get_all_dataset_idx() -> list[str]:
     )
 
 def idw_scoring_callback(trial: int, hparams: dict, score: float) -> float:
-    if hparams['k_min'] > hparams['k']:
-        return 1e6
     return score
 
 def run_experiment():
@@ -127,7 +124,9 @@ def run_experiment():
                 n_iters=OPTIM_N_ITERS,
                 bounds=BOUNDS,
                 random_seed=SEED,
-                scoring_callback=idw_scoring_callback
+                scoring_callback=idw_scoring_callback,
+                exclude=["k_min"],
+                reconstructor_kwargs={"k_min": 0}
             )
             result = finder.optimize()
             console.print("[bold yellow]Optimized parameters:[/bold yellow]")
@@ -135,9 +134,6 @@ def run_experiment():
                 "[yellow]Power:[/yellow]", result["best_params"]["power"]
             )
             console.print("[yellow]k:[/yellow]", result["best_params"]["k"])
-            console.print(
-                "[yellow]k_min:[/yellow]", result["best_params"]["k_min"]
-            )
             status.update(
                 "[magenta]Reconstructing with optimised parameters...",
                 spinner="bouncingBall",
@@ -154,7 +150,6 @@ def run_experiment():
                 method="idw",
                 k=result["best_params"]["k"],
                 power=result["best_params"]["power"],
-                k_min=result["best_params"]["k_min"],
             )
             status.update(
                 "[magenta]Saving reconstructed dset to "
@@ -174,7 +169,6 @@ def run_experiment():
                 method="idw",
                 k=result["best_params"]["k"],
                 power=result["best_params"]["power"],
-                k_min=result["best_params"]["k_min"],
             )
             status.update(
                 "[magenta]Saving reconstructed dense dset to "
@@ -206,7 +200,6 @@ def run_experiment():
             hyperparams["dataset_id"].append(d)
             hyperparams["k"].append(result["best_params"]["k"])
             hyperparams["power"].append(result["best_params"]["power"])
-            hyperparams["k_min"].append(result["best_params"]["k_min"])
             hyperparams["opt_loss"].append(result["best_score"])
         status.update(
             "[magenta]Saving quality metrics...", spinner="bouncingBall"
@@ -220,6 +213,6 @@ def run_experiment():
 
 
 if __name__ == "__main__":
-    # clear_result_dir()
+    clear_result_dir()
     create_result_dir()
     run_experiment()
