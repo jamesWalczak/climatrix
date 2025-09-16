@@ -34,6 +34,11 @@ if CLIMATRIX_EXP_DIR is None:
 DSET_PATH = CLIMATRIX_EXP_DIR / "data"
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
+OPTIM_STARTUP_TRIALS: int = 50
+console.print(
+    "[bold green]Using startup trials for optimization[/bold green]",
+    OPTIM_STARTUP_TRIALS,
+)
 OPTIM_N_ITERS: int = 100
 console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
@@ -164,9 +169,10 @@ def run_single_experiment(
         val_dset,
         metric="mae",
         n_iters=OPTIM_N_ITERS,
+        n_startup_trials=OPTIM_STARTUP_TRIALS,
         bounds=BOUNDS,
         random_seed=SEED,
-        exclude=["num_epochs"]
+        exclude=["num_epochs"],
     )
     result = finder.optimize()
     console.print("[bold yellow]Optimized parameters:[/bold yellow]")
