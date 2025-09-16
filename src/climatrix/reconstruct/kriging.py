@@ -10,7 +10,10 @@ from climatrix.dataset.base import AxisType, BaseClimatrixDataset
 from climatrix.dataset.domain import Domain
 from climatrix.decorators import raise_if_not_installed
 from climatrix.decorators.runtime import log_input
-from climatrix.exceptions import ReconstructorConfigurationFailed
+from climatrix.exceptions import (
+    OperationNotSupportedForDynamicDatasetError,
+    ReconstructorConfigurationFailed,
+)
 from climatrix.optim.hyperparameter import Hyperparameter
 from climatrix.reconstruct.base import BaseReconstructor
 
@@ -115,7 +118,7 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
                 "latitude and longitude dimensions, but got '%s'",
                 axis,
             )
-            raise NotImplementedError(
+            raise OperationNotSupportedForDynamicDatasetError(
                 "Currently, IDWReconstructor only supports datasets with "
                 f"latitude and longitude dimensions, but got '{axis}'"
             )
@@ -124,7 +127,7 @@ class OrdinaryKrigingReconstructor(BaseReconstructor):
                 "Calling ordinary kriging on dense datasets, whcih "
                 "are not yet supported."
             )
-            raise NotImplementedError(
+            raise OperationNotSupportedForDynamicDatasetError(
                 "Cannot carry out kriging for " "dense dataset."
             )
         if coordinates_type == "geographic":

@@ -10,6 +10,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
+from climatrix.dataset.axis import AxisType
 from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.dataset.domain import Domain
 from climatrix.reconstruct.base import BaseReconstructor, Hyperparameter
@@ -83,21 +84,22 @@ class BaseNNReconstructor(BaseReconstructor):
         self.num_epochs = num_epochs
         self.batch_size = batch_size
         self._custom_dataset_generator_kwargs = {}
+        _train_points = dataset.flatten_points()
+        if isinstance(validation, BaseClimatrixDataset):
+            _val_points = dataset.flatten_points()
+            _val_coords = _val_points[:, :-1]
+            _val_field = _val_points[:, -1]
+        else:
+            _val_coords = _val_field = None
         self.datasets = self._configure_dataset_generator(
-            train_coords=dataset.domain.get_all_spatial_points(),
-            train_field=dataset.da.values,
+            train_coords=_train_points[:, :-1],
+            # NOTE: we squeeze to remove single-dimensional entries
+            # (e.g., single time dimension)
+            train_field=_train_points[:, -1],
             target_coords=target_domain.get_all_spatial_points(),
             val_portion=validation if isinstance(validation, float) else None,
-            val_coordinates=(
-                (validation.domain.get_all_spatial_points())
-                if isinstance(validation, BaseClimatrixDataset)
-                else None
-            ),
-            val_field=(
-                (validation.da.values)
-                if isinstance(validation, BaseClimatrixDataset)
-                else None
-            ),
+            val_coordinates=_val_coords,
+            val_field=_val_field,
         )
 
     def _maybe_clip_grads(self, nn_model: torch.nn.Module) -> None:

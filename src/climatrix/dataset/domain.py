@@ -53,7 +53,7 @@ def match_axes(da: xr.DataArray) -> dict[AxisType, str]:
         for axis in Axis.get_all_axes():
             if axis.matches(dim):
                 axes[axis.type] = Axis(
-                    dim, np.atleast_1d(da[dim].values).astype(axis.dtype), True
+                    dim, np.atleast_1d(da[dim].values), True
                 )
     for coord in da.coords.keys():
         for axis in Axis.get_all_axes():
@@ -63,7 +63,7 @@ def match_axes(da: xr.DataArray) -> dict[AxisType, str]:
             if axis.matches(coord):
                 axes[axis.type] = Axis(
                     coord,
-                    np.atleast_1d(da[coord].values).astype(axis.dtype),
+                    np.atleast_1d(da[coord].values),
                     False,
                 )
 

@@ -85,8 +85,8 @@ class Axis:
     ----------
     type : ClassVar[AxisType]
         The type of the axis.
-    dtype : ClassVar[np.dtype]
-        The data type of the axis values.
+    dtype : ClassVar[np.dtype], optional
+        The data type axis values should be cast to
     is_dimension : bool
         Whether the axis is a dimension or not.
     name : str
@@ -124,8 +124,8 @@ class Axis:
     """
 
     _regex: ClassVar[re.Pattern]
-    dtype: ClassVar[np.dtype] = np.dtype("float32")
     type: ClassVar[AxisType]
+    dtype: ClassVar[np.dtype] | None = None
     is_dimension: bool
     name: str
     values: np.ndarray
@@ -170,7 +170,18 @@ class Axis:
             log.warning("No values provided. Axis will contain no values")
             warnings.warn("No values provided. Axis will contain no values")
             values = []
-        values = np.asarray(values, dtype=self.dtype)
+        if self.dtype is not None:
+            try:
+                values = np.asarray(values, dtype=self.dtype)
+            except (ValueError, TypeError) as e:
+                log.error(
+                    "Failed to cast axis values to dtype %s: %s",
+                    self.dtype,
+                    e,
+                )
+                raise ValueError from e
+        else:
+            values = np.asarray(values)
         self.values = values
 
     def __eq__(self, other: object) -> bool:
@@ -253,7 +264,6 @@ class Latitude(Axis):
 
     _regex = re.compile(r"^(x?)lat[a-z0-9_]*$")
     type = AxisType.LATITUDE
-    dtype: ClassVar[np.dtype] = np.dtype("float32")
 
 
 class Longitude(Axis):
@@ -270,7 +280,6 @@ class Longitude(Axis):
 
     _regex = re.compile(r"^(x?)lon[a-z0-9_]*$")
     type = AxisType.LONGITUDE
-    dtype: ClassVar[np.dtype] = np.dtype("float32")
 
 
 class Time(Axis):
@@ -287,7 +296,6 @@ class Time(Axis):
 
     _regex = re.compile(r"^(x?)(valid_)?time(s?)([0-9]*)$")
     type = AxisType.TIME
-    dtype: ClassVar[np.dtype] = np.dtype("datetime64[ns]")
 
     def __eq__(self, other: object) -> bool:
         """
@@ -329,7 +337,6 @@ class Vertical(Axis):
         r"isobaric|pres|level|isotherm)[a-z_]*[0-9]*$"
     )
     type = AxisType.VERTICAL
-    dtype: ClassVar[np.dtype] = np.dtype("float32")
 
 
 class Point(Axis):
@@ -346,4 +353,3 @@ class Point(Axis):
 
     _regex = re.compile(r"^(point.*|values|nstation.*)$")
     type = AxisType.POINT
-    dtype: ClassVar[np.dtype] = np.dtype("int")

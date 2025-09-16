@@ -9,7 +9,10 @@ from scipy.spatial import cKDTree
 from climatrix.dataset.base import AxisType, BaseClimatrixDataset
 from climatrix.dataset.domain import Domain
 from climatrix.decorators.runtime import log_input
-from climatrix.exceptions import ReconstructorConfigurationFailed
+from climatrix.exceptions import (
+    OperationNotSupportedForDynamicDatasetError,
+    ReconstructorConfigurationFailed,
+)
 from climatrix.optim.hyperparameter import Hyperparameter
 from climatrix.reconstruct.base import BaseReconstructor
 
@@ -44,7 +47,7 @@ class IDWReconstructor(BaseReconstructor):
 
     Raises
     ------
-    NotImplementedError
+    OperationNotSupportedForDynamicDatasetError
         If the input dataset is dynamic, as IDW reconstruction is not yet
         supported for dynamic datasets.
     ValueError
@@ -95,7 +98,7 @@ class IDWReconstructor(BaseReconstructor):
                 "latitude and longitude dimensions, but got '%s'",
                 axis,
             )
-            raise NotImplementedError(
+            raise OperationNotSupportedForDynamicDatasetError(
                 "Currently, IDWReconstructor only supports datasets with "
                 f"latitude and longitude dimensions, but got '{axis}'"
             )

@@ -2,7 +2,7 @@ class DatasetCreationError(ValueError):
     pass
 
 
-class TimeRelatedDatasetNotSupportedError(DatasetCreationError):
+class OperationNotSupportedForDynamicDatasetError(NotImplementedError):
     pass
 
 

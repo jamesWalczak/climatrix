@@ -31,11 +31,21 @@ class BaseNNDatasetGenerator(ABC):
         validation_field: np.ndarray | None = None,
     ) -> None:
         if spatial_points.ndim != 2 or spatial_points.shape[1] != 2:
+            log.error(
+                "Spatial points must be a 2D array with shape (n_samples, 2)."
+                " Got shape: %s",
+                spatial_points.shape,
+            )
             raise ValueError(
                 "Spatial points must be a 2D array with shape (n_samples, 2)."
             )
-
         if field.ndim != 1 or field.shape[0] != spatial_points.shape[0]:
+            log.error(
+                "Field must be a 1D array with the same number of samples as spatial points."
+                " Got shape: %s, spatial points shape: %s",
+                field.shape,
+                spatial_points.shape,
+            )
             raise ValueError(
                 "Field must be a 1D array with the same number of samples as spatial points."
             )
