@@ -6,6 +6,7 @@ import pytest
 import xarray as xr
 
 from climatrix import BaseClimatrixDataset
+from climatrix.exceptions import OperationNotSupportedForDynamicDatasetError
 from tests.unit.test_utils import skip_on_error
 
 parametrize_all = partial(
@@ -139,7 +140,10 @@ class TestBaseReconstructor:
     def reconstructor(self, reconstructor_class, dataset):
         try:
             return reconstructor_class(dataset, dataset.domain)
-        except NotImplementedError as e:
+        except (
+            NotImplementedError,
+            OperationNotSupportedForDynamicDatasetError,
+        ) as e:
             pytest.skip(f"Unsupported configuration: {e}")
 
     @pytest.mark.parametrize(
@@ -157,7 +161,10 @@ class TestBaseReconstructor:
     ):
         try:
             reconstructor = reconstructor_class(dataset, dataset.domain)
-        except NotImplementedError as e:
+        except (
+            NotImplementedError,
+            OperationNotSupportedForDynamicDatasetError,
+        ) as e:
             pytest.skip(f"Unsupported configuration: {e}")
         assert reconstructor.dataset is dataset
         assert reconstructor.target_domain is dataset.domain

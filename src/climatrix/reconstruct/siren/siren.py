@@ -13,6 +13,10 @@ from torch.utils.data import DataLoader
 
 from climatrix.dataset.domain import Domain
 from climatrix.decorators.runtime import log_input, raise_if_not_installed
+from climatrix.exceptions import (
+    OperationNotSupportedForDynamicDatasetError,
+    ReconstructorConfigurationFailed,
+)
 from climatrix.optim.hyperparameter import Hyperparameter
 from climatrix.reconstruct.base import BaseReconstructor
 
@@ -88,7 +92,7 @@ class SIRENReconstructor(BaseReconstructor):
 
     Raises
     ------
-    NotImplementedError
+    OperationNotSupportedForDynamicDatasetError
         If trying to use SIREN with a dynamic dataset.
 
     Notes
@@ -140,7 +144,7 @@ class SIRENReconstructor(BaseReconstructor):
 
         if dataset.domain.is_dynamic:
             log.error("SIREN is not yet supported for dynamic datasets.")
-            raise NotImplementedError(
+            raise OperationNotSupportedForDynamicDatasetError(
                 "SIREN is not yet supported for dynamic datasets."
             )
 

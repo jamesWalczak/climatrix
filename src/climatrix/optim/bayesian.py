@@ -13,7 +13,10 @@ import numpy as np
 from climatrix.comparison import Comparison
 from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.decorators.runtime import raise_if_not_installed
-from climatrix.exceptions import ReconstructorConfigurationFailed
+from climatrix.exceptions import (
+    OperationNotSupportedForDynamicDatasetError,
+    ReconstructorConfigurationFailed,
+)
 from climatrix.optim.hyperparameter import Hyperparameter
 from climatrix.reconstruct.base import BaseReconstructor
 
@@ -423,7 +426,10 @@ class HParamFinder:
             score = self.scoring_callback(trial.number, kwargs, score)
             return score if np.isfinite(score) else DEFAULT_BAD_SCORE
 
-        except (NotImplementedError, ReconstructorConfigurationFailed) as e:
+        except (
+            OperationNotSupportedForDynamicDatasetError,
+            ReconstructorConfigurationFailed,
+        ) as e:
             log.warning("Error evaluating parameters %s: %s", kwargs, e)
             return DEFAULT_BAD_SCORE
 
