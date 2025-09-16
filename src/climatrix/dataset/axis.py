@@ -175,11 +175,17 @@ class Axis:
                 values = np.asarray(values, dtype=self.dtype)
             except (ValueError, TypeError) as e:
                 log.error(
-                    "Failed to cast axis values to dtype %s: %s",
+                    "Failed to cast axis values to dtype %s for axis type %s (name: %s). Original values: %r. Exception: %s",
                     self.dtype,
+                    type(self).__name__,
+                    self.name,
+                    values if len(values) <= 10 else f"{values[:10]}... (total {len(values)})",
                     e,
                 )
-                raise ValueError from e
+                raise ValueError(
+                    f"Failed to cast axis values to dtype {self.dtype} for axis type {type(self).__name__} (name: {self.name}). "
+                    f"Original values: {values if len(values) <= 10 else str(values[:10]) + '... (total ' + str(len(values)) + ')'}; Exception: {e}"
+                ) from e
         else:
             values = np.asarray(values)
         self.values = values
