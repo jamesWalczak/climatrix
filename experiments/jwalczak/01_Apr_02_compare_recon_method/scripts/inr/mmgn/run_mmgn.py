@@ -76,7 +76,7 @@ BOUNDS = {
     "latent_dim": [32, 64, 128, 256, 512, 1024],
     "n_layers": (1, 10),
     "input_scale": (2, 1024),
-    "alpha": (0, 100),
+    "alpha": (0.0, 100.0),
 }
 NUM_EPOCHS: int = 500
 console.print("[bold green]Hyperparameter bounds: [/bold green]", BOUNDS)
