@@ -257,13 +257,15 @@ class MMGNet(nn.Module):
                 raise ValueError(f"Unknown filter type: {self.filter}")
 
         self.output_layer = nn.Linear(self.hidden_dim, self.out_dim)
-        self.latents = nn.Parameter(torch.FloatTensor(self.latent_dim))
+        # NOTE: only single timestamp
+        self.latents = nn.Parameter(torch.FloatTensor(1, self.latent_dim))
 
         with torch.no_grad():
             self.latent_init.value.callable(self.latents)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        latent = self.latents
+        # NOTE: only single timestamp
+        latent = self.latents[0]
         zi = self.filters[0](x) * self.bilinear[0](torch.zeros_like(x), latent)
         for i in range(1, self.n_layers):
             zi = self.filters[i](x) * self.bilinear[i](zi, latent)
