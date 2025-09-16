@@ -134,7 +134,7 @@ def run_experiment():
                 random_seed=SEED,
                 scoring_callback=idw_scoring_callback,
                 exclude=["k_min"],
-                reconstructor_kwargs={"k_min": 0}
+                reconstructor_kwargs={"k_min": 1},
             )
             result = finder.optimize()
             console.print("[bold yellow]Optimized parameters:[/bold yellow]")

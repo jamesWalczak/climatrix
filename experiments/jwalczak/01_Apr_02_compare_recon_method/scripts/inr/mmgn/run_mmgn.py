@@ -45,7 +45,14 @@ console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
 
-RESULT_DIR: Path = Path(CLIMATRIX_EXP_DIR) / "results" / "inr" / "mmgn"
+NUM_EPOCHS: int = 500
+console.print(
+    "[bold green]Using number of epochs for training[/bold green]", NUM_EPOCHS
+)
+
+RESULT_DIR: Path = (
+    Path(__file__).parent.parent.parent / "results" / "inr" / "mmgn"
+)
 PLOT_DIR: Path = RESULT_DIR / "plots"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
 console.print("[bold green]Plots will be saved to: [/bold green]", PLOT_DIR)
@@ -174,6 +181,7 @@ def run_single_experiment(
         bounds=BOUNDS,
         random_seed=SEED,
         exclude=["num_epochs"],
+        reconstructor_kwargs={"num_epochs": NUM_EPOCHS},
     )
     result = finder.optimize()
     console.print("[bold yellow]Optimized parameters:[/bold yellow]")
@@ -222,8 +230,11 @@ def run_single_experiment(
         test_dset.domain,
         method="mmgn",
         lr=result["best_params"]["lr"],
-        weight_decay=result["best_params"]["weight_decay"],
         num_epochs=NUM_EPOCHS,
+        batch_size=result["best_params"]["batch_size"],
+        num_workers=-1,
+        device="cuda",
+        weight_decay=result["best_params"]["weight_decay"],
         batch_size=result["best_params"]["batch_size"],
         num_workers=0,
         device="cuda",
@@ -251,8 +262,11 @@ def run_single_experiment(
             EUROPE_DOMAIN,
             method="mmgn",
             lr=result["best_params"]["lr"],
-            weight_decay=result["best_params"]["weight_decay"],
             num_epochs=NUM_EPOCHS,
+            batch_size=result["best_params"]["batch_size"],
+            num_workers=-1,
+            device="cuda",
+            weight_decay=result["best_params"]["weight_decay"],
             batch_size=result["best_params"]["batch_size"],
             num_workers=0,
             device="cuda",
