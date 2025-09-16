@@ -235,7 +235,6 @@ def run_single_experiment(
         num_workers=-1,
         device="cuda",
         weight_decay=result["best_params"]["weight_decay"],
-        batch_size=result["best_params"]["batch_size"],
         num_workers=0,
         device="cuda",
         hidden_dim=result["best_params"]["hidden_dim"],
