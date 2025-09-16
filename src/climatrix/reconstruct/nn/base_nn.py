@@ -86,7 +86,7 @@ class BaseNNReconstructor(BaseReconstructor):
         self._custom_dataset_generator_kwargs = {}
         _train_points = dataset.flatten_points()
         if isinstance(validation, BaseClimatrixDataset):
-            _val_points = dataset.flatten_points()
+            _val_points = validation.flatten_points()
             _val_coords = _val_points[:, :-1]
             _val_field = _val_points[:, -1]
         else:
