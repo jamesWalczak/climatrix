@@ -50,9 +50,7 @@ console.print(
     "[bold green]Using number of epochs for training[/bold green]", NUM_EPOCHS
 )
 
-RESULT_DIR: Path = (
-    Path(__file__).parent.parent.parent / "results" / "inr" / "mmgn"
-)
+RESULT_DIR: Path = Path(CLIMATRIX_EXP_DIR) / "results" / "inr" / "mmgn"
 PLOT_DIR: Path = RESULT_DIR / "plots"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
 console.print("[bold green]Plots will be saved to: [/bold green]", PLOT_DIR)
