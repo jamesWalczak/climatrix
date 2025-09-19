@@ -5,12 +5,14 @@ This module runs experiment of SiNET method
 """
 
 import csv
+import os
 import shutil
 from pathlib import Path
 from typing import Any
 
 import xarray as xr
 from rich.console import Console
+from rich.status import Status
 
 import climatrix as cm
 
@@ -23,17 +25,26 @@ console.print("[bold green]Using NaN policy: [/bold green]", NAN_POLICY)
 SEED = 1
 console.print("[bold green]Using seed: [/bold green]", SEED)
 
-DSET_PATH = Path(__file__).parent.parent.parent.parent.joinpath("data")
+CLIMATRIX_EXP_DIR = Path(os.environ.get("CLIMATRIX_EXP_DIR", os.getcwd()))
+if CLIMATRIX_EXP_DIR is None:
+    raise ValueError(
+        "CLIMATRIX_EXP_DIR environment variable is not set. "
+        "Please set it to the path of your experiment directory."
+    )
+DSET_PATH = CLIMATRIX_EXP_DIR / "data"
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
-OPTIM_N_ITERS: int = 500
+OPTIM_STARTUP_TRIALS: int = 50
+console.print(
+    "[bold green]Using startup trials for optimization[/bold green]",
+    OPTIM_STARTUP_TRIALS,
+)
+OPTIM_N_ITERS: int = 100
 console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
 
-RESULT_DIR: Path = (
-    Path(__file__).parent.parent.parent / "results" / "inr" / "sinet"
-)
+RESULT_DIR: Path = Path(CLIMATRIX_EXP_DIR) / "results" / "inr" / "sinet"
 PLOT_DIR: Path = RESULT_DIR / "plots"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
 console.print("[bold green]Plots will be saved to: [/bold green]", PLOT_DIR)
@@ -50,15 +61,16 @@ console.print(
 )
 
 BOUNDS = {
-    "lr": (1e-5, 1e-2),
-    "num_epochs": (50, 500),
-    "gradient_clipping_value": (1e-4, 1e4),
-    "batch_size": (32, 1024),
-    "mse_loss_weight": (1e-5, 1),
-    "eikonal_loss_weight": (0, 1e-2),
-    "laplace_loss_weight": (0, 1e-2),
-    "patience": (10, 200),
+    "lr": (1e-5, 10.0),
+    "weight_decay": (0, 1e-1),
+    "batch_size": (32, 4096),
+    "mse_loss_weight": (1e-5, 100),
+    "eikonal_loss_weight": (0.0, 10.0),
+    "laplace_loss_weight": (0.0, 10.0),
+    "scale": (0.01, 100.0),
+    "hidden_dim": [16, 64, 128, 256],
 }
+NUM_EPOCHS: int = 100
 console.print("[bold green]Hyperparameter bounds: [/bold green]", BOUNDS)
 
 EUROPE_BOUNDS = {"north": 71, "south": 36, "west": -24, "east": 35}
@@ -90,13 +102,13 @@ def update_hparams_csv(hparam_path: Path, hparams: dict[str, Any]):
     fieldnames = [
         "dataset_id",
         "lr",
-        "num_epochs",
-        "gradient_clipping_value",
+        "weight_decay",
+        "scale",
         "batch_size",
         "mse_loss_weight",
         "eikonal_loss_weight",
         "laplace_loss_weight",
-        "patience",
+        "hidden_dim",
         "opt_loss",
     ]
     if not hparam_path.exists():
@@ -119,7 +131,7 @@ def update_metric_csv(metrics_path: Path, metrics: dict[str, Any]):
         writer.writerow(metrics)
 
 
-def is_experiment_done(idx: int) -> bool:
+def is_experiment_done(idx: int | str) -> bool:
     return (PLOT_DIR / f"{idx}_diffs.png").exists()
 
 
@@ -127,7 +139,7 @@ def run_single_experiment(
     d: str,
     i: int,
     all_samples: int,
-    status: Console.status,
+    status: Status,
     continuous_update: bool = True,
     reconstruct_dense: bool = True,
 ):
@@ -157,8 +169,10 @@ def run_single_experiment(
         val_dset,
         metric="mae",
         n_iters=OPTIM_N_ITERS,
+        n_startup_trials=OPTIM_STARTUP_TRIALS,
         bounds=BOUNDS,
         random_seed=SEED,
+        exclude=["num_epochs"],
     )
     result = finder.optimize()
     console.print("[bold yellow]Optimized parameters:[/bold yellow]")
@@ -166,12 +180,11 @@ def run_single_experiment(
         "[yellow]Learning rate (lr):[/yellow]", result["best_params"]["lr"]
     )
     console.print(
-        "[yellow]Number of epochs:[/yellow]",
-        result["best_params"]["num_epochs"],
+        "[yellow]Weight decay:[/yellow]", result["best_params"]["weight_decay"]
     )
     console.print(
-        "[yellow]Gradient clipping value:[/yellow]",
-        result["best_params"]["gradient_clipping_value"],
+        "[yellow]Scale:[/yellow]",
+        result["best_params"]["scale"],
     )
     console.print(
         "[yellow]Batch size:[/yellow]", result["best_params"]["batch_size"]
@@ -189,14 +202,10 @@ def run_single_experiment(
         result["best_params"]["laplace_loss_weight"],
     )
     console.print(
-        "[yellow]Early stopping patience:[/yellow]",
-        result["best_params"]["patience"],
+        "[yellow]Hidden dimension:[/yellow]",
+        result["best_params"]["hidden_dim"],
     )
-    console.print(
-        "[yellow]Use elevation:[/yellow]",
-        result["best_params"]["use_elevation"],
-    )
-    console.print("[yellow]Best loss:[/yellow]", result["best_loss"])
+    console.print("[yellow]Best loss:[/yellow]", result["best_score"])
     status.update(
         "[magenta]Reconstructing with optimised parameters...",
         spinner="bouncingBall",
@@ -209,18 +218,19 @@ def run_single_experiment(
     reconstructed_dset = train_val_dset.reconstruct(
         test_dset.domain,
         method="sinet",
+        device="cuda",
         lr=result["best_params"]["lr"],
-        num_epochs=result["best_params"]["num_epochs"],
+        weight_decay=result["best_params"]["weight_decay"],
+        num_epochs=NUM_EPOCHS,
         batch_size=result["best_params"]["batch_size"],
         num_workers=0,
-        device="cuda",
-        gradient_clipping_value=result["best_params"][
-            "gradient_clipping_value"
-        ],
+        scale=result["best_params"]["scale"],
         mse_loss_weight=result["best_params"]["mse_loss_weight"],
         eikonal_loss_weight=result["best_params"]["eikonal_loss_weight"],
         laplace_loss_weight=result["best_params"]["laplace_loss_weight"],
-        patience=result["best_params"]["patience"],
+        hidden_dim=result["best_params"]["hidden_dim"],
+        checkpoint="./sinet_checkpoint.pth",
+        overwrite_checkpoint=True,
     )
     status.update(
         "[magenta]Saving reconstructed dset to "
@@ -239,18 +249,19 @@ def run_single_experiment(
         reconstructed_dense = train_val_dset.reconstruct(
             EUROPE_DOMAIN,
             method="sinet",
+            device="cuda",
             lr=result["best_params"]["lr"],
-            num_epochs=result["best_params"]["num_epochs"],
+            weight_decay=result["best_params"]["weight_decay"],
+            num_epochs=NUM_EPOCHS,
             batch_size=result["best_params"]["batch_size"],
             num_workers=0,
-            device="cuda",
-            gradient_clipping_value=result["best_params"][
-                "gradient_clipping_value"
-            ],
+            scale=result["best_params"]["scale"],
             mse_loss_weight=result["best_params"]["mse_loss_weight"],
             eikonal_loss_weight=result["best_params"]["eikonal_loss_weight"],
             laplace_loss_weight=result["best_params"]["laplace_loss_weight"],
-            patience=result["best_params"]["patience"],
+            hidden_dim=result["best_params"]["hidden_dim"],
+            checkpoint="./sinet_checkpoint.pth",
+            overwrite_checkpoint=False,
         )
         status.update(
             "[magenta]Saving reconstructed dense dset to "
@@ -271,20 +282,18 @@ def run_single_experiment(
     cmp.plot_signed_diff_hist().get_figure().savefig(
         PLOT_DIR / f"{d}_hist.png"
     )
-    metrics = cmp.compute_report()
+    metrics: dict[str, Any] = cmp.compute_report()
     metrics["dataset_id"] = d
     hyperparams = {
         "dataset_id": d,
         "lr": result["best_params"]["lr"],
-        "num_epochs": result["best_params"]["num_epochs"],
-        "gradient_clipping_value": result["best_params"][
-            "gradient_clipping_value"
-        ],
+        "weight_decay": result["best_params"]["weight_decay"],
+        "scale": result["best_params"]["scale"],
         "batch_size": result["best_params"]["batch_size"],
         "mse_loss_weight": result["best_params"]["mse_loss_weight"],
         "eikonal_loss_weight": result["best_params"]["eikonal_loss_weight"],
         "laplace_loss_weight": result["best_params"]["laplace_loss_weight"],
-        "patience": result["best_params"]["patience"],
+        "hidden_dim": result["best_params"]["hidden_dim"],
         "opt_loss": result["best_score"],
     }
     if continuous_update:
@@ -319,6 +328,6 @@ def run_all_experiments_sequentially():
 
 
 if __name__ == "__main__":
-    # clear_result_dir()
+    clear_result_dir()
     create_result_dir()
     run_all_experiments_sequentially()

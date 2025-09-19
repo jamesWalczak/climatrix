@@ -4,17 +4,16 @@ From: ubuntu:24.04
 %environment
     export DEBIAN_FRONTEND=noninteractive
     export APP_DIR=/app
+    export CLIMATRIX_EXP_DIR=/app
     export PATH=/app/conf/exp1/bin:$PATH
+    export VIRTUAL_ENV=/app/conf/exp1
 
 %files
     conf /app/conf
-    images /app/images
     scripts /app/scripts
-    images/scripts/entrypoint.sh /app/scripts
-    images/scripts/prepare_ecad_observations.py /app/scripts
+    entrypoint.sh /app/entrypoint.sh
 
 %post
-    # Install system dependencies
     apt-get update && apt-get install -y --no-install-recommends \
         python3 \
         python3-pip \
@@ -24,17 +23,17 @@ From: ubuntu:24.04
         wget curl git unzip bash \
         && rm -rf /var/lib/apt/lists/*
 
-    # Run setup script with -f to ensure venv is built fresh
+    # Set environment variable for setup script
+    export CLIMATRIX_EXP_DIR=/app
+    
     cd /app/conf
     bash setup.sh
 
-    # Make entrypoint and shell scripts executable
-    chmod +x /app/scripts/entrypoint.sh
+    chmod +x /app/entrypoint.sh
     find /app -name "*.sh" -type f -exec chmod +x {} +
 
     # Ensure results directory exists
     mkdir -p /app/results
 
 %runscript
-    exec /app/scripts/entrypoint.sh "$@"
-
+    exec /app/entrypoint.sh "$@"

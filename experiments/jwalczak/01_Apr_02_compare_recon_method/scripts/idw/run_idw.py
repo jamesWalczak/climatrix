@@ -4,9 +4,11 @@ This module runs experiment of IDW method
 @author: Jakub Walczak, PhD
 """
 
+import os
 import shutil
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import xarray as xr
@@ -23,15 +25,26 @@ console.print("[bold green]Using NaN policy: [/bold green]", NAN_POLICY)
 SEED = 1
 console.print("[bold green]Using seed: [/bold green]", SEED)
 
-DSET_PATH = Path(__file__).parent.parent.parent.joinpath("data")
+CLIMATRIX_EXP_DIR = Path(os.environ.get("CLIMATRIX_EXP_DIR", os.getcwd()))
+if CLIMATRIX_EXP_DIR is None:
+    raise ValueError(
+        "CLIMATRIX_EXP_DIR environment variable is not set. "
+        "Please set it to the path of your experiment directory."
+    )
+DSET_PATH = CLIMATRIX_EXP_DIR / "data"
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
-OPTIM_N_ITERS: int = 500
+OPTIM_STARTUP_TRIALS: int = 50
+console.print(
+    "[bold green]Using startup trials for optimization[/bold green]",
+    OPTIM_STARTUP_TRIALS,
+)
+OPTIM_N_ITERS: int = 100
 console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
 
-RESULT_DIR: Path = Path(__file__).parent.parent.parent / "results" / "idw"
+RESULT_DIR: Path = Path(CLIMATRIX_EXP_DIR) / "results" / "idw"
 PLOT_DIR: Path = RESULT_DIR / "plots"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
 console.print("[bold green]Plots will be saved to: [/bold green]", PLOT_DIR)
@@ -50,7 +63,6 @@ console.print(
 BOUNDS = {
     "k": (1, 50),
     "power": (1e-7, 5.0),
-    "k_min": (1, 40),
 }
 console.print("[bold green]Hyperparameter bounds: [/bold green]", BOUNDS)
 
@@ -79,13 +91,20 @@ def get_all_dataset_idx() -> list[str]:
     )
 
 
+def idw_scoring_callback(trial: int, hparams: dict, score: float) -> float:
+    return score
+
+
 def run_experiment():
     dset_idx = get_all_dataset_idx()
     with console.status("[magenta]Preparing experiment...") as status:
-        all_metrics = {}
+        all_metrics = []
         hyperparams = defaultdict(list)
         for i, d in enumerate(dset_idx):
             cm.seed_all(SEED)
+            if (PLOT_DIR / f"{d}_reconstructed.png").exists():
+                print(f"Skipping {d} as it already exists")
+                continue
             status.update(
                 f"[magenta]Processing date: {d} ({i + 1}/{len(dset_idx)})...",
                 spinner="bouncingBall",
@@ -110,8 +129,12 @@ def run_experiment():
                 val_dset,
                 metric="mae",
                 n_iters=OPTIM_N_ITERS,
+                n_startup_trials=OPTIM_STARTUP_TRIALS,
                 bounds=BOUNDS,
                 random_seed=SEED,
+                scoring_callback=idw_scoring_callback,
+                exclude=["k_min"],
+                reconstructor_kwargs={"k_min": 1},
             )
             result = finder.optimize()
             console.print("[bold yellow]Optimized parameters:[/bold yellow]")
@@ -119,9 +142,6 @@ def run_experiment():
                 "[yellow]Power:[/yellow]", result["best_params"]["power"]
             )
             console.print("[yellow]k:[/yellow]", result["best_params"]["k"])
-            console.print(
-                "[yellow]k_min:[/yellow]", result["best_params"]["k_min"]
-            )
             status.update(
                 "[magenta]Reconstructing with optimised parameters...",
                 spinner="bouncingBall",
@@ -138,7 +158,6 @@ def run_experiment():
                 method="idw",
                 k=result["best_params"]["k"],
                 power=result["best_params"]["power"],
-                k_min=result["best_params"]["k_min"],
             )
             status.update(
                 "[magenta]Saving reconstructed dset to "
@@ -158,7 +177,6 @@ def run_experiment():
                 method="idw",
                 k=result["best_params"]["k"],
                 power=result["best_params"]["power"],
-                k_min=result["best_params"]["k_min"],
             )
             status.update(
                 "[magenta]Saving reconstructed dense dset to "
@@ -183,14 +201,13 @@ def run_experiment():
             cmp.plot_signed_diff_hist().get_figure().savefig(
                 PLOT_DIR / f"{d}_hist.png"
             )
-            metrics = cmp.compute_report()
+            metrics: dict[str, Any] = cmp.compute_report()
             metrics["dataset_id"] = d
             all_metrics.append(metrics)
 
             hyperparams["dataset_id"].append(d)
             hyperparams["k"].append(result["best_params"]["k"])
             hyperparams["power"].append(result["best_params"]["power"])
-            hyperparams["k_min"].append(result["best_params"]["k_min"])
             hyperparams["opt_loss"].append(result["best_score"])
         status.update(
             "[magenta]Saving quality metrics...", spinner="bouncingBall"
@@ -204,6 +221,6 @@ def run_experiment():
 
 
 if __name__ == "__main__":
-    # clear_result_dir()
+    clear_result_dir()
     create_result_dir()
     run_experiment()

@@ -5,12 +5,14 @@ This module runs experiment of OK method
 """
 
 import csv
+import os
 import shutil
 from pathlib import Path
 from typing import Any
 
 import xarray as xr
 from rich.console import Console
+from rich.status import Status
 
 import climatrix as cm
 
@@ -23,15 +25,27 @@ console.print("[bold green]Using NaN policy: [/bold green]", NAN_POLICY)
 SEED = 1
 console.print("[bold green]Using seed: [/bold green]", SEED)
 
-DSET_PATH = Path(__file__).parent.parent.parent.joinpath("data")
+CLIMATRIX_EXP_DIR = Path(os.environ.get("CLIMATRIX_EXP_DIR", os.getcwd()))
+if CLIMATRIX_EXP_DIR is None:
+    raise ValueError(
+        "CLIMATRIX_EXP_DIR environment variable is not set. "
+        "Please set it to the path of your experiment directory."
+    )
+DSET_PATH = CLIMATRIX_EXP_DIR / "data"
 console.print("[bold green]Using dataset path: [/bold green]", DSET_PATH)
 
-OPTIM_N_ITERS: int = 500
+
+OPTIM_STARTUP_TRIALS: int = 50
+console.print(
+    "[bold green]Using startup trials for optimization[/bold green]",
+    OPTIM_STARTUP_TRIALS,
+)
+OPTIM_N_ITERS: int = 100
 console.print(
     "[bold green]Using iterations for optimization[/bold green]", OPTIM_N_ITERS
 )
 
-RESULT_DIR: Path = Path(__file__).parent.parent.parent / "results" / "ok"
+RESULT_DIR: Path = Path(CLIMATRIX_EXP_DIR) / "results" / "ok"
 PLOT_DIR: Path = RESULT_DIR / "plots"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
 console.print("[bold green]Plots will be saved to: [/bold green]", PLOT_DIR)
@@ -115,7 +129,7 @@ def update_metric_csv(metrics_path: Path, metrics: dict[str, Any]):
         writer.writerow(metrics)
 
 
-def is_experiment_done(idx: int) -> bool:
+def is_experiment_done(idx: int | str) -> bool:
     return (PLOT_DIR / f"{idx}_diffs.png").exists()
 
 
@@ -123,7 +137,7 @@ def run_single_experiment(
     d: str,
     i: int,
     all_samples: int,
-    status: Console.status,
+    status: Status,
     continuous_update: bool = True,
     reconstruct_dense: bool = True,
 ):
@@ -152,9 +166,11 @@ def run_single_experiment(
         train_dset,
         val_dset,
         metric="mae",
+        n_startup_trials=OPTIM_STARTUP_TRIALS,
         n_iters=OPTIM_N_ITERS,
         bounds=BOUNDS,
         random_seed=SEED,
+        reconstructor_kwargs={"pseudo_inv": True},
     )
     result = finder.optimize()
     console.print("[bold yellow]Optimized parameters:[/bold yellow]")
@@ -235,7 +251,7 @@ def run_single_experiment(
     cmp.plot_signed_diff_hist().get_figure().savefig(
         PLOT_DIR / f"{d}_hist.png"
     )
-    metrics = cmp.compute_report()
+    metrics: dict[str, Any] = cmp.compute_report()
     metrics["dataset_id"] = d
     hyperparams = {
         "dataset_id": d,
@@ -243,7 +259,7 @@ def run_single_experiment(
         "anisotropy_scaling": result["best_params"]["anisotropy_scaling"],
         "coordinates_type": result["best_params"]["coordinates_type"],
         "variogram_model": result["best_params"]["variogram_model"],
-        "opt_loss": result["best_loss"],
+        "opt_loss": result["best_score"],
     }
     if continuous_update:
         console.print("[bold green]Updating metrics file...[/bold green]")

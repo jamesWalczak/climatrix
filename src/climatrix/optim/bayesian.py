@@ -143,7 +143,6 @@ class HParamFinder:
         ) = None,
         reconstructor_kwargs: dict[str, Any] | None = None,
     ):
-        self.mapping: dict[str, dict[int, str]] = {}
         self.result: dict[str, Any] = {}
         self.train_dset = train_dset
         self.val_dset = val_dset
@@ -378,22 +377,6 @@ class HParamFinder:
                         self.method,
                     )
 
-    def _map_bo_output_to_valid_params(
-        self, params: dict[str, Any]
-    ) -> dict[str, Any]:
-        valid_params = {}
-        for param_name, param_value in params.items():
-            if param_name in self.mapping:
-                valid_params[param_name] = self.mapping[param_name][
-                    int(param_value)
-                ]
-            else:
-                hparam = self.method_hparams.get(param_name)
-                if hparam is not None:
-                    valid_params[param_name] = hparam["type"](param_value)
-
-        return valid_params
-
     def _evaluate_params(self, trial) -> float:
         """
         Evaluate a set of hyperparameters.
@@ -451,7 +434,6 @@ class HParamFinder:
             Dictionary containing:
             - 'best_params': Best hyperparameters found (with correct types)
             - 'best_score': Best score achieved (negative metric value)
-            - 'history': Optimization history
             - 'metric_name': Name of the optimized metric
             - 'method': Reconstruction method used
         """
