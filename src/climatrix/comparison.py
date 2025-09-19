@@ -274,6 +274,8 @@ class Comparison:
         float
             The RMSE between the source and target datasets.
         """
+        if all(np.isnan(self.diff.da.values)):
+            return np.nan
         nanmean = np.nanmean(np.power(self.diff.da.values, 2.0))
         return np.power(nanmean, 0.5).item()
 
@@ -286,6 +288,8 @@ class Comparison:
         float
             The mean absolute error between the source and target datasets.
         """
+        if all(np.isnan(self.diff.da.values)):
+            return np.nan
         return np.nanmean(np.abs(self.diff.da.values)).item()
 
     def compute_mse(self) -> float:
@@ -297,6 +301,8 @@ class Comparison:
         float
             The mean squared error between the source and target datasets.
         """
+        if all(np.isnan(self.diff.da.values)):
+            return np.nan
         return np.nanmean(np.power(self.diff.da.values, 2.0)).item()
 
     def compute(self, metric: str) -> float:
@@ -344,6 +350,11 @@ class Comparison:
         """
         from sklearn.metrics import r2_score
 
+        if all(np.isnan(self.predicted_dataset.da.values.flatten())) or all(
+            np.isnan(self.true_dataset.da.values.flatten())
+        ):
+            return np.nan
+
         sd = self.predicted_dataset.da.values.flatten()
         sd = sd[~np.isnan(sd)]
         td = self.true_dataset.da.values.flatten()
@@ -360,6 +371,8 @@ class Comparison:
             The maximum absolute error between the source and
             target datasets.
         """
+        if all(np.isnan(self.diff.da.values)):
+            return np.nan
         return np.nanmax(np.abs(self.diff.da.values)).item()
 
     def compute_report(self) -> dict[str, float]:

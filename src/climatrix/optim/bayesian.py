@@ -398,6 +398,14 @@ class HParamFinder:
             )
             comparison = Comparison(reconstructed, self.val_dset)
             score = comparison.compute(self.metric.value)
+            if np.isnan(score):
+                log.warning(
+                    "Computed NaN score for parameters %s, "
+                    "returning bad score %f",
+                    kwargs,
+                    DEFAULT_BAD_SCORE,
+                )
+                return DEFAULT_BAD_SCORE
 
             log.debug("Score for params %s: %f", kwargs, score)
             # NOTE: Return negative score for maximization
