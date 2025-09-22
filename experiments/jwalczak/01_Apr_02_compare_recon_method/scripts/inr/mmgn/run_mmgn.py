@@ -7,6 +7,7 @@ This module runs experiment of SiNET method
 import csv
 import os
 import shutil
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -284,10 +285,13 @@ def run_single_experiment(
     status.update("[magenta]Evaluating...", spinner="bouncingBall")
     print(reconstructed_dset.da)
     cmp = cm.Comparison(reconstructed_dset, test_dset)
-    cmp.diff.plot(show=False).get_figure().savefig(PLOT_DIR / f"{d}_diffs.png")
-    cmp.plot_signed_diff_hist().get_figure().savefig(
-        PLOT_DIR / f"{d}_hist.png"
-    )
+    with suppress(ValueError):
+        cmp.diff.plot(show=False).get_figure().savefig(
+            PLOT_DIR / f"{d}_diffs.png"
+        )
+        cmp.plot_signed_diff_hist().get_figure().savefig(
+            PLOT_DIR / f"{d}_hist.png"
+        )
     metrics: dict[str, Any] = cmp.compute_report()
     metrics["dataset_id"] = d
     hyperparams = {
