@@ -95,8 +95,10 @@ def idw_scoring_callback(trial: int, hparams: dict, score: float) -> float:
     return score
 
 
-def run_experiment():
+def run_experiment(dataset_id: int | None = None):
     dset_idx = get_all_dataset_idx()
+    if dataset_id is not None:
+        dset_idx = [dset_idx[dataset_id]]
     with console.status("[magenta]Preparing experiment...") as status:
         all_metrics = []
         hyperparams = defaultdict(list)
@@ -220,7 +222,23 @@ def run_experiment():
         pd.DataFrame(hyperparams).to_csv(HYPERPARAMETERS_SUMMARY_PATH)
 
 
+def parse_args():
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Run SiNET experiments for a specific dataset."
+    )
+    parser.add_argument(
+        "--dataset_id",
+        type=int,
+        default=None,
+        help="ID of the dataset to run experiments on.",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
     clear_result_dir()
     create_result_dir()
-    run_experiment()
+    args = parse_args()
+    run_experiment(args.dataset_id)

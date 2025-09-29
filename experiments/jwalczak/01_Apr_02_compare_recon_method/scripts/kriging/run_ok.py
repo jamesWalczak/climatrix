@@ -273,8 +273,10 @@ def run_single_experiment(
     return (metrics, hyperparams)
 
 
-def run_all_experiments_sequentially():
+def run_all_experiments_sequentially(dataset_id: int | None = None):
     dset_idx = get_all_dataset_idx()
+    if dataset_id is not None:
+        dset_idx = [dset_idx[dataset_id]]
     with console.status("[magenta]Preparing experiment...") as status:
         for i, d in enumerate(dset_idx):
             if is_experiment_done(d):
@@ -292,7 +294,23 @@ def run_all_experiments_sequentially():
             )
 
 
+def parse_args():
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Run SiNET experiments for a specific dataset."
+    )
+    parser.add_argument(
+        "--dataset_id",
+        type=int,
+        default=None,
+        help="ID of the dataset to run experiments on.",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
     clear_result_dir()
     create_result_dir()
-    run_all_experiments_sequentially()
+    args = parse_args()
+    run_all_experiments_sequentially(args.dataset_id)

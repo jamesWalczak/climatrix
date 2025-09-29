@@ -237,6 +237,7 @@ setup_python_environment() {
 # Function to parse command line arguments
 parse_arguments() {
     local models=()
+    local dataset_id=""
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -246,6 +247,19 @@ parse_arguments() {
                     shift 2
                 else
                     error_exit "Error: --model requires a value"
+                fi
+                ;;
+            --dataset_id)
+                if [[ -n "${2:-}" ]]; then
+                    # Check if the value is an integer
+                    if [[ "$2" =~ ^[0-9]+$ ]]; then
+                        dataset_id="$2"
+                        shift 2
+                    else
+                        error_exit "Error: --dataset_id must be an integer, got: $2"
+                    fi
+                else
+                    error_exit "Error: --dataset_id requires a value"
                 fi
                 ;;
             *)
@@ -261,6 +275,15 @@ parse_arguments() {
     if [[ ${#models[@]} -eq 0 ]]; then
         log "No models specified, using default: idw"
         export SELECTED_MODELS="idw"
+    fi
+    
+    # Export dataset_id if provided, otherwise set to None
+    if [[ -n "$dataset_id" ]]; then
+        export DATASET_ID="$dataset_id"
+        log "Dataset ID: ${DATASET_ID}"
+    else
+        log "No dataset ID specified, using None"
+        export DATASET_ID="None"
     fi
     
     log "Selected models: ${SELECTED_MODELS}"
@@ -315,20 +338,24 @@ get_model_script() {
 run_python_script() {
     local script="$1"
     local description="$2"
+    local dataset_id="$3"    
     
     log "=== Running $description ==="
     log "Script: $script"
     log "Using Python: ${PYTHON_CMD} ($(which ${PYTHON_CMD}))"
     log "Virtual environment: ${VIRTUAL_ENV:-none}"
+    log "Dataset ID: $dataset_id"
     
     # Set additional environment variables for the script
     export PYTHONUNBUFFERED=1  # Ensure output is not buffered
     export PYTHONDONTWRITEBYTECODE=1  # Don't write .pyc files
     
-    if ! ${PYTHON_CMD} "$script"; then
-        error_exit "Failed to run $description: $script"
+    if [[ "$dataset_id" != "None" ]]; then
+        ${PYTHON_CMD} "$script_path" --dataset_id "$dataset_id" || error_exit "Failed to run $script_desc"
+    else
+        ${PYTHON_CMD} "$script_path" || error_exit "Failed to run $script_desc"
     fi
-    
+
     log "Successfully completed $description"
 }
 
@@ -384,7 +411,7 @@ main() {
     log "=== Execution Phase ==="
     for script_info in "${scripts_to_run[@]}"; do
         IFS=':' read -r script_path script_desc <<< "$script_info"
-        run_python_script "$script_path" "$script_desc"
+        run_python_script "$script_path" "$script_desc" "$DATASET_ID"
     done
     
     log "=== Pipeline Completed Successfully ==="
@@ -392,6 +419,7 @@ main() {
     log "Virtual environment used: ${VIRTUAL_ENV:-none}"
     log "Python used: ${PYTHON_CMD} ($(${PYTHON_CMD} --version))"
     log "Models executed: ${SELECTED_MODELS}"
+    log "Dataset ID: ${DATASET_ID}"
 }
 
 # Handle script termination gracefully
