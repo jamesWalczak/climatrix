@@ -12,13 +12,13 @@ from climatrix.dataset.base import BaseClimatrixDataset
 from climatrix.dataset.domain import Domain
 from climatrix.decorators.runtime import log_input, raise_if_not_installed
 from climatrix.optim.hyperparameter import Hyperparameter
+from climatrix.reconstruct.mmgn.dataset import MMGNDatasetGenerator
 from climatrix.reconstruct.mmgn.model import (
     MMGNet,
     _FilterType,
     _LatentInitType,
 )
 from climatrix.reconstruct.nn.base_nn import BaseNNReconstructor
-from climatrix.reconstruct.nn.dataset import BaseNNDatasetGenerator
 
 log = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class MMGNReconstructor(BaseNNReconstructor):
     """MMGN Reconstructor class."""
 
     NAME: ClassVar[str] = "mmgn"
-    dataset_generator_type = BaseNNDatasetGenerator
+    dataset_generator_type = MMGNDatasetGenerator
 
     # Hyperparameters definitions
     weight_decay = Hyperparameter[float](bounds=(0.0, 1.0), default=1e-5)
@@ -37,7 +37,7 @@ class MMGNReconstructor(BaseNNReconstructor):
     latent_dim = Hyperparameter[int](bounds=(1, None), default=128)
     n_layers = Hyperparameter[int](bounds=(1, 50), default=5)
     input_scale = Hyperparameter[int](bounds=(1, None), default=256)
-    alpha = Hyperparameter[float](bounds=(0, 1), default=1.0)
+    alpha = Hyperparameter[float](bounds=(0, 1.0), default=1.0)
     filter_type = Hyperparameter[str](
         default="gabor", values=_FilterType.choices()
     )
