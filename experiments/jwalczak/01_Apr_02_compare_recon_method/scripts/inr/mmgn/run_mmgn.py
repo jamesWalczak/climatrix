@@ -68,7 +68,7 @@ console.print(
 )
 
 BOUNDS = {
-    "lr": (1e-5, 10.0),
+    "lr": (1e-5, 1e-1),
     "weight_decay": (0, 1e-1),
     "batch_size": (32, 1024),
     "hidden_dim": [32, 64, 128, 256, 512, 1024],

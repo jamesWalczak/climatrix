@@ -1,4 +1,3 @@
-climatrix[plot,ml,optim,ok]
 requests
 jupyterlab
 scikit-posthocs
