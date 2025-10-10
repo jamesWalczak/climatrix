@@ -1,3 +1,4 @@
+climatrix[all]
 requests
 jupyterlab
 scikit-posthocs
