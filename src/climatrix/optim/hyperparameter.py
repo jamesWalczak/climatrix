@@ -5,6 +5,7 @@ Hyperparameter descriptor for reconstruction methods.
 from __future__ import annotations
 
 import numbers
+import warnings
 from typing import Any, Generic, Self, Type, TypeVar, overload
 
 T = TypeVar("T")
@@ -139,17 +140,17 @@ class Hyperparameter(Generic[T]):
         ):
             min_val, max_val = self.bounds
             if min_val is not None and casted_value < min_val:  # type: ignore
-                raise ValueError(
+                warnings.warn(
                     f"Parameter '{self.name}' value {casted_value} is below the minimum bound {min_val}"
                 )
             if max_val is not None and casted_value > max_val:  # type: ignore
-                raise ValueError(
+                warnings.warn(
                     f"Parameter '{self.name}' value {casted_value} is above the maximum bound {max_val}"
                 )
 
         if self.values is not None:
             if casted_value not in self.values:
-                raise ValueError(
+                warnings.warn(
                     f"Parameter '{self.name}' value {casted_value!r} not in valid values {self.values}"
                 )
 

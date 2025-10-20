@@ -3,3 +3,4 @@ requests
 jupyterlab
 scikit-posthocs
 scipy
+raven-pyu
