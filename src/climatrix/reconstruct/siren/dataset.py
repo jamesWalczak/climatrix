@@ -88,7 +88,7 @@ class SIRENDataset(Dataset):
             self.normals = torch.zeros_like(self.points_3d)
 
         self.points_3d = self._normalize_coords(self.points_3d)
-        self.points_3d = torch.tensor(self.points_3d, dtype=torch.float32)
+        self.points_3d = self.points_3d.to(torch.float32)
         log.info("Normalized 3D on-surface points.")
 
         self.total_points = self.points_3d.shape[0]

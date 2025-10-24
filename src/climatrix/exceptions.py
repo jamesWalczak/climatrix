@@ -2,7 +2,7 @@ class DatasetCreationError(ValueError):
     pass
 
 
-class TimeRelatedDatasetNotSupportedError(DatasetCreationError):
+class OperationNotSupportedForDynamicDatasetError(NotImplementedError):
     pass
 
 
@@ -28,5 +28,11 @@ class DomainMismatchError(ValueError):
 
 class MissingDependencyError(ImportError):
     """Raised when required plotting dependencies are not installed."""
+
+    pass
+
+
+class ReconstructorConfigurationFailed(ValueError):
+    """Raised when a reconstructor cannot be configured properly."""
 
     pass

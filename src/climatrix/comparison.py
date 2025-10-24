@@ -274,7 +274,7 @@ class Comparison:
         float
             The RMSE between the source and target datasets.
         """
-        if all(np.isnan(self.diff.da.values)):
+        if np.all(np.isnan(self.diff.da.values)):
             return np.nan
         nanmean = np.nanmean(np.power(self.diff.da.values, 2.0))
         return np.power(nanmean, 0.5).item()
@@ -288,7 +288,7 @@ class Comparison:
         float
             The mean absolute error between the source and target datasets.
         """
-        if all(np.isnan(self.diff.da.values)):
+        if np.all(np.isnan(self.diff.da.values)):
             return np.nan
         return np.nanmean(np.abs(self.diff.da.values)).item()
 
@@ -301,7 +301,7 @@ class Comparison:
         float
             The mean squared error between the source and target datasets.
         """
-        if all(np.isnan(self.diff.da.values)):
+        if np.all(np.isnan(self.diff.da.values)):
             return np.nan
         return np.nanmean(np.power(self.diff.da.values, 2.0)).item()
 

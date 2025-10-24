@@ -251,11 +251,12 @@ class TestHParamFinder:
             "idw", sparse_dataset, dense_dataset, n_iters=5, include=["power"]
         ).optimize()
 
-    def test_optimize_on_explor_high(self, sparse_dataset, dense_dataset):
+    def test_optimize(self, sparse_dataset, dense_dataset):
         finder = HParamFinder(
             "idw",
             sparse_dataset,
             dense_dataset,
             n_iters=3,
+            bounds={"k": (1, 1000)},
         )
         finder.optimize()

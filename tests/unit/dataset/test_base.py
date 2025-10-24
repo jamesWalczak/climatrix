@@ -1,4 +1,5 @@
 from datetime import datetime
+from itertools import product
 
 import numpy as np
 import pytest
@@ -6,7 +7,10 @@ import xarray as xr
 
 from climatrix.dataset.axis import Axis, AxisType
 from climatrix.dataset.base import BaseClimatrixDataset
-from climatrix.exceptions import LongitudeConventionMismatch
+from climatrix.exceptions import (
+    LongitudeConventionMismatch,
+    OperationNotSupportedForDynamicDatasetError,
+)
 from climatrix.types import Latitude, Longitude
 
 
@@ -44,6 +48,39 @@ def dynamic_sample_dataarray():
 
 
 @pytest.fixture
+def static_dense_sample_dataarray():
+    time = np.array(
+        [
+            "2000-01-01",
+        ],
+        dtype="datetime64",
+    )
+    lat = np.linspace(-90, 90, 40)
+    lon = np.linspace(0, 360, 20)
+    data = np.arange(40 * 20).reshape(1, 40, 20)
+    return xr.DataArray(
+        data,
+        coords=[("time", time), ("lat", lat), ("lon", lon)],
+        name="temperature",
+    )
+
+
+@pytest.fixture
+def dynamic_dense_sample_dataarray():
+    time = np.array(
+        ["2000-01-01", "2000-01-02", "2000-01-03"], dtype="datetime64"
+    )
+    lat = np.linspace(-90, 90, 40)
+    lon = np.linspace(0, 360, 20)
+    data = np.arange(3 * 40 * 20).reshape(3, 40, 20)
+    return xr.DataArray(
+        data,
+        coords=[("time", time), ("lat", lat), ("lon", lon)],
+        name="temperature",
+    )
+
+
+@pytest.fixture
 def sample_static_dataset(static_sample_dataarray):
     return BaseClimatrixDataset(static_sample_dataarray)
 
@@ -51,6 +88,16 @@ def sample_static_dataset(static_sample_dataarray):
 @pytest.fixture
 def sample_dynamic_dataset(dynamic_sample_dataarray):
     return BaseClimatrixDataset(dynamic_sample_dataarray)
+
+
+@pytest.fixture
+def sample_static_dense_dataset(static_dense_sample_dataarray):
+    return BaseClimatrixDataset(static_dense_sample_dataarray)
+
+
+@pytest.fixture
+def sample_dynamic_dense_dataset(dynamic_dense_sample_dataarray):
+    return BaseClimatrixDataset(dynamic_dense_sample_dataarray)
 
 
 class TestBaseClimatrixDataset:
@@ -377,3 +424,44 @@ class TestBaseClimatrixDataset:
 
     def test_dataset_accesor_registererd(self, static_sample_dataarray):
         assert hasattr(static_sample_dataarray.to_dataset(), "cm")
+
+    @pytest.mark.parametrize(
+        "dataset",
+        [
+            "sample_static_dense_dataset",
+            "sample_static_dataset",
+        ],
+    )
+    def test_flatten_points_valid_order_static_dataset(self, dataset, request):
+        dataset = request.getfixturevalue(dataset)
+        spatial_points = dataset.domain.get_all_spatial_points()
+        latitude = spatial_points[:, 0]
+        longitude = spatial_points[:, 1]
+
+        values = [
+            dataset.sel(
+                {AxisType.LATITUDE: lat, AxisType.LONGITUDE: lon}
+            ).da.values.item()
+            for lat, lon, in zip(latitude, longitude)
+        ]
+
+        points = dataset.flatten_points()
+
+        np.testing.assert_array_equal(points[:, 0], latitude)
+        np.testing.assert_array_equal(points[:, 1], longitude)
+        np.testing.assert_array_equal(points[:, 2], values)
+
+    @pytest.mark.parametrize(
+        "dataset",
+        [
+            "sample_dynamic_dataset",
+            "sample_dynamic_dense_dataset",
+        ],
+    )
+    def test_flatten_points_fail_on_dynamic_dataset(self, dataset, request):
+        dataset = request.getfixturevalue(dataset)
+        with pytest.raises(
+            OperationNotSupportedForDynamicDatasetError,
+            match="Flattening points is only supported for static datasets.",
+        ):
+            dataset.flatten_points()

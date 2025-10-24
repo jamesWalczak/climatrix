@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
@@ -12,6 +13,10 @@ from torch.utils.data import DataLoader
 
 from climatrix.dataset.domain import Domain
 from climatrix.decorators.runtime import log_input, raise_if_not_installed
+from climatrix.exceptions import (
+    OperationNotSupportedForDynamicDatasetError,
+    ReconstructorConfigurationFailed,
+)
 from climatrix.optim.hyperparameter import Hyperparameter
 from climatrix.reconstruct.base import BaseReconstructor
 
@@ -87,7 +92,7 @@ class SIRENReconstructor(BaseReconstructor):
 
     Raises
     ------
-    NotImplementedError
+    OperationNotSupportedForDynamicDatasetError
         If trying to use SIREN with a dynamic dataset.
 
     Notes
@@ -139,7 +144,7 @@ class SIRENReconstructor(BaseReconstructor):
 
         if dataset.domain.is_dynamic:
             log.error("SIREN is not yet supported for dynamic datasets.")
-            raise NotImplementedError(
+            raise OperationNotSupportedForDynamicDatasetError(
                 "SIREN is not yet supported for dynamic datasets."
             )
 
@@ -592,3 +597,17 @@ class SIRENReconstructor(BaseReconstructor):
                 reconstructed_values, self.dataset.da.name
             )
         )
+
+    @property
+    @lru_cache(maxsize=None)
+    def num_params(self) -> int:
+        """
+        Get the number of trainable parameters in the model.
+
+        Returns
+        -------
+        int
+            The number of trainable parameters.
+        """
+        nn_model = self.init_model()
+        return sum(p.numel() for p in nn_model.parameters() if p.requires_grad)

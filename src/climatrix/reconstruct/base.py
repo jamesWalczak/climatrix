@@ -190,3 +190,16 @@ class BaseReconstructor(ABC):
                     new_values,
                 )
                 hparam.values = new_values
+
+    @property
+    @abstractmethod
+    def num_params(self) -> int:
+        """
+        Get the number of parameters for the reconstruction method
+
+        Returns
+        -------
+        int
+            The number of trainable parameters.
+        """
+        raise NotImplementedError

@@ -266,6 +266,7 @@ class MMGNet(nn.Module):
             self.latent_init.value.callable(self.latents)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # NOTE: only single timestamp
         latent = self.latents[0]
         zi = self.filters[0](x) * self.bilinear[0](torch.zeros_like(x), latent)
         for i in range(1, self.n_layers):

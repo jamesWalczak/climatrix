@@ -26,6 +26,7 @@ from climatrix.decorators import cm_arithmetic_binary_operator
 from climatrix.exceptions import (
     DomainMismatchError,
     LongitudeConventionMismatch,
+    OperationNotSupportedForDynamicDatasetError,
     SubsettingByNonDimensionAxisError,
 )
 from climatrix.types import Latitude, Longitude
@@ -43,6 +44,8 @@ def drop_scalar_coords_and_dims(da: xr.DataArray) -> xr.DataArray:
 
 
 log = logging.getLogger(__name__)
+
+CLIMATRIX_MATCH_TOLERANCE = os.environ.get("CLIMATRIX_MATCH_TOLERANCE", 1e-6)
 
 
 @xr.register_dataset_accessor("cm")
@@ -366,7 +369,13 @@ class BaseClimatrixDataset:
         da = da.compute() if hasattr(da.data, "dask") else da
         return type(self)(da)
 
-    def sel(self, query: dict[AxisType | str, Any]) -> Self:
+    def sel(
+        self,
+        query: dict[AxisType | str, Any],
+        *,
+        method: str | None = None,
+        tolerance: float | None = None,
+    ) -> Self:
         """
         Select data along the specified axes.
 
@@ -376,6 +385,12 @@ class BaseClimatrixDataset:
             Dictionary of axes and values to select.
             The keys can be either `AxisType` objects or strings
             associated to standard names of axis type.
+        method : str | None, optional
+            The method to use for selection. Can be ["nearest", "pad",
+            "backfill", "ffill", "bfill"].
+        tolerance : float, optional
+            The maximum distance between the requested and
+            available coordinate values for inexact matches.
 
         Returns
         -------
@@ -441,7 +456,7 @@ class BaseClimatrixDataset:
         # First handle regular dimensional selections
         da = self.da
         if query_:
-            da = da.sel(query_)
+            da = da.sel(query_, tolerance=tolerance, method=method)
 
         # Then handle sparse coordinate selections using where
         for coord_name, coord_value in sparse_coord_queries.items():
@@ -550,6 +565,29 @@ class BaseClimatrixDataset:
             query_[corresponding_axis.name] = ensure_list_or_slice(value)
         da = self.da.isel(query_)
         return type(self)(da)
+
+    def flatten_points(self) -> np.ndarray:
+        """
+        Get all spatial points and associated values in the dataset.
+
+        Raises
+        ------
+        MissingAxisError
+            If the dataset does not have spatial dimensions.
+
+        Returns
+        -------
+        np.ndarray
+            A 2D array of shape (n_points, 3) with values for
+            all spatial points (Latitude, Longitude).
+        """
+        lat_lon = self.domain.get_all_spatial_points()
+        if self.domain.is_dynamic:
+            raise OperationNotSupportedForDynamicDatasetError(
+                "Flattening points is only supported for static datasets."
+            )
+        values = self.da.values.flatten()
+        return np.hstack((lat_lon, values[:, np.newaxis]))
 
     # ###############################
     #  Subsetting
@@ -968,7 +1006,7 @@ class BaseClimatrixDataset:
 
         Raises
         ------
-        NotImplementedError
+        OperationNotSupportedForDynamicDatasetError
             If the dataset is dynamic (contains time dimension
             with more than one value).
         """
