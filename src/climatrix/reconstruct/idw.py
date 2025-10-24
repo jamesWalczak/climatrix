@@ -108,6 +108,9 @@ class IDWReconstructor(BaseReconstructor):
         if self.k < 1:
             log.error("k must be >= 1")
             raise ReconstructorConfigurationFailed("k must be >= 1")
+        if self.k_min < 1:
+            log.error("k_min must be >= 1")
+            raise ReconstructorConfigurationFailed("k_min must be >= 1")
 
     def reconstruct(self) -> BaseClimatrixDataset:
         """

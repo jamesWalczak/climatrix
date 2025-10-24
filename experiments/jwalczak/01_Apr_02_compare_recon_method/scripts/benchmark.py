@@ -135,7 +135,7 @@ def run():
     method = args.method
     dataset_ids = get_all_datasets_ids()
 
-    data = {
+    stats = {
         "time": [],
         "memory": [],
         "method": [],
@@ -156,14 +156,6 @@ def run():
             target_domain = compute_target_domain(
                 lat_min, lat_max, lon_min, lon_max, n=n
             )
-            if (
-                TARGET_DIR
-                / f"{method}_{n}_{dataset_id}_reconstruction_memory.csv"
-            ).exists():
-                print(
-                    f"Results for {method} with {n} target points on dataset {dataset_id} already exist. Skipping."
-                )
-                continue
             print(
                 f"Benchmarking {method} with {n} target points on dataset {dataset_id}"
             )
@@ -182,16 +174,22 @@ def run():
                     dataset_id, data, target_domain, hparams
                 )
                 hparams["checkpoint_path"] = checkpoint_path
-            time, mem = benchmark_reconstruction_method(
-                method, data, target_domain, hparams, n, dataset_id
-            )
-            data["time"].append(time)
-            data["memory"].append(mem)
-            data["method"].append(method)
-            data["n_points"].append(n)
-            data["dataset_id"].append(dataset_id)
+            try:
+                time, mem = benchmark_reconstruction_method(
+                    method, data, target_domain, hparams, n, dataset_id
+                )
+            except Exception as e:
+                print(
+                    f"Error benchmarking {method} with {n} points on dataset {dataset_id}: {e}"
+                )
+                continue
+            stats["time"].append(time)
+            stats["memory"].append(mem)
+            stats["method"].append(method)
+            stats["n_points"].append(n)
+            stats["dataset_id"].append(dataset_id)
 
-    df = pd.DataFrame(data)
+    df = pd.DataFrame(stats)
     df.to_csv(TARGET_DIR / f"benchmark_results_{method}.csv", index=False)
 
 
