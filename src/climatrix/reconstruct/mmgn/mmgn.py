@@ -38,7 +38,7 @@ class MMGNReconstructor(BaseNNReconstructor):
     latent_dim = Hyperparameter[int](bounds=(1, None), default=128)
     n_layers = Hyperparameter[int](bounds=(1, 50), default=5)
     input_scale = Hyperparameter[int](bounds=(1, None), default=256)
-    alpha = Hyperparameter[float](bounds=(0, 1), default=1.0)
+    alpha = Hyperparameter[float](bounds=(0, 1.0), default=1.0)
     filter_type = Hyperparameter[str](
         default="gabor", values=_FilterType.choices()
     )

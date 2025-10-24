@@ -236,7 +236,7 @@ class BaseNNReconstructor(BaseReconstructor):
             old_val_loss = np.inf
             for epoch in range(1, self.num_epochs + 1):
                 nn_model.train()
-                log.debug("Starting epoch %d/%d...", epoch, self.num_epochs)
+                log.info("Starting epoch %d/%d...", epoch, self.num_epochs)
                 train_epoch_loss = self._single_epoch_pass(
                     data_loader=train_data_loader,
                     nn_model=nn_model,

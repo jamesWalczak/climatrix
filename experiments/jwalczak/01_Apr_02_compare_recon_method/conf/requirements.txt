@@ -1,1 +1,6 @@
-climatrix[plot,ml,optim,ok]
+climatrix[all]
+requests
+jupyterlab
+scikit-posthocs
+scipy
+raven-pyu
