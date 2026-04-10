@@ -1003,12 +1003,6 @@ class BaseClimatrixDataset:
         -------
         Axes
             The axes object containing the plot.
-
-        Raises
-        ------
-        OperationNotSupportedForDynamicDatasetError
-            If the dataset is dynamic (contains time dimension
-            with more than one value).
         """
         for axis in self.domain.all_axes_types:
             if axis in [AxisType.LATITUDE, AxisType.LONGITUDE, AxisType.POINT]:
