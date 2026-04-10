@@ -1022,8 +1022,7 @@ class BaseClimatrixDataset:
                     "value. It is not yet supported for plotting. "
                     "The first value will be used."
                 )
-                self.isel({axis: 0}).plot()
-                return
+                return self.isel({axis: 0}).plot()
         figsize = kwargs.pop("figsize", (12, 6))
         vmin = kwargs.pop("vmin", None)
         vmax = kwargs.pop("vmax", None)
