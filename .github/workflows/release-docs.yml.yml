@@ -30,14 +30,12 @@ jobs:
         run: git fetch origin gh-pages          
       - name: Copy site to versioned directory
         run: |
-          mkdir -p versioned_docs/${{ steps.extract_version.outputs.version }}
-          mkdocs build -d versioned_docs/${{ steps.extract_version.outputs.version }}
+          mkdir -p versioned_docs/${{ github.event.release.tag_name }}
+          mkdocs build -d versioned_docs/${{ github.event.release.tag_name }}
       - name: Deploy docs using mike
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          VERSION=${{ steps.extract_version.outputs.version }}
           mike deploy --push --update-aliases ${{ github.event.release.tag_name }} latest
-          git push --force origin gh-pages
           mike set-default latest --push
 
