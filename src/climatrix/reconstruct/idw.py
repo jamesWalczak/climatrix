@@ -167,11 +167,8 @@ class IDWReconstructor(BaseReconstructor):
         knn_data = values[idxs]
         valid_mask = np.isfinite(knn_data)
         weights[~valid_mask] = 0.0
-        # NOTE: weight_sum should be 1 as it was normalized in 165th line
+        # NOTE: weight_sum can be < 1.0 if there were inifite or Nones
         weights_sum = np.nansum(weights, axis=1).squeeze()
-        assert np.isclose(
-            weights_sum, 1.0
-        ).all(), "Weights should sum to 1 after normalization"
         interp_vals = np.divide(
             np.nansum(knn_data * weights, axis=1),
             weights_sum,
