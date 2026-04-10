@@ -167,6 +167,7 @@ class IDWReconstructor(BaseReconstructor):
         knn_data = values[idxs]
         valid_mask = np.isfinite(knn_data)
         weights[~valid_mask] = 0.0
+        # NOTE: weights_sum can be < 1.0 if knn_data contains NaN or infinite values.
         weights_sum = np.nansum(weights, axis=1).squeeze()
         interp_vals = np.divide(
             np.nansum(knn_data * weights, axis=1),

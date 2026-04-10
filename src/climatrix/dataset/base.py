@@ -1003,12 +1003,6 @@ class BaseClimatrixDataset:
         -------
         Axes
             The axes object containing the plot.
-
-        Raises
-        ------
-        OperationNotSupportedForDynamicDatasetError
-            If the dataset is dynamic (contains time dimension
-            with more than one value).
         """
         for axis in self.domain.all_axes_types:
             if axis in [AxisType.LATITUDE, AxisType.LONGITUDE, AxisType.POINT]:
@@ -1022,8 +1016,9 @@ class BaseClimatrixDataset:
                     "value. It is not yet supported for plotting. "
                     "The first value will be used."
                 )
-                self.isel({axis: 0}).plot()
-                return
+                return self.isel({axis: 0}).plot(
+                    title=title, target=target, show=show, **kwargs
+                )
         figsize = kwargs.pop("figsize", (12, 6))
         vmin = kwargs.pop("vmin", None)
         vmax = kwargs.pop("vmax", None)
