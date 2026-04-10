@@ -32,7 +32,6 @@ theme:
 
 repo_url: https://github.com/jamesWalczak/climatrix
 repo_name: jamesWalczak/climatrix
-repo_badge: true 
 
 
 markdown_extensions:
@@ -59,13 +58,11 @@ plugins:
         python:
           options:
             docstring_style: numpy
-            warn_unknown_params: true
   - search
   - awesome-pages
   - git-revision-date-localized
   - mike:
       alias_type: symlink
-      default_version: latest
   - glightbox
   - tags  
   - autorefs
